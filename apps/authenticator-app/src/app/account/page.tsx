@@ -17,7 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthenticatorStore } from '@/lib/store';
 import { generateTOTP } from '@/lib/totp';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import BrandIcon from '@/components/BrandIcon';
 import CountdownRing from '@/components/CountdownRing';
 import { toSlugged, useTenantSlug } from '../../lib/slug';

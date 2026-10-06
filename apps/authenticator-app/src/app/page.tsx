@@ -2,14 +2,14 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ShieldCheck, Search, X, LayoutGrid, List, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import { useAuthenticatorStore } from '@/lib/store';
 import { generateTOTP } from '@/lib/totp';
 import TotpCard from '@/components/TotpCard';
 import EmptyState from '@/components/EmptyState';
 import BottomNav from '@/components/BottomNav';
 import NetworkStatus from '@/components/NetworkStatus';
-import { LanguageSwitcher } from '@autional-cn/ui';
+import { LanguageSwitcher } from '@autional/ui';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 import { groupLabel, loadKnownGroups, rememberGroups } from '@/lib/groups';
 

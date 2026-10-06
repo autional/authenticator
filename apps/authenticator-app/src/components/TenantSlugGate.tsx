@@ -11,8 +11,8 @@
  */
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { usePublicTenantSlugs } from '@autional-cn/shared';
-import { LoadingScreen } from '@autional-cn/ui';
+import { usePublicTenantSlugs } from '@autional/shared';
+import { LoadingScreen } from '@autional/ui';
 import { useTenantSlug } from '@/lib/slug';
 
 interface TenantSlugGateProps {

@@ -19,7 +19,7 @@ import {
 	useUploadCloudBackup,
 	useDownloadCloudBackup,
 } from '@/hooks/use-cloud-backup';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import BottomNav from '@/components/BottomNav';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 

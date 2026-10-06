@@ -3,8 +3,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@autional-cn/ui';
-import { GeneratedApi, GeneratedTypes, extractApiError, extractItem } from '@autional-cn/shared';
+import { Button } from '@autional/ui';
+import { GeneratedApi, GeneratedTypes, extractApiError, extractItem } from '@autional/shared';
 
 // Autional QR login approval page（AU-27/28 W2：七态状态机 + 零信任预校验）
 // Entry: /login-approve?token=xxx&nm=123456

@@ -15,7 +15,7 @@ import {
 	getPushChallengeStatus,
 	type PushChallengeStatus,
 } from '../../lib/push';
-import { extractApiErrorMessage } from '@autional-cn/shared';
+import { extractApiErrorMessage } from '@autional/shared';
 
 export default function PushApprovePage() {
 	const { t } = useTranslation();

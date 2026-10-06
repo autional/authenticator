@@ -73,7 +73,7 @@ vi.mock('@/hooks/use-cloud-backup', () => ({
 	}),
 }));
 
-vi.mock('@autional-cn/ui', () => ({
+vi.mock('@autional/ui', () => ({
 	showToast: (...args: unknown[]) => mockShowToast(...args),
 }));
 

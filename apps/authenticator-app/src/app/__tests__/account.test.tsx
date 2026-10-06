@@ -9,8 +9,8 @@ vi.mock('react-router', async () => {
 });
 
 const { mockShowToast } = vi.hoisted(() => ({ mockShowToast: vi.fn() }));
-vi.mock('@autional-cn/ui', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('@autional-cn/ui')>();
+vi.mock('@autional/ui', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@autional/ui')>();
 	return { ...actual, showToast: mockShowToast };
 });
 

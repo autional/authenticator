@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useTheme } from '@autional-cn/ui';
-import { useLogout, extractApiErrorMessage } from '@autional-cn/shared';
+import { useTheme } from '@autional/ui';
+import { useLogout, extractApiErrorMessage } from '@autional/shared';
 import { Info } from 'lucide-react';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import { useAuthenticatorStore, type TotpAccount } from '@/lib/store';
 import BottomNav from '@/components/BottomNav';
 import SettingsHeader from '@/components/settings/SettingsHeader';
@@ -23,7 +23,7 @@ import SettingsBiometric from '@/components/settings/SettingsBiometric';
 import SettingsBackupCodes from '@/components/settings/SettingsBackupCodes';
 import SettingsPinProtection from '@/components/settings/SettingsPinProtection';
 import { registerPushSubscription, unregisterPushSubscription } from '@/lib/push';
-import { getVapidPublicKey, subscribeBrowserPush, unsubscribeBrowserPush } from '@autional-cn/shared';
+import { getVapidPublicKey, subscribeBrowserPush, unsubscribeBrowserPush } from '@autional/shared';
 import {
 	registerBiometric,
 	hasBiometricRegistered,

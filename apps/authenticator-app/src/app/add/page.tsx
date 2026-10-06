@@ -12,12 +12,12 @@ import {
 	Copy,
 	Download,
 } from 'lucide-react';
-import { useAuth, extractApiErrorMessage } from '@autional-cn/shared';
+import { useAuth, extractApiErrorMessage } from '@autional/shared';
 import QrScanner from '@/components/QrScanner';
 import { useAuthenticatorStore } from '@/lib/store';
 import { validateSecret, generateTOTP } from '@/lib/totp';
 import BottomNav from '@/components/BottomNav';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import { enableTotp, verifyTotpSetup } from '@/lib/api';
 import type { MigratedAccount } from '@/lib/otpauth-migration';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
@@ -98,7 +98,7 @@ export default function AddAccountPage() {
 		setBindLoading(true);
 		setBindError(null);
 		try {
-			// enableTotp() 经 @autional-cn/shared interceptor 解包，返回即 data 对象（{secret, qrCode, backupCodes}）
+			// enableTotp() 经 @autional/shared interceptor 解包，返回即 data 对象（{secret, qrCode, backupCodes}）
 			const data = await enableTotp();
 			if (!data?.secret) {
 				setBindError(t('add.bindNoSecret'));

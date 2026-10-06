@@ -1,11 +1,11 @@
 /**
  * Autional Authenticator App — API wrappers
  *
- * Uses @autional-cn/shared GeneratedApi for backend communication.
+ * Uses @autional/shared GeneratedApi for backend communication.
  */
 
-import { apiClient, GeneratedApi, GeneratedTypes } from '@autional-cn/shared';
-import { extractList } from '@autional-cn/shared';
+import { apiClient, GeneratedApi, GeneratedTypes } from '@autional/shared';
+import { extractList } from '@autional/shared';
 
 export async function getCurrentUser(): Promise<GeneratedTypes.UserWithIdentitiesResponse> {
 	return await GeneratedApi.authMe();

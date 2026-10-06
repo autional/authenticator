@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, Smartphone, Trash2, AlertCircle } from 'lucide-react';
-import { LoadingScreen, ErrorState } from '@autional-cn/ui';
+import { LoadingScreen, ErrorState } from '@autional/ui';
 import { getPushSubscriptions, unregisterPushSubscription, type PushSubscriptionItem } from '@/lib/push';
 import BottomNav from '@/components/BottomNav';
 import { toSlugged, useTenantSlug } from '../../lib/slug';

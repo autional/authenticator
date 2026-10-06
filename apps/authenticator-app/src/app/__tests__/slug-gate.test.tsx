@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import { MemoryRouter, Routes, Route, Outlet, useParams } from 'react-router';
-import { TenantSlugProvider } from '@autional-cn/shared';
+import { TenantSlugProvider } from '@autional/shared';
 
 /**
  * AU-30 回归锁：TenantSlugGate —— 未知 slug 子路由禁渲染真实页。
@@ -14,8 +14,8 @@ const mockPublicTenants = vi.hoisted(() => ({
 	},
 }));
 
-vi.mock('@autional-cn/shared', async (importOriginal) => {
-	const actual = await importOriginal<typeof import('@autional-cn/shared')>();
+vi.mock('@autional/shared', async (importOriginal) => {
+	const actual = await importOriginal<typeof import('@autional/shared')>();
 	return {
 		...actual,
 		usePublicTenantSlugs: () => mockPublicTenants.value,

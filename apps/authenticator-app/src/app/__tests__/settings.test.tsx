@@ -13,14 +13,14 @@ vi.mock('react-router', async () => {
 
 const mockToggle = vi.fn();
 let themeState: { theme: string; toggle: () => void } = { theme: 'light', toggle: mockToggle };
-vi.mock('@autional-cn/ui', () => ({
+vi.mock('@autional/ui', () => ({
 	useTheme: () => themeState,
 	LanguageSwitcher: () => <div data-testid="language-switcher" />,
 	showToast: vi.fn(),
 }));
 
 const mockLogout = vi.fn();
-vi.mock('@autional-cn/shared', () => ({
+vi.mock('@autional/shared', () => ({
 	useLogout: () => mockLogout,
 	AUTH_PAGES_URL: '/auth',
 }));

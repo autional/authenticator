@@ -12,8 +12,8 @@ const mockAuthQrLoginScanPost = vi.fn();
 const mockAuthQrLoginConfirmPost = vi.fn();
 const mockAuthQrLoginCancelPost = vi.fn();
 
-vi.mock('@autional-cn/shared', async () => {
-	const actual = await vi.importActual('@autional-cn/shared');
+vi.mock('@autional/shared', async () => {
+	const actual = await vi.importActual('@autional/shared');
 	return {
 		...actual,
 		GeneratedApi: {

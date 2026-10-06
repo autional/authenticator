@@ -4,8 +4,8 @@
  * Uses Web Push API + notification-service for Push MFA.
  */
 
-import { extractItem, extractList, GeneratedTypes } from '@autional-cn/shared';
-export { getVapidPublicKey, subscribeBrowserPush, unsubscribeBrowserPush } from '@autional-cn/shared';
+import { extractItem, extractList, GeneratedTypes } from '@autional/shared';
+export { getVapidPublicKey, subscribeBrowserPush, unsubscribeBrowserPush } from '@autional/shared';
 import {
 	pushSubscriptionsPost,
 	pushSubscriptions,
@@ -14,7 +14,7 @@ import {
 	mfaPushChallengeByChallenge,
 	mfaPushApprovePost,
 	mfaPushDenyPost,
-} from '@autional-cn/shared/generated/api';
+} from '@autional/shared/generated/api';
 
 // ============ Push Subscription ============
 

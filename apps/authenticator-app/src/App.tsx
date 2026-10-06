@@ -10,11 +10,11 @@ import {
 	TenantRootRedirect,
 	useBranding,
 	BrandingInitializer,
-} from '@autional-cn/shared';
+} from '@autional/shared';
 import ErrorBoundary from './components/ErrorBoundary';
 import TenantSlugGate from './components/TenantSlugGate';
 import UnlockGate from './components/UnlockScreen';
-import { ToastProvider, LoadingScreen } from '@autional-cn/ui';
+import { ToastProvider, LoadingScreen } from '@autional/ui';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
 
 import HomePage from './app/page';

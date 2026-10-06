@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
-import { LanguageSwitcher } from '@autional-cn/ui';
+import { LanguageSwitcher } from '@autional/ui';
 
 export default function SettingsHeader({ onBack }: { onBack: () => void }) {
 	const { t } = useTranslation();

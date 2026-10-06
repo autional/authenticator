@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { extractItem, extractList, extractApiErrorMessage, extractApiError } from '@autional-cn/shared';
+import { extractItem, extractList, extractApiErrorMessage, extractApiError } from '@autional/shared';
 import type { TotpAccount } from '@/lib/store';
 import {
 	getCloudBackups,

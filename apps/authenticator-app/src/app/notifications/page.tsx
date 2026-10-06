@@ -12,8 +12,8 @@ import {
 	RefreshCw,
 	ExternalLink,
 } from 'lucide-react';
-import { LoadingScreen, ErrorState } from '@autional-cn/ui';
-import { useAuth, GeneratedApi, toPageParams, fromPageResult } from '@autional-cn/shared';
+import { LoadingScreen, ErrorState } from '@autional/ui';
+import { useAuth, GeneratedApi, toPageParams, fromPageResult } from '@autional/shared';
 import BottomNav from '@/components/BottomNav';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 

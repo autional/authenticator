@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Copy, Check, Trash2, ArrowUp, Pencil } from 'lucide-react';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import { generateTOTP, TOTPResult } from '@/lib/totp';
 import type { TotpAccount } from '@/lib/store';
 import CountdownRing from './CountdownRing';

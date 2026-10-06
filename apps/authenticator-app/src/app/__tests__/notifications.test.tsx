@@ -23,8 +23,8 @@ const {
 	mockNotificationsReadAllPut: vi.fn().mockResolvedValue({}),
 }));
 
-vi.mock('@autional-cn/shared', async () => {
-	const actual = await vi.importActual('@autional-cn/shared');
+vi.mock('@autional/shared', async () => {
+	const actual = await vi.importActual('@autional/shared');
 	return {
 		...actual,
 		useAuthStore: {
@@ -40,7 +40,7 @@ vi.mock('@autional-cn/shared', async () => {
 			permissions: [],
 			tenants: [],
 		}),
-		// NotificationsPage 通过 GeneratedApi（@autional-cn/shared re-export）调用通知 API
+		// NotificationsPage 通过 GeneratedApi（@autional/shared re-export）调用通知 API
 		GeneratedApi: {
 			notifications: mockNotifications,
 			notificationsUnreadCount: mockNotificationsUnreadCount,

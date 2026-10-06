@@ -2,8 +2,8 @@ import { Home, PlusCircle, Settings, Bell } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useState, useEffect } from 'react';
-import { useAuth } from '@autional-cn/shared';
-import { GeneratedApi } from '@autional-cn/shared';
+import { useAuth } from '@autional/shared';
+import { GeneratedApi } from '@autional/shared';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 
 const navItemKeys = ['nav.accounts', 'nav.notifications', 'nav.add', 'nav.settings'] as const;

@@ -1,15 +1,15 @@
 {
-  "name": "@autional-cn/authenticator",
+  "name": "@autional/authenticator",
   "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @autional-cn/authenticator-app dev",
-    "build": "pnpm --filter @autional-cn/authenticator-app... build",
-    "preview": "pnpm --filter @autional-cn/authenticator-app preview",
-    "typecheck": "pnpm --filter @autional-cn/authenticator-app typecheck",
-    "lint": "pnpm --filter @autional-cn/authenticator-app lint",
-    "test": "pnpm --filter @autional-cn/authenticator-app test"
+    "dev": "pnpm --filter @autional/authenticator-app dev",
+    "build": "pnpm --filter @autional/authenticator-app... build",
+    "preview": "pnpm --filter @autional/authenticator-app preview",
+    "typecheck": "pnpm --filter @autional/authenticator-app typecheck",
+    "lint": "pnpm --filter @autional/authenticator-app lint",
+    "test": "pnpm --filter @autional/authenticator-app test"
   },
   "packageManager": "pnpm@11.0.8",
   "engines": {

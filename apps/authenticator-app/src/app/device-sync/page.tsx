@@ -12,10 +12,10 @@ import {
 	Clock,
 	Trash2,
 } from 'lucide-react';
-import { extractApiError } from '@autional-cn/shared';
+import { extractApiError } from '@autional/shared';
 import { useAuthenticatorStore } from '@/lib/store';
 import { useDeviceSyncList, useSyncDevice, useDeleteSyncDevice } from '@/hooks/use-cloud-backup';
-import { showToast } from '@autional-cn/ui';
+import { showToast } from '@autional/ui';
 import BottomNav from '@/components/BottomNav';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 

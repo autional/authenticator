@@ -52,7 +52,7 @@ vi.mock('@/components/BottomNav', () => ({
 	default: () => <div data-testid="bottom-nav">BottomNav</div>,
 }));
 
-vi.mock('@autional-cn/ui', () => ({
+vi.mock('@autional/ui', () => ({
 	showToast: vi.fn(),
 }));
 
@@ -60,8 +60,8 @@ interface MockAuthStoreState {
 	user: { id: string; email: string; username: string } | null;
 }
 let authStoreState: MockAuthStoreState = { user: null };
-vi.mock('@autional-cn/shared', async () => {
-	const actual = await vi.importActual('@autional-cn/shared');
+vi.mock('@autional/shared', async () => {
+	const actual = await vi.importActual('@autional/shared');
 	return {
 		...actual,
 		useAuthStore: (selector?: unknown) =>

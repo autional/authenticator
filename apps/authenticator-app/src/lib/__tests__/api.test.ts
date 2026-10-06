@@ -9,7 +9,7 @@ const { mockGeneratedApi } = vi.hoisted(() => ({
 	},
 }));
 
-vi.mock('@autional-cn/shared', () => ({
+vi.mock('@autional/shared', () => ({
 	GeneratedApi: mockGeneratedApi,
 }));
 

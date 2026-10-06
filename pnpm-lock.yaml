@@ -45,18 +45,18 @@ importers:
 
   apps/authenticator-app:
     dependencies:
-      '@autional-cn/shared':
-        specifier: 0.1.0-rc.24
-        version: 0.1.0-rc.24(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
-      '@autional-cn/tailwind-preset':
-        specifier: 0.1.0-rc.2
-        version: 0.1.0-rc.2(tailwindcss@3.4.19)
-      '@autional-cn/tokens':
-        specifier: 0.1.0-rc.6
-        version: 0.1.0-rc.6
-      '@autional-cn/ui':
-        specifier: 0.1.0-rc.31
-        version: 0.1.0-rc.31(@autional-cn/tokens@0.1.0-rc.6)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
+      '@autional/shared':
+        specifier: 0.1.0-rc.32
+        version: 0.1.0-rc.32(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
+      '@autional/tailwind-preset':
+        specifier: 0.1.0-rc.4
+        version: 0.1.0-rc.4(tailwindcss@3.4.19)
+      '@autional/tokens':
+        specifier: 0.1.0-rc.10
+        version: 0.1.0-rc.10
+      '@autional/ui':
+        specifier: 0.1.0-rc.42
+        version: 0.1.0-rc.42(@autional/tokens@0.1.0-rc.10)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
       '@tanstack/react-query':
         specifier: 5.100.9
         version: 5.100.9(react@19.2.5)
@@ -88,7 +88,7 @@ importers:
         specifier: 5.0.13
         version: 5.0.13(@types/react@19.2.14)(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
     devDependencies:
-      '@autional-cn/tsconfig':
+      '@autional/tsconfig':
         specifier: 0.1.0-rc
         version: 0.1.0-rc
       '@testing-library/jest-dom':
@@ -155,30 +155,27 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@autional-cn/shared@0.1.0-rc.24':
-    resolution: {integrity: sha512-Y948vsjt+od4Ygor2AZAyykax6OESbJ8wNSWg3+3BSpMLDS/M6PFLVF1y1eP+A391b895VK9ycwHXgh8RwGovg==}
+  '@autional/shared@0.1.0-rc.32':
+    resolution: {integrity: sha512-+jO+5inTnhB84H34zTx3ckW8l3YtwOC9MOxUS//0VP2jl2SJimg+vFwW1mMs/2pqjqCngkKEdp1XDJat83Ykcg==}
     peerDependencies:
       react: 19.2.5
       react-dom: 19.2.5
 
-  '@autional-cn/tailwind-preset@0.1.0-rc.2':
-    resolution: {integrity: sha512-tXxZXmFycbQuklCJa+wVDD6zFOXUaRV07QHHjAnFyYHjG6kSTVdx/dweG1pxVQfemBwwga7LQARMdNzKuMFyCg==}
+  '@autional/tailwind-preset@0.1.0-rc.4':
+    resolution: {integrity: sha512-TC56Pu0x/HJ2Z6ZWLB6staLanTNGKjJf8hv7TsYaz6T5iikiR23bgfoDtQ4dz9ltjWdiCbLa9jQpU15N2hALBA==}
     peerDependencies:
       tailwindcss: '>=3.0.0'
 
-  '@autional-cn/tokens@0.1.0-rc.3':
-    resolution: {integrity: sha512-qBkqGOr6P0m31RrehjOAPp105UIZiIR9LJkSEUPoRtVY9ZlH/ghzCGodnam/cUOVgIjnt6fh2RkXF7fsm7gt/g==}
+  '@autional/tokens@0.1.0-rc.10':
+    resolution: {integrity: sha512-icNCmGSpYTCKnlgX9cMCC3E04dEHVWicNkEuE9TjJC3BqZgX9peVN/wYwGiM1e02fwav68gilHUmY2tQOWQwrw==}
 
-  '@autional-cn/tokens@0.1.0-rc.6':
-    resolution: {integrity: sha512-Jb3QMCeJj+Kv/kVVa9A9rZiTH9xud/Rsh2kgXgOswQVmznUsJAsdbkAUN6acJvxIZRm4+r67zJ5M3Q10mvIAhQ==}
+  '@autional/tsconfig@0.1.0-rc':
+    resolution: {integrity: sha512-I/sxYpmIRekrDgRKAjdJhSq4LGcQbKgUwIGwepGj/rn8EDcTFHQu4ZDHbaS6aHyVLj1kEG8TYQnXtF8MMQ0+EA==}
 
-  '@autional-cn/tsconfig@0.1.0-rc':
-    resolution: {integrity: sha512-XY7N2lbMlR1D+OlkxDAw9Pz9CleV4UZ14RfWkkhGTZbbHvxT/d69H8GXWhyc9/634RoEUyVajYmjT75cZbKF4A==}
-
-  '@autional-cn/ui@0.1.0-rc.31':
-    resolution: {integrity: sha512-Dlp3c4RSxlLt13RQknnAvjcfH2U5ybYGFKvUu8l3K6vyVDm6yY9vznjd9Uq+Pv5Is8yUtvFKpAjrtUA6QDU84w==}
+  '@autional/ui@0.1.0-rc.42':
+    resolution: {integrity: sha512-elpHXdNK1T8cnKPEXq9PfHYZ2gOh78H0AjVnIYp0aYgiyW8TMEGBnhJejtjsCr8Dlkdxbq7kiUDL++pCfU9gag==}
     peerDependencies:
-      '@autional-cn/tokens': '>=0.1.0-rc'
+      '@autional/tokens': '>=0.1.0-rc'
       antd: '>=6.0.0'
       dayjs: '>=1.11.0'
       i18next: '>=26.0.0'
@@ -1786,6 +1783,7 @@ packages:
   glob@11.1.0:
     resolution: {integrity: sha512-vuNwKSaKiqm7g0THUBu2x7ckSs3XJLXE+2ssL7/MfTGPLLcrJQ/4Uq1CjPTtO5cCIiRxqvN6Twy1qOwhL0Xjcw==}
     engines: {node: 20 || >=22}
+    deprecated: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
     hasBin: true
 
   glob@13.0.6:
@@ -2981,7 +2979,7 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@autional-cn/shared@0.1.0-rc.24(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))':
+  '@autional/shared@0.1.0-rc.32(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@tanstack/react-query': 5.100.9(react@19.2.5)
@@ -2999,20 +2997,18 @@ snapshots:
       - immer
       - use-sync-external-store
 
-  '@autional-cn/tailwind-preset@0.1.0-rc.2(tailwindcss@3.4.19)':
+  '@autional/tailwind-preset@0.1.0-rc.4(tailwindcss@3.4.19)':
     dependencies:
-      '@autional-cn/tokens': 0.1.0-rc.3
+      '@autional/tokens': 0.1.0-rc.10
       tailwindcss: 3.4.19
 
-  '@autional-cn/tokens@0.1.0-rc.3': {}
+  '@autional/tokens@0.1.0-rc.10': {}
 
-  '@autional-cn/tokens@0.1.0-rc.6': {}
+  '@autional/tsconfig@0.1.0-rc': {}
 
-  '@autional-cn/tsconfig@0.1.0-rc': {}
-
-  '@autional-cn/ui@0.1.0-rc.31(@autional-cn/tokens@0.1.0-rc.6)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)':
+  '@autional/ui@0.1.0-rc.42(@autional/tokens@0.1.0-rc.10)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)':
     dependencies:
-      '@autional-cn/tokens': 0.1.0-rc.6
+      '@autional/tokens': 0.1.0-rc.10
       i18next: 26.0.10(typescript@5.8.3)
       lucide-react: 0.509.0(react@19.2.5)
       react: 19.2.5
@@ -3876,7 +3872,7 @@ snapshots:
   '@rollup/plugin-replace@6.0.3(rollup@4.63.5)':
     dependencies:
       '@rollup/pluginutils': 5.4.0(rollup@4.63.5)
-      magic-string: 0.30.17
+      magic-string: 0.30.21
     optionalDependencies:
       rollup: 4.63.5
 
