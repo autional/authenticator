@@ -5,8 +5,8 @@
   "description": "Autional Authenticator — Web PWA TOTP & Push MFA verifier",
   "type": "module",
   "scripts": {
-    "dev": "vite --port 13108",
-    "build": "tsc && vite build",
+    "dev": "node ../../scripts/gen-env.mjs && vite --port 13108",
+    "build": "node ../../scripts/gen-env.mjs && tsc && vite build",
     "build:harness": "vite build --config vite.harness.config.ts",
     "preview": "vite preview --port 13108",
     "lint": "eslint src/",
