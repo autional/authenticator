@@ -129,7 +129,7 @@ export default function LoginApprovePage() {
 	if (state.status === 'checking') {
 		return (
 			<div className="flex min-h-screen flex-col items-center justify-center gap-3">
-				<div className="h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent" />
+				<div className="h-8 w-8 animate-spin rounded-full border-4 border-info-soft border-t-transparent" />
 				<p className="text-sm text-[var(--color-text-muted)]">{t('loginApprove.checking')}</p>
 			</div>
 		);
@@ -139,7 +139,7 @@ export default function LoginApprovePage() {
 		return (
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<div className="w-full max-w-sm space-y-4 text-center">
-					<div className="text-red-500 text-lg">!</div>
+					<div className="text-danger-text text-lg">!</div>
 					<p className="text-sm text-[var(--color-text-muted)]">{state.message}</p>
 					{/* 终态：无物可重试，仅返回首页出路 */}
 					<Link
@@ -157,7 +157,7 @@ export default function LoginApprovePage() {
 		return (
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<div className="w-full max-w-sm space-y-4 text-center">
-					<div className="text-red-500 text-lg">!</div>
+					<div className="text-danger-text text-lg">!</div>
 					<p className="text-sm text-[var(--color-text-muted)]">{state.message}</p>
 					<div className="flex flex-col gap-3">
 						{/* 真重试：重走 precheck 真请求（替换旧假转态） */}
@@ -180,8 +180,8 @@ export default function LoginApprovePage() {
 		return (
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<div className="w-full max-w-sm space-y-4 text-center">
-					<div className="rounded-full bg-green-100 w-16 h-16 flex items-center justify-center mx-auto">
-						<span className="text-2xl text-green-600"></span>
+					<div className="rounded-full bg-success-soft w-16 h-16 flex items-center justify-center mx-auto">
+						<span className="text-2xl text-success-text"></span>
 					</div>
 					<h1 className="text-xl font-bold">{t('loginApprove.approvedTitle')}</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">{t('loginApprove.approvedDesc')}</p>
@@ -194,8 +194,8 @@ export default function LoginApprovePage() {
 		return (
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<div className="w-full max-w-sm space-y-4 text-center">
-					<div className="rounded-full bg-red-100 w-16 h-16 flex items-center justify-center mx-auto">
-						<span className="text-2xl text-red-600"></span>
+					<div className="rounded-full bg-danger-soft w-16 h-16 flex items-center justify-center mx-auto">
+						<span className="text-2xl text-danger-text"></span>
 					</div>
 					<h1 className="text-xl font-bold">{t('loginApprove.deniedTitle')}</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">{t('loginApprove.deniedDesc')}</p>
@@ -214,12 +214,12 @@ export default function LoginApprovePage() {
 				</div>
 
 				{state.numberMatching && (
-					<div className="rounded-lg border border-blue-200 bg-blue-50 p-6 text-center">
+					<div className="rounded-lg border border-info-soft bg-info-soft p-6 text-center">
 						<p className="text-xs text-[var(--color-text-muted)] mb-2">{t('loginApprove.confirmNumber')}</p>
-						<span className="text-3xl font-bold tracking-widest text-blue-700">
+						<span className="text-3xl font-bold tracking-widest text-info-text">
 							{state.numberMatching}
 						</span>
-						<p className="mt-2 text-xs text-blue-600">{t('loginApprove.numberHint')}</p>
+						<p className="mt-2 text-xs text-info-text">{t('loginApprove.numberHint')}</p>
 					</div>
 				)}
 

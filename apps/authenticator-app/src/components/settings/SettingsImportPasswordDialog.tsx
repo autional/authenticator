@@ -18,7 +18,7 @@ export default function SettingsImportPasswordDialog({
 	if (!open) return null;
 
 	return (
-		<div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+		<div className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 backdrop-blur-sm p-4">
 			<div className="w-full max-w-xs rounded-xl border border-auth-border bg-auth-surface p-5">
 				<h3 className="text-base font-semibold text-[var(--color-text-primary)] mb-1">
 					{t('settings.importPasswordTitle')}

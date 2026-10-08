@@ -85,10 +85,10 @@ export default function PushApprovePage() {
 
 	if (loading) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-auth-bg">
+			<div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-auth-bg">
 				<div className="text-center">
-					<div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600 dark:border-neutral-700 dark:border-t-primary-500" />
-					<p className="text-gray-600 dark:text-[var(--color-text-secondary)]">{t('pushApprove.loading')}</p>
+					<div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-2 border-neutral-200 border-t-blue-600 dark:border-neutral-700 dark:border-t-primary-500" />
+					<p className="text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{t('pushApprove.loading')}</p>
 				</div>
 			</div>
 		);
@@ -96,28 +96,28 @@ export default function PushApprovePage() {
 
 	if (error && !challenge) {
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-auth-bg p-4">
+			<div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-auth-bg p-4">
 				<div className="w-full max-w-sm rounded-xl bg-white dark:bg-auth-surface p-6 shadow-lg">
 					<div className="mb-4 flex justify-center">
-						<AlertTriangle className="h-12 w-12 text-red-500" />
+						<AlertTriangle className="h-12 w-12 text-danger-text" />
 					</div>
-					<h1 className="mb-2 text-center text-xl font-semibold text-gray-900 dark:text-[var(--color-text-primary)]">
+					<h1 className="mb-2 text-center text-xl font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">
 						{t('pushApprove.errorTitle')}
 					</h1>
-					<p className="text-center text-gray-600 dark:text-[var(--color-text-secondary)]">{error}</p>
+					<p className="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">{error}</p>
 					{/* AU-26：两枚真实出路 —— 有 challengeId 才给真重试（不可重试的「重试」不造假） */}
 					<div className="mt-6 flex flex-col gap-3">
 						{challengeId && (
 							<button
 								onClick={() => void loadChallenge()}
-								className="rounded-lg bg-blue-600 dark:bg-primary-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 dark:hover:bg-primary-500"
+								className="rounded-lg bg-info dark:bg-primary-600 px-4 py-3 font-medium text-white transition hover:bg-info dark:hover:bg-primary-500"
 							>
 								{t('common.retry')}
 							</button>
 						)}
 						<Link
 							to="/"
-							className="rounded-lg border border-gray-300 dark:border-auth-border bg-white dark:bg-auth-elevated px-4 py-3 font-medium text-gray-700 dark:text-[var(--color-text-secondary)] transition hover:bg-gray-50 dark:hover:bg-auth-border"
+							className="rounded-lg border border-neutral-200 dark:border-auth-border bg-white dark:bg-auth-elevated px-4 py-3 font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] transition hover:bg-neutral-50 dark:hover:bg-auth-border"
 						>
 							{t('notFound.backHome')}
 						</Link>
@@ -130,19 +130,19 @@ export default function PushApprovePage() {
 	if (result) {
 		const isApproved = result === 'approved';
 		return (
-			<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-auth-bg p-4">
+			<div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-auth-bg p-4">
 				<div className="w-full max-w-sm rounded-xl bg-white dark:bg-auth-surface p-6 shadow-lg">
 					<div className="mb-4 flex justify-center">
 						{isApproved ? (
-							<ShieldCheck className="h-16 w-16 text-green-500" />
+							<ShieldCheck className="h-16 w-16 text-success-text" />
 						) : (
-							<ShieldX className="h-16 w-16 text-red-500" />
+							<ShieldX className="h-16 w-16 text-danger-text" />
 						)}
 					</div>
-					<h1 className="mb-2 text-center text-xl font-semibold text-gray-900 dark:text-[var(--color-text-primary)]">
+					<h1 className="mb-2 text-center text-xl font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">
 						{isApproved ? t('pushApprove.approvedTitle') : t('pushApprove.deniedTitle')}
 					</h1>
-					<p className="text-center text-gray-600 dark:text-[var(--color-text-secondary)]">
+					<p className="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
 						{isApproved ? t('pushApprove.approvedDesc') : t('pushApprove.deniedDesc')}
 					</p>
 				</div>
@@ -151,40 +151,40 @@ export default function PushApprovePage() {
 	}
 
 	return (
-		<div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-auth-bg p-4">
+		<div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-auth-bg p-4">
 			<div className="w-full max-w-sm rounded-xl bg-white dark:bg-auth-surface p-6 shadow-lg">
 				<div className="mb-4 flex justify-center">
-					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-blue-100 dark:bg-primary-500/10">
-						<ShieldCheck className="h-8 w-8 text-blue-600 dark:text-primary-400" />
+					<div className="flex h-16 w-16 items-center justify-center rounded-full bg-info-soft dark:bg-primary-500/10">
+						<ShieldCheck className="h-8 w-8 text-info-text dark:text-primary-400" />
 					</div>
 				</div>
 
-				<h1 className="mb-2 text-center text-xl font-semibold text-gray-900 dark:text-[var(--color-text-primary)]">
+				<h1 className="mb-2 text-center text-xl font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">
 					{t('pushApprove.requestTitle')}
 				</h1>
 
 				{challenge?.loginContext && (
-					<p className="mb-4 text-center text-sm text-gray-600 dark:text-[var(--color-text-secondary)]">
+					<p className="mb-4 text-center text-sm text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
 						{t('pushApprove.contextLabel')} {challenge.loginContext}
 					</p>
 				)}
 
 				{urlNumberMatching && (
-					<div className="mb-6 rounded-lg bg-gray-100 dark:bg-auth-elevated p-4 text-center">
-						<p className="text-xs uppercase tracking-wide text-gray-500 dark:text-[var(--color-text-muted)]">
+					<div className="mb-6 rounded-lg bg-neutral-100 dark:bg-auth-elevated p-4 text-center">
+						<p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)] dark:text-[var(--color-text-muted)]">
 							{t('pushApprove.verificationNumber')}
 						</p>
-						<p className="mt-1 text-4xl font-bold text-gray-900 dark:text-[var(--color-text-primary)]">
+						<p className="mt-1 text-4xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">
 							{urlNumberMatching}
 						</p>
-						<p className="mt-1 text-xs text-gray-500 dark:text-[var(--color-text-muted)]">
+						<p className="mt-1 text-xs text-[var(--color-text-muted)] dark:text-[var(--color-text-muted)]">
 							{t('pushApprove.numberHint')}
 						</p>
 					</div>
 				)}
 
 				{error && (
-					<div className="mb-4 rounded-lg bg-red-50 dark:bg-danger/10 p-3 text-sm text-red-700 dark:text-[var(--color-danger-text)]">
+					<div className="mb-4 rounded-lg bg-danger-soft dark:bg-danger/10 p-3 text-sm text-danger-text dark:text-[var(--color-danger-text)]">
 						{error}
 					</div>
 				)}
@@ -193,14 +193,14 @@ export default function PushApprovePage() {
 					<button
 						onClick={handleDeny}
 						disabled={actionLoading}
-						className="flex-1 rounded-lg border border-gray-300 dark:border-auth-border bg-white dark:bg-auth-elevated px-4 py-3 font-medium text-gray-700 dark:text-[var(--color-text-secondary)] transition hover:bg-gray-50 dark:hover:bg-auth-border disabled:opacity-50"
+						className="flex-1 rounded-lg border border-neutral-200 dark:border-auth-border bg-white dark:bg-auth-elevated px-4 py-3 font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] transition hover:bg-neutral-50 dark:hover:bg-auth-border disabled:opacity-50"
 					>
 						{actionLoading ? '...' : t('pushApprove.deny')}
 					</button>
 					<button
 						onClick={handleApprove}
 						disabled={actionLoading}
-						className="flex-1 rounded-lg bg-blue-600 dark:bg-primary-600 px-4 py-3 font-medium text-white transition hover:bg-blue-700 dark:hover:bg-primary-500 disabled:opacity-50"
+						className="flex-1 rounded-lg bg-info dark:bg-primary-600 px-4 py-3 font-medium text-white transition hover:bg-info dark:hover:bg-primary-500 disabled:opacity-50"
 					>
 						{actionLoading ? '...' : t('pushApprove.approve')}
 					</button>
