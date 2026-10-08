@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { ShieldCheck, Search, X, LayoutGrid, List, Copy } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
-import { showToast } from '@autional/ui';
+import { showToast, Input } from '@autional/ui';
 import { useAuthenticatorStore } from '@/lib/store';
 import { generateTOTP } from '@/lib/totp';
 import TotpCard from '@/components/TotpCard';
@@ -150,25 +150,28 @@ export default function HomePage() {
 
 				{/* 行 B：搜索 + 计数 + 多选 + 视图切换 */}
 				<div className="flex items-center gap-2">
-					<div className="relative min-w-0 flex-1">
-						<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
-						<input
+					{/* 图标与清除按钮都交给设计系统的 Input 槽（第 61 轮）—— 原来这里是
+					    absolute 图标 + 算出来的 pl-9，加上 absolute 的清除按钮 + pr-8。 */}
+					<div className="min-w-0 flex-1">
+						<Input
 							type="text"
+							size="sm"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							placeholder={t('home.searchPlaceholder')}
 							aria-label={t('home.searchPlaceholder')}
-							className="w-full rounded-xl border border-auth-border bg-auth-elevated py-2 pl-9 pr-8 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+							prefix={<Search size={16} />}
+							suffix={searchQuery ? (
+								<button
+									type="button"
+									onClick={() => setSearchQuery('')}
+									className="rounded-md p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+									aria-label={t('home.clearFilter')}
+								>
+									<X size={16} />
+								</button>
+							) : undefined}
 						/>
-						{searchQuery && (
-							<button
-								onClick={() => setSearchQuery('')}
-								className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
-								aria-label={t('home.clearFilter')}
-							>
-								<X className="h-4 w-4" />
-							</button>
-						)}
 					</div>
 					<span className="shrink-0 whitespace-nowrap rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-medium text-primary-600 dark:text-primary-400">
 						{t('home.accountsCount', { n: accounts.length })}
@@ -278,7 +281,7 @@ export default function HomePage() {
 			{batchMode && selectedIds.size > 0 && (
 				<button
 					onClick={handleBatchCopy}
-					className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full bg-primary-600 px-5 py-3 text-sm font-medium text-white shadow-lg shadow-primary-600/25 transition-transform active:scale-95"
+					className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 flex items-center gap-2 rounded-full bg-primary-600 px-5 py-3 text-sm font-medium text-white shadow-brand shadow-primary-600/25 transition-transform active:scale-95"
 				>
 					<Copy className="h-4 w-4" />
 					{t('home.batchCopy', { n: selectedIds.size })}

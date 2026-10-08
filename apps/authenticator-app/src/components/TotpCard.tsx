@@ -118,7 +118,7 @@ export default function TotpCard({
 					<div className="flex items-center gap-2 min-w-0">
 						{batchMode && (
 							<div
-								className={`mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded border-2 transition-colors ${
+								className={`mr-1 flex h-5 w-5 shrink-0 items-center justify-center rounded-xs border-2 transition-colors ${
 									isSelected ? 'border-primary-500 bg-primary-500 text-white' : 'border-neutral-600'
 								}`}
 							>

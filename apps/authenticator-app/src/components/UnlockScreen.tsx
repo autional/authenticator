@@ -52,7 +52,7 @@ function PinInputScreen() {
 
 	return (
 		<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6">
-			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-3xl bg-primary-500/10">
+			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-primary-500/10">
 				<ShieldCheck className="h-10 w-10 text-primary-500" />
 			</div>
 			<h1 className="mb-2 text-xl font-bold text-[var(--color-text-primary)]">{t('app.title')}</h1>

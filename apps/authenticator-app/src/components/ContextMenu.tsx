@@ -84,7 +84,7 @@ export default function ContextMenu({ items, children, disabled }: ContextMenuPr
 			{open && (
 				<div
 					ref={menuRef}
-					className="fixed z-[100] min-w-[140px] rounded-xl border border-auth-border bg-auth-surface shadow-lg py-1"
+					className="fixed z-[100] min-w-[140px] rounded-xl border border-auth-border bg-auth-surface shadow-brand py-1"
 					style={{ left: adjustedPos.x, top: adjustedPos.y }}
 				>
 					{items.map((item, i) => (

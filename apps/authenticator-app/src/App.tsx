@@ -76,7 +76,14 @@ export default function App() {
 					</a>
 					<PwaInstallPrompt />
 					<div className="mx-auto flex h-screen max-w-md flex-col bg-auth-bg">
-						<main id="main-content" className="flex-1 overflow-y-auto pb-28">
+						{/* 底部让位：值 = 底栏高度令牌 + 一段常规间距（112px = 64 + 48）。
+						    原先写的是一个魔法数字 pb-28 —— 而它本来就是两个令牌的和，只是没写出来。
+						    写成算式之后：值逐字相同（零视觉变化），但从此可算、可调、可查；
+						    底栏高度改一次，这里跟着改，不会再有人去数像素。 */}
+						<main
+							id="main-content"
+							className="flex-1 overflow-y-auto pb-[calc(var(--layout-bottom-nav-height)+var(--space-12))]"
+						>
 							<Routes>
 								<Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 

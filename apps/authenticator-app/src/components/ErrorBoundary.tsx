@@ -25,7 +25,7 @@ export default function ErrorBoundary({ children }: Props) {
 			className="flex h-screen flex-col items-center justify-center px-6 text-center"
 			role="alert"
 		>
-			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-danger-soft/20">
+			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-md bg-danger-soft/20">
 				<AlertTriangle className="h-8 w-8 text-danger-text" />
 			</div>
 			<h2 className="mb-2 text-lg font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">

@@ -44,8 +44,8 @@ export default function PwaInstallPrompt() {
 	if (!show) return null;
 
 	return (
-		<div className="fixed bottom-[72px] left-4 right-4 z-50 mx-auto max-w-sm">
-			<div className="flex items-center gap-3 rounded-xl bg-primary-600 px-4 py-3 shadow-lg">
+		<div className="fixed bottom-[calc(var(--layout-bottom-nav-height)+var(--space-2))] left-4 right-4 z-50 mx-auto max-w-sm">
+			<div className="flex items-center gap-3 rounded-xl bg-primary-600 px-4 py-3 shadow-card">
 				<Download className="h-5 w-5 shrink-0 text-white" />
 				<div className="flex-1">
 					<p className="text-sm font-medium text-white">{t('pwa.installToDesktop')}</p>
@@ -59,7 +59,7 @@ export default function PwaInstallPrompt() {
 				</button>
 				<button
 					onClick={handleDismiss}
-					className="rounded p-1 text-primary-200 hover:bg-primary-500 hover:text-white transition-colors"
+					className="rounded-xs p-1 text-primary-200 hover:bg-primary-500 hover:text-white transition-colors"
 					aria-label={t('pwa.dismissAria')}
 				>
 					<X className="h-4 w-4" />

@@ -64,7 +64,7 @@ export default function BottomNav() {
 								isActive ? 'text-primary-500 dark:text-primary-400' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
 							}`}
 						>
-							<Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
+							<Icon className="h-5 w-5" strokeWidth={2} />
 							{item.badge != null && item.badge > 0 && (
 								<span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger-soft px-1 text-[9px] font-bold text-[var(--color-danger-text)]">
 									{item.badge > 99 ? '99+' : item.badge}

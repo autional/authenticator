@@ -10,7 +10,7 @@ export default function EmptyState() {
 
 	return (
 		<div className="flex flex-col items-center justify-center px-6 py-16 text-center">
-			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-primary-500/10">
+			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-md bg-primary-500/10">
 				<ShieldPlus className="h-8 w-8 text-primary-500" />
 			</div>
 			<h2 className="mb-1 text-lg font-semibold text-[var(--color-text-primary)]">{t('home.noAccounts')}</h2>
