@@ -1,4 +1,27 @@
 import { defineConfig, type Plugin } from 'vite';
+import { CDN_PIN, readBuildEnv } from '../../scripts/env.mjs';
+
+const buildEnv = readBuildEnv();
+const CDN_ASSET_BASE = buildEnv.cdnHost + '/ui/' + CDN_PIN;
+
+/**
+ * 区域占位符替换 —— 与生产 vite.config.ts 的 regionPlugin **同一套值、同一处来源**
+ * （scripts/env.mjs 的区域读单点 + CDN_PIN 常量）。
+ *
+ * 为什么 harness 也要走这一步（2026-10-08 拍板）：它原先直接写死
+ * https://cdn.autional.cn/ui/v0.1.0-rc.<pin>/tokens.css —— ① 在 .com 上跑取景框会拿 .cn 的资产；
+ * ② pin 升级后不会跟着走（静默过期）；③ 它逼得「源码禁区域字面量」的回归锁把 src/harness/ 列成例外。
+ * harness 是本地 dev 壳、不入生产构建，但**没有理由**因此持有区域真相的第二份副本。
+ */
+function harnessEnvHtml(): Plugin {
+  return {
+    name: 'harness-env-html',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html: string) => html.replace(/\{\{CDN_ASSET_BASE\}\}/g, CDN_ASSET_BASE),
+    },
+  };
+}
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
@@ -33,7 +56,7 @@ function flattenHarnessHtml(outDir: string): Plugin {
  */
 export default defineConfig({
 	root: __dirname,
-	plugins: [react(), flattenHarnessHtml(OUT_DIR)],
+	plugins: [harnessEnvHtml(), react(), flattenHarnessHtml(OUT_DIR)],
 	resolve: {
 		extensions: ['.mjs', '.tsx', '.ts', '.jsx', '.js', '.json'],
 		alias: {
