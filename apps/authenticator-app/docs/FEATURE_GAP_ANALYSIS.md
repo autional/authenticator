@@ -1,6 +1,6 @@
 # Autional Authenticator App — 功能缺口分析
 
-> 基于 service-flow-test-writer + authms-api-e2e-flow Skill 方法论
+> 基于 service-flow-test-writer + api-e2e-flow Skill 方法论
 > 分析日期: 2026-05-20
 > 最后更新: 2026-06-11 (Round 3 QA — 全栈测试完成)
 
