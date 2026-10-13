@@ -226,40 +226,6 @@ describe('PIN protection', () => {
 	});
 });
 
-describe('migrateFromV1', () => {
-	it('migrates v1 plaintext accounts to v2 encrypted', async () => {
-		const v1Data = JSON.stringify({
-			state: {
-				accounts: [makeAccount({ id: 'v1_acc_1', name: 'Legacy Service' })],
-			},
-		});
-
-		Object.defineProperty(globalThis, 'localStorage', {
-			value: {
-				getItem: (key: string) =>
-					key === 'authms-authenticator-storage' ? v1Data : (mockLocalStorage[key] ?? null),
-				setItem: mockStorageSetItem,
-				removeItem: mockStorageRemoveItem,
-			},
-			writable: true,
-		});
-
-		const { migrateFromV1, loadWithoutPin } = await import('../storage');
-
-		await migrateFromV1();
-
-		// V1 key should be removed
-		expect(mockLocalStorage['authms-authenticator-storage']).toBeUndefined();
-
-		// V2 key should exist
-		expect(mockLocalStorage['autional-authenticator-v2']).toBeTruthy();
-
-		const loaded = await loadWithoutPin();
-		expect(loaded).toHaveLength(1);
-		expect(loaded[0].name).toBe('Legacy Service');
-	});
-});
-
 describe('corrupted storage', () => {
 	it('handles corrupted JSON gracefully', async () => {
 		mockLocalStorage['autional-authenticator-v2'] = 'not-valid-json{{{';

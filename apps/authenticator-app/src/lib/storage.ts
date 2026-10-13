@@ -284,39 +284,6 @@ export async function setPinProtection(pin: string | null): Promise<void> {
 	writePayload(payload);
 }
 
-/**
- * Migrate from v1 (old zustand-persist plaintext) to v2 encrypted.
- */
-export async function migrateFromV1(): Promise<void> {
-	// 'authms-authenticator-storage' 为 v1 历史数据键名（非品牌名，改名将使迁移永久失效）
-	const v1Raw = localStorage.getItem('authms-authenticator-storage');
-	if (!v1Raw) return;
-
-	try {
-		const v1 = JSON.parse(v1Raw);
-		const accounts: TotpAccount[] = v1.state?.accounts ?? [];
-
-		// Initialize v2 with accounts
-		const deviceKey = await generateDeviceKey();
-		cachedDeviceKey = deviceKey;
-		const salt = crypto.getRandomValues(new Uint8Array(16));
-		const exported = await exportDeviceKey(deviceKey);
-		const data = await encryptAccounts(accounts, deviceKey);
-
-		const payload: StoragePayload = {
-			version: 2,
-			salt: arrayBufferToBase64(salt),
-			deviceKey: arrayBufferToBase64(exported),
-			deviceKeyWrap: null,
-			data,
-		};
-		writePayload(payload);
-		localStorage.removeItem('authms-authenticator-storage');
-	} catch {
-		// ignore migration errors
-	}
-}
-
 interface PinAttemptState {
 	attempts: number;
 	lockedUntil: number | null;

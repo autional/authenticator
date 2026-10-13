@@ -9,7 +9,7 @@ import { ThemeProvider } from '@autional/ui';
 import App from './App';
 import './non-tenant-segments';
 import './app/globals.css';
-import { initializeStorage, migrateFromV1 } from './lib/storage';
+import { initializeStorage } from './lib/storage';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const queryClient = new QueryClient({
@@ -32,7 +32,6 @@ async function bootstrap() {
 					i18n.t('bootstrap.useHttps'),
 			);
 		}
-		await migrateFromV1();
 		await initializeStorage();
 	} catch (err) {
 		const rootEl = document.getElementById('root');
