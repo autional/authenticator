@@ -203,7 +203,7 @@ function appRoutes(t: (key: string) => string) {
 					</Suspense>
 				}
 			/>
-			{/* 旧路径（AuthMS 遗留 /xxx/api/v1/xxx 形态）重定向，勿删：书签与推送深链可能指向它们。
+			{/* 旧路径（旧版遗留 /xxx/api/v1/xxx 形态）重定向，勿删：书签与推送深链可能指向它们。
 			    首段名单需同步 non-tenant-segments.ts（ui 仓 scripts/check-non-tenant.mjs 有闸门比对）。 */}
 			<Route path="notification/api/v1/push-approve" element={<LegacyRedirect to="/push-approve" />} />
 			<Route path="notification/api/v1/notifications" element={<LegacyRedirect to="/notifications" />} />
