@@ -79,6 +79,8 @@ const BRAND_MAP: Record<string, BrandInfo> = {
 	lark: { name: 'Lark', initial: 'L', color: '#ffffff', bgColor: '#00d6b9' },
 
 	// Security / Auth
+	autional: { name: 'Autional', initial: 'A', color: '#ffffff', bgColor: '#6366f1' },
+	// authms = 旧版发行方标识，保留映射以兼容历史 token
 	authms: { name: 'Autional', initial: 'A', color: '#ffffff', bgColor: '#6366f1' },
 	auth0: { name: 'Auth0', initial: 'A', color: '#ffffff', bgColor: '#eb5424' },
 	okta: { name: 'Okta', initial: 'O', color: '#ffffff', bgColor: '#007dc1' },
