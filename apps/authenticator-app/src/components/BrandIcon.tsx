@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { getBrandInfo } from '@/lib/icons';
 
 interface BrandIconProps {
@@ -8,7 +9,9 @@ interface BrandIconProps {
 }
 
 export default function BrandIcon({ name, username, size = 32, className = '' }: BrandIconProps) {
+	const { t } = useTranslation();
 	const brand = getBrandInfo(name, username);
+	const title = brand.nameKey ? t(brand.nameKey, { defaultValue: brand.name }) : brand.name;
 
 	return (
 		<div
@@ -21,7 +24,7 @@ export default function BrandIcon({ name, username, size = 32, className = '' }:
 				fontSize: size * 0.45,
 				lineHeight: 1,
 			}}
-			title={brand.name}
+			title={title}
 		>
 			{brand.initial}
 		</div>

@@ -1,5 +1,7 @@
 import type { TFunction } from 'i18next';
 
+// i18n-exempt-file: 本文件的中文字面量 = 分组存储契约值（跨设备/跨语言恒定，写入数据后不随显示语言变化）。
+// 显示层一律经 groupLabel() + group.* 键翻译（消费点：account/page.tsx、app/page.tsx）。
 export const PRESET_GROUPS = ['工作', '个人', '金融', '社交', '开发', '其他'];
 
 const PRESET_GROUP_KEYS: Record<string, string> = {

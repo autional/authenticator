@@ -7,6 +7,7 @@
 
 export interface BrandInfo {
 	name: string;
+	nameKey?: string; // 显示名 i18n 键（brand.*）；缺省时直接用 name，name 兼作 t() 回退值
 	initial: string;
 	color: string;
 	bgColor: string;
@@ -61,21 +62,21 @@ const BRAND_MAP: Record<string, BrandInfo> = {
 	// Finance
 	paypal: { name: 'PayPal', initial: 'P', color: '#ffffff', bgColor: '#003087' },
 	stripe: { name: 'Stripe', initial: 'S', color: '#ffffff', bgColor: '#635bff' },
-	alipay: { name: '支付宝', initial: '支', color: '#ffffff', bgColor: '#1677ff' },
-	wechatpay: { name: '微信支付', initial: '微', color: '#ffffff', bgColor: '#07c160' },
+	alipay: { name: '支付宝', nameKey: 'brand.alipay', initial: '支', color: '#ffffff', bgColor: '#1677ff' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	wechatpay: { name: '微信支付', nameKey: 'brand.wechatpay', initial: '微', color: '#ffffff', bgColor: '#07c160' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
 	binance: { name: 'Binance', initial: 'B', color: '#ffffff', bgColor: '#f0b90b' },
 	coinbase: { name: 'Coinbase', initial: 'C', color: '#ffffff', bgColor: '#0052ff' },
 
 	// Chinese services
-	wechat: { name: '微信', initial: '微', color: '#ffffff', bgColor: '#07c160' },
+	wechat: { name: '微信', nameKey: 'brand.wechat', initial: '微', color: '#ffffff', bgColor: '#07c160' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
 	qq: { name: 'QQ', initial: 'Q', color: '#ffffff', bgColor: '#12b7f5' },
-	weibo: { name: '微博', initial: '微', color: '#ffffff', bgColor: '#e6162d' },
-	baidu: { name: '百度', initial: '百', color: '#ffffff', bgColor: '#2932e1' },
-	taobao: { name: '淘宝', initial: '淘', color: '#ffffff', bgColor: '#ff5000' },
-	tmall: { name: '天猫', initial: '猫', color: '#ffffff', bgColor: '#ff0036' },
-	jd: { name: '京东', initial: '京', color: '#ffffff', bgColor: '#e4393c' },
-	dingtalk: { name: '钉钉', initial: '钉', color: '#ffffff', bgColor: '#3370ff' },
-	feishu: { name: '飞书', initial: '飞', color: '#ffffff', bgColor: '#3370ff' },
+	weibo: { name: '微博', nameKey: 'brand.weibo', initial: '微', color: '#ffffff', bgColor: '#e6162d' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	baidu: { name: '百度', nameKey: 'brand.baidu', initial: '百', color: '#ffffff', bgColor: '#2932e1' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	taobao: { name: '淘宝', nameKey: 'brand.taobao', initial: '淘', color: '#ffffff', bgColor: '#ff5000' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	tmall: { name: '天猫', nameKey: 'brand.tmall', initial: '猫', color: '#ffffff', bgColor: '#ff0036' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	jd: { name: '京东', nameKey: 'brand.jd', initial: '京', color: '#ffffff', bgColor: '#e4393c' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	dingtalk: { name: '钉钉', nameKey: 'brand.dingtalk', initial: '钉', color: '#ffffff', bgColor: '#3370ff' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
+	feishu: { name: '飞书', nameKey: 'brand.feishu', initial: '飞', color: '#ffffff', bgColor: '#3370ff' }, // i18n-exempt: 品牌徽标字形与中文回退名（显示名经 brand.* 键翻译）
 	lark: { name: 'Lark', initial: 'L', color: '#ffffff', bgColor: '#00d6b9' },
 
 	// Security / Auth
