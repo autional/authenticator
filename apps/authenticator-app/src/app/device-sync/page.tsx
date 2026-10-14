@@ -46,7 +46,7 @@ export default function DeviceSyncPage() {
 		} catch (err: unknown) {
 			// AU-21：直读本次错误（修 stale-read —— 首败时旧闭包 syncError 恒 null）
 			const { message } = extractApiError(err, t('deviceSync.syncFailed'));
-			// 契约驱动：61040100（云备份上限已达）= ui_observation='action_required'（可行动、非故障）
+			// 契约驱动：61040100（**设备同步名额已达上限，5 台**；ErrCodeDeviceSyncLimitReached）= ui_observation='action_required'
 			showToast(semanticsOfError(err)?.uiObservation === 'action_required' ? t('deviceSync.limitReachedHint') : message, 'error');
 		}
 	};
