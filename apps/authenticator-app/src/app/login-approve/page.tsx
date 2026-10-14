@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@autional/ui';
 import { GeneratedApi, GeneratedTypes, extractApiError, extractItem } from '@autional/shared';
+import { semanticsOfError } from '@/lib/error-semantics';
 
 // Autional QR login approval page（AU-27/28 W2：七态状态机 + 零信任预校验）
 // Entry: /login-approve?token=xxx&nm=123456
@@ -64,13 +65,14 @@ export default function LoginApprovePage() {
 					setState({ status: 'error', message: t('loginApprove.operationFailed') });
 			}
 		} catch (err: unknown) {
-			const { code, message } = extractApiError(err, t('loginApprove.operationFailed'));
+			const { message } = extractApiError(err, t('loginApprove.operationFailed'));
 			const http = (err as { response?: { status?: number } })?.response?.status;
-			if (String(code) === '61000901') {
-				// 404 not found
+			// 契约驱动：61000901 → 'not_found_page'；61000902（HTTP 410）→ 'expired'
+			// （此前两者在契约里都是 not_found_page，页面只能靠码字面量区分 —— 本轮契约精化后才可分）
+			const ui = semanticsOfError(err)?.uiObservation;
+			if (ui === 'not_found_page') {
 				setState({ status: 'invalid', message: t('loginApprove.notFoundDesc') });
-			} else if (String(code) === '61000902') {
-				// 410 expired
+			} else if (ui === 'expired') {
 				setState({ status: 'invalid', message: t('loginApprove.expiredDesc') });
 			} else if (http === 429) {
 				setState({ status: 'error', message: t('loginApprove.rateLimited') });
@@ -96,8 +98,9 @@ export default function LoginApprovePage() {
 			await GeneratedApi.authQrLoginConfirmPost({ token });
 			setState({ status: 'approved' });
 		} catch (err: unknown) {
-			const { code, message } = extractApiError(err, t('loginApprove.approveFailed'));
-			if (String(code) === '61000903') {
+			const { message } = extractApiError(err, t('loginApprove.approveFailed'));
+			// 契约驱动：61000903 = ui_observation='conflict'
+			if (semanticsOfError(err)?.uiObservation === 'conflict') {
 				// 已被处理/并发 → 以服务端真实状态收敛（非假态）
 				await precheck();
 			} else {
@@ -115,8 +118,8 @@ export default function LoginApprovePage() {
 			await GeneratedApi.authQrLoginCancelPost({ token });
 			setState({ status: 'denied' });
 		} catch (err: unknown) {
-			const { code, message } = extractApiError(err, t('loginApprove.operationFailed'));
-			if (String(code) === '61000903') {
+			const { message } = extractApiError(err, t('loginApprove.operationFailed'));
+			if (semanticsOfError(err)?.uiObservation === 'conflict') {
 				await precheck();
 			} else {
 				setState({ status: 'error', message });

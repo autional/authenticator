@@ -18,6 +18,7 @@ import { useDeviceSyncList, useSyncDevice, useDeleteSyncDevice } from '@/hooks/u
 import { showToast } from '@autional/ui';
 import BottomNav from '@/components/BottomNav';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
+import { semanticsOfError } from '@/lib/error-semantics';
 
 export default function DeviceSyncPage() {
 	const { t, i18n } = useTranslation();
@@ -44,8 +45,9 @@ export default function DeviceSyncPage() {
 			setTimeout(() => setSyncSuccess(false), 3000);
 		} catch (err: unknown) {
 			// AU-21：直读本次错误（修 stale-read —— 首败时旧闭包 syncError 恒 null）
-			const { code, message } = extractApiError(err, t('deviceSync.syncFailed'));
-			showToast(String(code) === '61040100' ? t('deviceSync.limitReachedHint') : message, 'error');
+			const { message } = extractApiError(err, t('deviceSync.syncFailed'));
+			// 契约驱动：61040100（云备份上限已达）= ui_observation='action_required'（可行动、非故障）
+			showToast(semanticsOfError(err)?.uiObservation === 'action_required' ? t('deviceSync.limitReachedHint') : message, 'error');
 		}
 	};
 

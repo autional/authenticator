@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { extractItem, extractList, extractApiErrorMessage, extractApiError } from '@autional/shared';
 import type { TotpAccount } from '@/lib/store';
+import { semanticsOfError } from '@/lib/error-semantics';
 import {
 	getCloudBackups,
 	uploadCloudBackup,
@@ -250,9 +251,8 @@ export function useSyncDevice() {
 					totpDevices: plainJson,
 				});
 			} catch (err: unknown) {
-				// AU-21：上限错误（HTTP 400 / code 61040100）→ 可行动提示（去重/解绑自恢复）
-				const { code } = extractApiError(err, t('deviceSync.syncFailed'));
-				if (String(code) === '61040100') {
+				// AU-21：上限错误 → 可行动提示（去重/解绑自恢复）。契约驱动：ui_observation='action_required'
+				if (semanticsOfError(err)?.uiObservation === 'action_required') {
 					setError(t('deviceSync.limitReachedHint'));
 				} else {
 					setError(extractApiErrorMessage(err, t('deviceSync.syncFailed')));
