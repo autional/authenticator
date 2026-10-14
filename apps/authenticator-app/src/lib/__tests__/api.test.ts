@@ -9,7 +9,8 @@ const { mockGeneratedApi } = vi.hoisted(() => ({
 	},
 }));
 
-vi.mock('@autional/shared', () => ({
+vi.mock('@autional/shared', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@autional/shared')>()),
 	GeneratedApi: mockGeneratedApi,
 }));
 

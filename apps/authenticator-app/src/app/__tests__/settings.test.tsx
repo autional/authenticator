@@ -20,7 +20,8 @@ vi.mock('@autional/ui', () => ({
 }));
 
 const mockLogout = vi.fn();
-vi.mock('@autional/shared', () => ({
+vi.mock('@autional/shared', async (importOriginal) => ({
+	...(await importOriginal<typeof import('@autional/shared')>()),
 	useLogout: () => mockLogout,
 	AUTH_PAGES_URL: '/auth',
 }));
