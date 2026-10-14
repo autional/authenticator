@@ -9,7 +9,9 @@
     "preview": "pnpm --filter @autional/authenticator-app preview",
     "typecheck": "pnpm --filter @autional/authenticator-app typecheck",
     "lint": "pnpm --filter @autional/authenticator-app lint",
-    "test": "pnpm --filter @autional/authenticator-app test"
+    "test": "node scripts/gen-error-semantics.mjs --check && pnpm --filter @autional/authenticator-app test",
+    "gen:errors": "node scripts/gen-error-semantics.mjs",
+    "gen:errors:check": "node scripts/gen-error-semantics.mjs --check"
   },
   "packageManager": "pnpm@11.0.8",
   "engines": {
