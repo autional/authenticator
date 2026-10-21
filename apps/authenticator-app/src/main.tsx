@@ -11,6 +11,7 @@ import App from './App';
 import './non-tenant-segments';
 import './app/globals.css';
 import { initializeStorage } from './lib/storage';
+import { setupPwaLifecycle } from './lib/pwa-lifecycle';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const queryClient = new QueryClient({
@@ -71,4 +72,5 @@ async function bootstrap() {
 	}
 }
 
+setupPwaLifecycle();
 bootstrap();
