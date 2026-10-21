@@ -3,6 +3,7 @@ import { clientsClaim } from 'workbox-core';
 import { cleanupOutdatedCaches, createHandlerBoundToURL, precacheAndRoute } from 'workbox-precaching';
 import { registerRoute } from 'workbox-routing';
 import { NetworkOnly } from 'workbox-strategies';
+import { buildPushNotification, parsePushMessage, resolveClickUrl } from './push-notification';
 
 type PrecacheEntry = { url: string; revision: string | null };
 declare const self: ServiceWorkerGlobalScope & {
@@ -47,6 +48,47 @@ registerRoute(
   ({ url }) => url.origin === self.location.origin && isApiPath(url.pathname),
   new NetworkOnly(),
 );
+
+self.addEventListener('push', (event) => {
+	event.waitUntil(
+		(async () => {
+			const message = parsePushMessage(event.data?.text() ?? null);
+			const spec = buildPushNotification(message, self.navigator.language);
+			await self.registration.showNotification(spec.title, {
+				body: spec.body,
+				icon: '/android-chrome-192x192.png',
+				badge: '/favicon-32x32.png',
+				tag: spec.tag,
+				data: { url: spec.url },
+			});
+		})(),
+	);
+});
+
+self.addEventListener('notificationclick', (event) => {
+	event.notification.close();
+	event.waitUntil(openNotificationTarget(resolveClickUrl(event.notification.data)));
+});
+
+/** 优先复用已开窗口（含未受控），否则新开；导航失败即尝试下一个窗口。 */
+async function openNotificationTarget(pathname: string): Promise<void> {
+	const target = new URL(pathname, self.location.origin).href;
+	const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+	for (const client of windows) {
+		try {
+			const focused = await (client as WindowClient).navigate(target);
+			try {
+				await (focused ?? (client as WindowClient)).focus();
+			} catch {
+				// 部分环境无用户激活时焦点被拒；页面已导航，不再重复开窗。
+			}
+			return;
+		} catch {
+			// 窗口已关闭或不可导航。
+		}
+	}
+	await self.clients.openWindow(target);
+}
 
 self.skipWaiting();
 // 直接调 self.clients.claim() 在安装期执行会被丢弃（激活前无控制器资格）；
