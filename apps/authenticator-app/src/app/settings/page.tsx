@@ -334,12 +334,12 @@ export default function SettingsPage() {
 		setPushError(null);
 		try {
 			if (pushEnabled) {
-				const sub = await unsubscribeBrowserPush();
-				if (sub) {
-					const registration = await navigator.serviceWorker.ready;
-					const existing = await registration.pushManager.getSubscription();
-					if (existing) await unregisterPushSubscription(existing.endpoint);
-				}
+				// 先取 endpoint 再注销：unsubscribe 之后 getSubscription() 必为 null，
+				// 服务端 DELETE 将永远拿不到地址（AU2-01 幽灵设备行）。
+				const registration = await navigator.serviceWorker.ready;
+				const existing = await registration.pushManager.getSubscription();
+				await unsubscribeBrowserPush();
+				if (existing) await unregisterPushSubscription(existing.endpoint);
 				setPushEnabled(false);
 			} else {
 				const vapidKey = await getVapidPublicKey();

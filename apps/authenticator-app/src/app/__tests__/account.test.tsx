@@ -84,6 +84,14 @@ describe('AccountDetailPage (AU-05 / AU-06)', () => {
 		expect(screen.getByText('•••• •••• •••• ••••')).toBeInTheDocument();
 	});
 
+	it('AU2-03 账户不存在 → 页面级 h1 标题 + 返回首页出路', async () => {
+		storeState = { ...storeState, accounts: [] };
+		renderAccount();
+
+		expect(screen.getByRole('heading', { level: 1, name: '账户不存在' })).toBeInTheDocument();
+		expect(screen.getByText('返回首页')).toBeInTheDocument();
+	});
+
 	it('AU-06 确认删除 → removeAccount + showToast（账户已删除）+ 跳转首页', async () => {
 		renderAccount();
 

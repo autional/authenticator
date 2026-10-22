@@ -95,4 +95,39 @@ describe('PushApprovePage (AU-26)', () => {
 		expect(screen.getByText('批准')).toBeInTheDocument();
 		expect(screen.getByText('拒绝')).toBeInTheDocument();
 	});
+
+	it('T7 Problem 信封 i18n_key 优先 → 本地化文案，不再直出英文 title（AU2-02 / U380）', async () => {
+		mockGetPushChallengeStatus.mockRejectedValue({
+			response: {
+				status: 404,
+				data: {
+					code: 61040050,
+					title: 'push challenge not found',
+					detail: '推送挑战未找到',
+					i18n_key: 'error.push_challenge_not_found',
+				},
+			},
+		});
+		renderPage('/push-approve?challengeId=c1');
+
+		await waitFor(() => {
+			expect(screen.getByText('推送挑战未找到')).toBeInTheDocument();
+		});
+		expect(screen.queryByText('push challenge not found')).toBeNull();
+	});
+
+	it('T8 本地无该 i18n_key → 回落键链原文（不渲染裸 key）', async () => {
+		mockGetPushChallengeStatus.mockRejectedValue({
+			response: {
+				status: 500,
+				data: { title: 'server exploded', i18n_key: 'error.not_in_bundle' },
+			},
+		});
+		renderPage('/push-approve?challengeId=c1');
+
+		await waitFor(() => {
+			expect(screen.getByText('server exploded')).toBeInTheDocument();
+		});
+		expect(screen.queryByText('error.not_in_bundle')).toBeNull();
+	});
 });

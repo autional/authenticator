@@ -184,4 +184,21 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		expect(mockAuthQrLoginStatus).toHaveBeenCalledTimes(2);
 		expect(screen.queryByRole('button', { name: '批准登录' })).toBeNull();
 	});
+
+	it('T8 invalid 终态有页面级 h1（AU2-03）', async () => {
+		renderPage('/login-approve');
+
+		await waitFor(() => {
+			expect(screen.getByRole('heading', { level: 1, name: '登录请求无效' })).toBeInTheDocument();
+		});
+	});
+
+	it('T9 error 终态有页面级 h1（AU2-03）', async () => {
+		mockAuthQrLoginStatus.mockRejectedValue(new Error('net'));
+		renderPage('/login-approve?token=t1');
+
+		await waitFor(() => {
+			expect(screen.getByRole('heading', { level: 1, name: '出错了' })).toBeInTheDocument();
+		});
+	});
 });

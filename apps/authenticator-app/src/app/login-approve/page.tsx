@@ -143,6 +143,7 @@ export default function LoginApprovePage() {
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<div className="w-full max-w-sm space-y-4 text-center">
 					<div className="text-danger-text text-lg">!</div>
+					<h1 className="text-xl font-bold">{t('loginApprove.invalidTitle')}</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">{state.message}</p>
 					{/* 终态：无物可重试，仅返回首页出路 */}
 					<Link
@@ -161,6 +162,7 @@ export default function LoginApprovePage() {
 			<div className="flex min-h-screen items-center justify-center px-4">
 				<div className="w-full max-w-sm space-y-4 text-center">
 					<div className="text-danger-text text-lg">!</div>
+					<h1 className="text-xl font-bold">{t('loginApprove.errorTitle')}</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">{state.message}</p>
 					<div className="flex flex-col gap-3">
 						{/* 真重试：重走 precheck 真请求（替换旧假转态） */}

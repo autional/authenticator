@@ -109,7 +109,7 @@ export default function AccountDetailPage() {
 	if (!account) {
 		return (
 			<div className="flex h-full flex-col items-center justify-center text-[var(--color-text-secondary)]">
-				<p>{t('account.notFound')}</p>
+				<h1 className="text-lg font-bold text-[var(--color-text-primary)]">{t('account.notFound')}</h1>
 				<button
 					onClick={() => navigate(toSlugged('/', slug))}
 					className="mt-2 text-sm text-primary-400"

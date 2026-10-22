@@ -15,7 +15,7 @@ import {
 	getPushChallengeStatus,
 	type PushChallengeStatus,
 } from '../../lib/push';
-import { extractApiErrorMessage } from '@autional/shared';
+import { extractApiError } from '@autional/shared';
 
 export default function PushApprovePage() {
 	const { t } = useTranslation();
@@ -28,6 +28,16 @@ export default function PushApprovePage() {
 	const [error, setError] = useState<string | null>(null);
 	const [actionLoading, setActionLoading] = useState(false);
 	const [result, setResult] = useState<'approved' | 'denied' | null>(null);
+
+	// AU2-02：Problem 信封的 title 是英文服务端文案；优先消费语言中立的 i18n_key，
+	// 本地无该键时回落既有键链结果（message → title → detail → default）。
+	const localizeApiError = useCallback(
+		(err: unknown, fallback: string) => {
+			const { message, i18nKey } = extractApiError(err, fallback);
+			return i18nKey ? t(i18nKey, { defaultValue: message }) : message;
+		},
+		[t],
+	);
 
 	// AU-26：抽为可重取回调 —— 错误态「重试」= 真实 GET（非假转态）
 	const loadChallenge = useCallback(async () => {
@@ -47,11 +57,11 @@ export default function PushApprovePage() {
 				setResult(data.status === 'approved' ? 'approved' : 'denied');
 			}
 		} catch (err) {
-			setError(extractApiErrorMessage(err, t('pushApprove.loadFailed')));
+			setError(localizeApiError(err, t('pushApprove.loadFailed')));
 		} finally {
 			setLoading(false);
 		}
-	}, [challengeId, t]);
+	}, [challengeId, t, localizeApiError]);
 
 	useEffect(() => {
 		void loadChallenge();
@@ -64,7 +74,7 @@ export default function PushApprovePage() {
 			await approvePushChallenge(challengeId, urlNumberMatching);
 			setResult('approved');
 		} catch (err: unknown) {
-			setError(extractApiErrorMessage(err, t('pushApprove.approveFailed')));
+			setError(localizeApiError(err, t('pushApprove.approveFailed')));
 		} finally {
 			setActionLoading(false);
 		}
@@ -77,7 +87,7 @@ export default function PushApprovePage() {
 			await denyPushChallenge(challengeId, urlNumberMatching);
 			setResult('denied');
 		} catch (err: unknown) {
-			setError(extractApiErrorMessage(err, t('pushApprove.denyFailed')));
+			setError(localizeApiError(err, t('pushApprove.denyFailed')));
 		} finally {
 			setActionLoading(false);
 		}

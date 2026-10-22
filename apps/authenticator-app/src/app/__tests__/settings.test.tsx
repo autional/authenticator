@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, act } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
@@ -20,10 +20,14 @@ vi.mock('@autional/ui', () => ({
 }));
 
 const mockLogout = vi.fn();
+const mockSharedUnsubscribe = vi.fn();
 vi.mock('@autional/shared', async (importOriginal) => ({
 	...(await importOriginal<typeof import('@autional/shared')>()),
 	useLogout: () => mockLogout,
 	AUTH_PAGES_URL: '/auth',
+	// 页面直接从 shared 导入该函数（非 @/lib/push 转发），mock 必须落在这里。
+	// 箭头包装：工厂在静态 import 阶段执行，直接引用 const 会触发 TDZ。
+	unsubscribeBrowserPush: (...args: unknown[]) => mockSharedUnsubscribe(...args),
 }));
 
 interface MockStoreState {
@@ -91,6 +95,7 @@ vi.mock('@/lib/crypto', () => ({
 	base64ToArrayBuffer: vi.fn(),
 }));
 
+import * as pushLib from '@/lib/push';
 import SettingsPage from '../settings/page';
 
 function renderSettings() {
@@ -213,6 +218,47 @@ describe('SettingsPage', () => {
 		it('renders "启用 Push 通知" button', async () => {
 			renderSettings();
 			expect(screen.getByText('启用 Push 通知')).toBeInTheDocument();
+		});
+	});
+
+	describe('push disable (AU2-01)', () => {
+		const ENDPOINT = 'https://push.example/device-1';
+		const originalServiceWorker = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
+		const originalPushManager = Object.getOwnPropertyDescriptor(window, 'PushManager');
+
+		afterEach(() => {
+			if (originalServiceWorker) Object.defineProperty(navigator, 'serviceWorker', originalServiceWorker);
+			else delete (navigator as { serviceWorker?: unknown }).serviceWorker;
+			if (originalPushManager) Object.defineProperty(window, 'PushManager', originalPushManager);
+			else delete (window as { PushManager?: unknown }).PushManager;
+		});
+
+		it('先取 endpoint 再注销浏览器订阅，并调用服务端 DELETE', async () => {
+			let browserUnsubscribed = false;
+			mockSharedUnsubscribe.mockImplementation(async () => {
+				browserUnsubscribed = true;
+				return true;
+			});
+			const registration = {
+				pushManager: {
+					getSubscription: vi.fn(async () => (browserUnsubscribed ? null : { endpoint: ENDPOINT })),
+				},
+			};
+			Object.defineProperty(navigator, 'serviceWorker', {
+				configurable: true,
+				value: { ready: Promise.resolve(registration) },
+			});
+			Object.defineProperty(window, 'PushManager', { configurable: true, value: class {} });
+
+			renderSettings();
+			const disableButton = (await screen.findByText('禁用 Push 通知')).closest('button');
+			expect(disableButton).not.toBeNull();
+			await act(async () => {
+				fireEvent.click(disableButton!);
+			});
+
+			expect(mockSharedUnsubscribe).toHaveBeenCalledTimes(1);
+			expect(pushLib.unregisterPushSubscription).toHaveBeenCalledWith(ENDPOINT);
 		});
 	});
 
