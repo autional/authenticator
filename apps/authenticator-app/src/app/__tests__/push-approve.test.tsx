@@ -130,4 +130,15 @@ describe('PushApprovePage (AU-26)', () => {
 		});
 		expect(screen.queryByText('error.not_in_bundle')).toBeNull();
 	});
+
+	it('T9 服务端 expired 状态 → 「推送挑战已过期」，不得伪装成已拒绝', async () => {
+		mockGetPushChallengeStatus.mockResolvedValue({ status: 'expired' });
+		renderPage('/push-approve?challengeId=c1');
+
+		await waitFor(() => {
+			expect(screen.getByText('推送挑战已过期')).toBeInTheDocument();
+		});
+		expect(screen.queryByText('已拒绝登录')).toBeNull();
+		expect(screen.queryByText('已批准登录')).toBeNull();
+	});
 });

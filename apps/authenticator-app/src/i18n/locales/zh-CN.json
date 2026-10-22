@@ -346,6 +346,8 @@
   "pushApprove.approvedDesc": "您已成功批准该登录请求。",
   "pushApprove.deniedTitle": "已拒绝登录",
   "pushApprove.deniedDesc": "您已拒绝该登录请求。",
+  "pushApprove.expiredTitle": "推送挑战已过期",
+  "pushApprove.expiredDesc": "该登录请求已失效，请返回登录页重新发起。",
   "pushApprove.requestTitle": "登录审批请求",
   "pushApprove.contextLabel": "上下文：",
   "pushApprove.verificationNumber": "核验数字",

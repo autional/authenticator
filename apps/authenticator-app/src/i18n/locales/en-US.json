@@ -346,6 +346,8 @@
   "pushApprove.approvedDesc": "You have successfully approved the login request.",
   "pushApprove.deniedTitle": "Login denied",
   "pushApprove.deniedDesc": "You have denied the login request.",
+  "pushApprove.expiredTitle": "Push challenge expired",
+  "pushApprove.expiredDesc": "This login request has expired. Please return to the sign-in page and try again.",
   "pushApprove.requestTitle": "Login approval request",
   "pushApprove.contextLabel": "Context:",
   "pushApprove.verificationNumber": "Verification Number",

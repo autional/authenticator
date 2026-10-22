@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { ShieldCheck, ShieldX, AlertTriangle } from 'lucide-react';
+import { ShieldCheck, ShieldX, AlertTriangle, Clock } from 'lucide-react';
 import {
 	approvePushChallenge,
 	denyPushChallenge,
@@ -27,7 +27,7 @@ export default function PushApprovePage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [actionLoading, setActionLoading] = useState(false);
-	const [result, setResult] = useState<'approved' | 'denied' | null>(null);
+	const [result, setResult] = useState<'approved' | 'denied' | 'expired' | null>(null);
 
 	// AU2-02：Problem 信封的 title 是英文服务端文案；优先消费语言中立的 i18n_key，
 	// 本地无该键时回落既有键链结果（message → title → detail → default）。
@@ -53,8 +53,9 @@ export default function PushApprovePage() {
 		try {
 			const data = await getPushChallengeStatus(challengeId);
 			setChallenge(data);
-			if (data.status !== 'pending') {
-				setResult(data.status === 'approved' ? 'approved' : 'denied');
+			// 只认三种终态；未知状态不伪造「已拒绝」（留在审批面等真实状态）
+			if (data.status === 'approved' || data.status === 'denied' || data.status === 'expired') {
+				setResult(data.status);
 			}
 		} catch (err) {
 			setError(localizeApiError(err, t('pushApprove.loadFailed')));
@@ -139,21 +140,32 @@ export default function PushApprovePage() {
 
 	if (result) {
 		const isApproved = result === 'approved';
+		const isExpired = result === 'expired';
 		return (
 			<div className="flex min-h-screen items-center justify-center bg-neutral-50 dark:bg-auth-bg p-4">
 				<div className="w-full max-w-sm rounded-xl bg-white dark:bg-auth-surface p-6 shadow-card">
 					<div className="mb-4 flex justify-center">
 						{isApproved ? (
 							<ShieldCheck className="h-16 w-16 text-success-text" />
+						) : isExpired ? (
+							<Clock className="h-16 w-16 text-[var(--color-warning-text)]" />
 						) : (
 							<ShieldX className="h-16 w-16 text-danger-text" />
 						)}
 					</div>
 					<h1 className="mb-2 text-center text-xl font-semibold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">
-						{isApproved ? t('pushApprove.approvedTitle') : t('pushApprove.deniedTitle')}
+						{isApproved
+							? t('pushApprove.approvedTitle')
+							: isExpired
+								? t('pushApprove.expiredTitle')
+								: t('pushApprove.deniedTitle')}
 					</h1>
 					<p className="text-center text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)]">
-						{isApproved ? t('pushApprove.approvedDesc') : t('pushApprove.deniedDesc')}
+						{isApproved
+							? t('pushApprove.approvedDesc')
+							: isExpired
+								? t('pushApprove.expiredDesc')
+								: t('pushApprove.deniedDesc')}
 					</p>
 				</div>
 			</div>
