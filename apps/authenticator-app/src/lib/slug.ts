@@ -1,9 +1,17 @@
 import { useParams } from 'react-router';
 
+/** 本地模式伪租户段：/local/** 免登录只读本机保险库（不出码以外不触达服务端）。 */
+export const LOCAL_MODE_SLUG = 'local';
+
 /** 取当前路由 tenantSlug（authenticator 路由恒在 /:tenantSlug 下） */
 export function useTenantSlug(): string {
 	const { tenantSlug } = useParams<{ tenantSlug: string }>();
 	return tenantSlug ?? '';
+}
+
+/** 当前是否本地（免登录）模式。 */
+export function useIsLocalMode(): boolean {
+	return useTenantSlug() === LOCAL_MODE_SLUG;
 }
 
 /**

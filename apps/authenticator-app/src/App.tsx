@@ -1,4 +1,5 @@
 import { lazy, Suspense } from 'react';
+import type { ReactNode } from 'react';
 import { Routes, Route, Outlet, useParams, Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { toSlugged, useTenantSlug } from './lib/slug';
@@ -8,9 +9,11 @@ import {
 	TenantSlugProvider,
 	TenantIndexGuard,
 	TenantRootRedirect,
+	useAuth,
 	useBranding,
 	BrandingInitializer,
 } from '@autional/shared';
+import { LOCAL_MODE_SLUG, useIsLocalMode } from './lib/slug';
 import ErrorBoundary from './components/ErrorBoundary';
 import TenantSlugGate from './components/TenantSlugGate';
 import UnlockGate from './components/UnlockScreen';
@@ -49,14 +52,55 @@ function LegacyRedirect({ to }: { to: string }) {
 
 function LayoutWrapper() {
 	const { tenantSlug } = useParams();
+	const local = tenantSlug === LOCAL_MODE_SLUG;
 	return (
 		<TenantSlugProvider value={tenantSlug}>
-			{/* AU-30：已认证未知 slug 全子路由禁渲染真实页（未认证面仍由 RequireAuth 闸门负责） */}
-			<TenantSlugGate notFound={<NotFoundRoute />}>
+			{/* 本地模式无租户可校验：跳过公开租户名单闸门（保险库本就与租户无关） */}
+			{local ? (
 				<Outlet />
-			</TenantSlugGate>
+			) : (
+				/* AU-30：已认证未知 slug 全子路由禁渲染真实页（未认证面仍由 RequireAuth 闸门负责） */
+				<TenantSlugGate notFound={<NotFoundRoute />}>
+					<Outlet />
+				</TenantSlugGate>
+			)}
 		</TenantSlugProvider>
 	);
+}
+
+/** 本地模式（/local）免登录；其余租户段仍强制 RequireAuth。 */
+function VaultGate({ children }: { children: ReactNode }) {
+	const { tenantSlug } = useParams();
+	if (tenantSlug === LOCAL_MODE_SLUG) return <>{children}</>;
+	return <RequireAuth notFound={<NotFoundRoute />}>{children}</RequireAuth>;
+}
+
+/** 裸根：未登录直接落本地保险库；已登录沿用共享租户漏斗。 */
+function RootRedirect() {
+	const { isAuthenticated } = useAuth();
+	if (!isAuthenticated) return <Navigate to={`/${LOCAL_MODE_SLUG}/`} replace />;
+	return <TenantRootRedirect />;
+}
+
+/** 仅服务端页面（通知/活动/设备/云备份/设备同步/审批）：本地模式回首页。 */
+function ServerOnly({ children }: { children: ReactNode }) {
+	const { isAuthenticated } = useAuth();
+	if (!isAuthenticated) return <Navigate to={`/${LOCAL_MODE_SLUG}/`} replace />;
+	return <>{children}</>;
+}
+
+/** 首页租户索引闸门：本地模式跳过（没有可校验的公开租户）。 */
+function IndexGuard({ children }: { children: ReactNode }) {
+	const local = useIsLocalMode();
+	if (local) return <>{children}</>;
+	return <TenantIndexGuard notFound={<NotFoundRoute />}>{children}</TenantIndexGuard>;
+}
+
+/** 品牌初始化：本地模式（/local）没有租户可查，显式传空 slug 关掉公开租户请求。 */
+function BrandingGate() {
+	const { pathname } = useLocation();
+	const local = pathname.split('/').filter(Boolean)[0] === LOCAL_MODE_SLUG;
+	return <BrandingInitializer slug={local ? '' : undefined} />;
 }
 
 export default function App() {
@@ -66,7 +110,7 @@ export default function App() {
 	return (
 		<ToastProvider>
 			<ErrorBoundary>
-				<BrandingInitializer />
+				<BrandingGate />
 				<UnlockGate>
 					<a
 						href="#main-content"
@@ -87,16 +131,15 @@ export default function App() {
 							<Routes>
 								<Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
-								{/* 裸根漏斗：有会话直达 /<slug>，否则整页跳 brand 选品牌 */}
-								<Route path="/" element={<TenantRootRedirect />} />
+								{/* 裸根漏斗：有会话直达 /<slug>，否则落本地保险库 /local */}
+								<Route path="/" element={<RootRedirect />} />
 
 								<Route
 									path="/:tenantSlug"
 									element={
-										/* notFound：确定性未知 slug（by-slug 404）原地渲染 404，不发弹跳（F-W6） */
-										<RequireAuth notFound={<NotFoundRoute />}>
+										<VaultGate>
 											<LayoutWrapper />
-										</RequireAuth>
+										</VaultGate>
 									}
 								>
 									{appRoutes(t)}
@@ -118,9 +161,9 @@ function appRoutes(t: (key: string) => string) {
 			<Route
 				index
 				element={
-					<TenantIndexGuard notFound={<NotFoundRoute />}>
+					<IndexGuard>
 						<HomePage />
-					</TenantIndexGuard>
+					</IndexGuard>
 				}
 			/>
 			<Route
@@ -150,57 +193,71 @@ function appRoutes(t: (key: string) => string) {
 			<Route
 				path="push-approve"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<PushApprovePage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<PushApprovePage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			<Route
 				path="activity"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<ActivityPage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<ActivityPage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			<Route
 				path="devices"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<DevicesPage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<DevicesPage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			<Route
 				path="cloud-backup"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<CloudBackupPage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<CloudBackupPage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			<Route
 				path="device-sync"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<DeviceSyncPage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<DeviceSyncPage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			<Route
 				path="login-approve"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<LoginApprovePage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<LoginApprovePage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			<Route
 				path="notifications"
 				element={
-					<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
-						<NotificationsPage />
-					</Suspense>
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<NotificationsPage />
+						</Suspense>
+					</ServerOnly>
 				}
 			/>
 			{/* 旧路径（旧版遗留 /xxx/api/v1/xxx 形态）重定向，勿删：书签与推送深链可能指向它们。

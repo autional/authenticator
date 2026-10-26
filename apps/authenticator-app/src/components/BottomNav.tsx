@@ -15,7 +15,7 @@ export default function BottomNav() {
 	const navigate = useNavigate();
 	const slug = useTenantSlug();
 	const [unreadCount, setUnreadCount] = useState(0);
-	const { user } = useAuth();
+	const { user, isAuthenticated } = useAuth();
 	const userId = user?.id;
 
 	useEffect(() => {
@@ -33,14 +33,17 @@ export default function BottomNav() {
 		return () => clearInterval(interval);
 	}, [userId]);
 
-	const navItems = [
+	// 本地模式（未登录）隐藏通知：通知计数是服务端数据，未登录必 401
+	const navItems: Array<{
+		path: string;
+		key: (typeof navItemKeys)[number];
+		icon: (typeof navItemIcons)[number];
+		badge?: number;
+	}> = [
 		{ path: '/', key: navItemKeys[0], icon: navItemIcons[0] },
-		{
-			path: '/notifications',
-			key: navItemKeys[1],
-			icon: navItemIcons[1],
-			badge: unreadCount,
-		},
+		...(isAuthenticated
+			? [{ path: '/notifications', key: navItemKeys[1], icon: navItemIcons[1], badge: unreadCount }]
+			: []),
 		{ path: '/add', key: navItemKeys[2], icon: navItemIcons[2] },
 		{ path: '/settings', key: navItemKeys[3], icon: navItemIcons[3] },
 	];

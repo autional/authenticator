@@ -21,9 +21,14 @@ vi.mock('@autional/ui', () => ({
 
 const mockLogout = vi.fn();
 const mockSharedUnsubscribe = vi.fn();
+let authState = { isAuthenticated: true };
 vi.mock('@autional/shared', async (importOriginal) => ({
 	...(await importOriginal<typeof import('@autional/shared')>()),
 	useLogout: () => mockLogout,
+	useAuth: () => ({
+		isAuthenticated: authState.isAuthenticated,
+		user: { id: 'user_01', username: 'testuser', email: 'dev@example.com' },
+	}),
 	AUTH_PAGES_URL: '/auth',
 	// 页面直接从 shared 导入该函数（非 @/lib/push 转发），mock 必须落在这里。
 	// 箭头包装：工厂在静态 import 阶段执行，直接引用 const 会触发 TDZ。
@@ -112,6 +117,7 @@ beforeEach(() => {
 	mockToggle.mockClear();
 	mockLogout.mockClear();
 	themeState = { theme: 'light', toggle: mockToggle };
+	authState = { isAuthenticated: true };
 	storeState = {
 		accounts: [],
 		hasPin: false,
@@ -292,7 +298,14 @@ describe('SettingsPage', () => {
 			expect(screen.getByText('退出登录')).toBeInTheDocument();
 		});
 
-		it('calls logout on click', async () => {
+		it('本地模式：不显示退出登录，显示登录入口', () => {
+		authState.isAuthenticated = false;
+		renderSettings();
+		expect(screen.getByText('登录 Autional')).toBeInTheDocument();
+		expect(screen.queryByText('退出登录')).not.toBeInTheDocument();
+	});
+
+	it('calls logout on click', async () => {
 			renderSettings();
 			const logoutBtn = screen.getByText('退出登录');
 			await act(async () => {

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@autional/ui';
-import { useLogout, extractApiErrorMessage } from '@autional/shared';
+import { useLogout, useAuth, buildLoginUrl, extractApiErrorMessage } from '@autional/shared';
 import { Info } from 'lucide-react';
 import { showToast } from '@autional/ui';
 import { useAuthenticatorStore, type TotpAccount } from '@/lib/store';
@@ -48,6 +48,7 @@ export default function SettingsPage() {
 	const { theme, toggle: toggleTheme } = useTheme();
 	const { accounts, importAccounts, hasPin, setHasPin } = useAuthenticatorStore();
 	const handleLogout = useLogout();
+	const { isAuthenticated } = useAuth();
 
 	const [pinInput, setPinInput] = useState('');
 	const [pinSaving, setPinSaving] = useState(false);
@@ -88,9 +89,11 @@ export default function SettingsPage() {
 			});
 		}
 
-		getBackupCodesCount()
-			.then((res) => setBackupCodesCount(res?.count || 0))
-			.catch(() => setBackupCodesCount(0));
+		if (isAuthenticated) {
+			getBackupCodesCount()
+				.then((res) => setBackupCodesCount(res?.count || 0))
+				.catch(() => setBackupCodesCount(0));
+		}
 
 		isBiometricAvailable().then((avail) => {
 			setBioAvailable(avail);
@@ -105,7 +108,7 @@ export default function SettingsPage() {
 			window.removeEventListener('online', onOnline);
 			window.removeEventListener('offline', onOffline);
 		};
-	}, []);
+	}, [isAuthenticated]);
 
 	const handleExport = () => {
 		setExportPassword('');
@@ -431,28 +434,35 @@ export default function SettingsPage() {
 							onSave={handlePinSave}
 						/>
 
-						<SettingsBackupCodes
-							backupCodes={backupCodes}
-							backupCodesCount={backupCodesCount}
-							showBackupCodes={showBackupCodes}
-							loading={backupCodesLoading}
-							error={backupCodesError}
-							onGenerate={handleGenerateBackupCodes}
-							onCopy={handleCopyBackupCodes}
-						/>
+						{isAuthenticated && (
+							<>
+								<SettingsBackupCodes
+									backupCodes={backupCodes}
+									backupCodesCount={backupCodesCount}
+									showBackupCodes={showBackupCodes}
+									loading={backupCodesLoading}
+									error={backupCodesError}
+									onGenerate={handleGenerateBackupCodes}
+									onCopy={handleCopyBackupCodes}
+								/>
 
-						<SettingsPushMfa
-							pushEnabled={pushEnabled}
-							pushLoading={pushLoading}
-							pushError={pushError}
-							onToggle={handlePushToggle}
-						/>
+								<SettingsPushMfa
+									pushEnabled={pushEnabled}
+									pushLoading={pushLoading}
+									pushError={pushError}
+									onToggle={handlePushToggle}
+								/>
+							</>
+						)}
 					</div>
 				</section>
 
-				<SettingsActivity />
-
-				<SettingsDevices />
+				{isAuthenticated && (
+					<>
+						<SettingsActivity />
+						<SettingsDevices />
+					</>
+				)}
 
 				<SettingsDataManage
 					accountsCount={accounts.length}
@@ -484,9 +494,30 @@ export default function SettingsPage() {
 					}}
 				/>
 
-				<SettingsCloud />
-
-				<SettingsAccount onLogout={handleLogout} />
+				{isAuthenticated ? (
+					<>
+						<SettingsCloud />
+						<SettingsAccount onLogout={handleLogout} />
+					</>
+				) : (
+					<section>
+						<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+							{t('settings.localModeTitle')}
+						</h2>
+						<div className="rounded-xl border border-auth-border bg-auth-surface p-4">
+							<p className="text-sm text-[var(--color-text-secondary)]">{t('settings.localModeDesc')}</p>
+							<button
+								type="button"
+								onClick={() => {
+									window.location.href = buildLoginUrl();
+								}}
+								className="mt-3 w-full rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] transition-all"
+							>
+								{t('settings.localModeLogin')}
+							</button>
+						</div>
+					</section>
+				)}
 
 				<section>
 					<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">

@@ -1,12 +1,14 @@
 import { ShieldPlus, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { buildLoginUrl, useAuth } from '@autional/shared';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 
 export default function EmptyState() {
 	const navigate = useNavigate();
 	const slug = useTenantSlug();
 	const { t } = useTranslation();
+	const { isAuthenticated } = useAuth();
 
 	return (
 		<div className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -30,6 +32,17 @@ export default function EmptyState() {
 					{t('home.scan')}
 				</button>
 			</div>
+			{!isAuthenticated && (
+				<button
+					type="button"
+					onClick={() => {
+						window.location.href = buildLoginUrl();
+					}}
+					className="mt-3 text-xs text-primary-400 hover:text-primary-300"
+				>
+					{t('home.signIn')}
+				</button>
+			)}
 		</div>
 	);
 }

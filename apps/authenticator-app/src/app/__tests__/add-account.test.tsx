@@ -67,6 +67,7 @@ interface MockAuthStoreState {
 	user: { id: string; email: string; username: string } | null;
 }
 let authStoreState: MockAuthStoreState = { user: null };
+let authState = { isAuthenticated: true };
 vi.mock('@autional/shared', async () => {
 	const actual = await vi.importActual('@autional/shared');
 	return {
@@ -76,7 +77,7 @@ vi.mock('@autional/shared', async () => {
 				? (selector as (state: unknown) => unknown)(authStoreState)
 				: authStoreState,
 		useAuth: () => ({
-			isAuthenticated: true,
+			isAuthenticated: authState.isAuthenticated,
 			user: authStoreState.user,
 			userId: authStoreState.user?.id || null,
 			accessToken: 'mock-token',
@@ -92,6 +93,7 @@ vi.mock('@autional/shared', async () => {
 });
 
 import AddAccountPage from '../add/page';
+import { showToast } from '@autional/ui';
 
 function renderAddAccount() {
 	return render(
@@ -113,6 +115,7 @@ beforeEach(() => {
 	authStoreState = {
 		user: { id: 'user_01', email: 'dev@example.com', username: 'testuser' },
 	};
+	authState = { isAuthenticated: true };
 });
 
 describe('AddAccountPage', () => {
@@ -251,6 +254,26 @@ describe('AddAccountPage', () => {
 				</MemoryRouter>,
 			);
 			expect(await screen.findByTestId('qr-scanner')).toBeInTheDocument();
+		});
+
+		it('本地模式：隐藏 Autional 绑定页签，扫码登录提示先登录', async () => {
+			authState.isAuthenticated = false;
+			render(
+				<MemoryRouter initialEntries={['/local/add']}>
+					<Routes>
+						<Route path="/:tenantSlug/add" element={<AddAccountPage />} />
+					</Routes>
+				</MemoryRouter>,
+			);
+			expect(screen.queryByText('Autional 绑定')).not.toBeInTheDocument();
+			await act(async () => {
+				fireEvent.click(screen.getByText('扫一扫'));
+			});
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
+			});
+			expect(vi.mocked(showToast)).toHaveBeenCalled();
+			expect(mockNavigate).not.toHaveBeenCalled();
 		});
 
 		it('QR 登录码：扫到 autional://login 后按当前租户跳审批页（slug 不丢）', async () => {

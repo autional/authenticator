@@ -31,7 +31,7 @@ export default function AddAccountPage() {
 	const { t } = useTranslation();
 	const addAccount = useAuthenticatorStore((s) => s.addAccount);
 	const accounts = useAuthenticatorStore((s) => s.accounts);
-	const { user } = useAuth();
+	const { user, isAuthenticated } = useAuth();
 
 	const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'qr' ? 'qr' : 'manual');
 	const [migratedAccounts, setMigratedAccounts] = useState<MigratedAccount[] | null>(null);
@@ -192,7 +192,10 @@ export default function AddAccountPage() {
 					{ key: 'manual' as Tab, label: t('add.manualTab'), icon: Keyboard },
 					{ key: 'qr' as Tab, label: t('add.qrTab'), icon: QrCode },
 					{ key: 'bind' as Tab, label: t('add.bindTab'), icon: Link2 },
-				].map((tabItem) => (
+				]
+					// 本地模式（未登录）隐藏「Autional 绑定」：该页签要调 /mfa/totp/enable
+					.filter((item) => isAuthenticated || item.key !== 'bind')
+					.map((tabItem) => (
 					<button
 						key={tabItem.key}
 						onClick={() => setTab(tabItem.key)}
@@ -313,6 +316,11 @@ export default function AddAccountPage() {
 							showToast(t('add.migrationTitle', { n: accounts.length }), 'success');
 						}}
 						onScanLogin={(challenge) => {
+							// 扫码登录审批需要「谁在批」：本地模式没有身份，直接提示先登录
+							if (!isAuthenticated) {
+								showToast(t('add.loginRequiredForApprove'), 'error');
+								return;
+							}
 							// QR 登录审批（桌面端扫码登录）：扫到 autional://login?... 后进审批页；
 							// 租户隔离由服务端 Confirm 的「JWT 租户 == 会话租户」硬校验保证，此处只做导航。
 							const nm = challenge.numberMatching
