@@ -311,6 +311,19 @@ export default function AddAccountPage() {
 							setMigratedAccounts(accounts);
 							showToast(t('add.migrationTitle', { n: accounts.length }), 'success');
 						}}
+						onScanLogin={(challenge) => {
+							// QR 登录审批（桌面端扫码登录）：扫到 autional://login?... 后进审批页；
+							// 租户隔离由服务端 Confirm 的「JWT 租户 == 会话租户」硬校验保证，此处只做导航。
+							const nm = challenge.numberMatching
+								? `&nm=${encodeURIComponent(challenge.numberMatching)}`
+								: '';
+							navigate(
+								toSlugged(
+									`/login-approve?token=${encodeURIComponent(challenge.token)}${nm}`,
+									slug,
+								),
+							);
+						}}
 						onError={(err) => showToast(err, 'error')}
 						onManualFallback={() => setTab('manual')}
 					/>

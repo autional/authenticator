@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router';
+import { MemoryRouter, Routes, Route } from 'react-router';
 
 const mockNavigate = vi.fn();
 vi.mock('react-router', async () => {
@@ -33,6 +33,7 @@ vi.mock('@/lib/store', () => ({
 interface MockQrScannerProps {
 	onScan?: (result: unknown) => void;
 	onMigration?: (accounts: unknown[]) => void;
+	onScanLogin?: (challenge: { token: string; numberMatching?: string }) => void;
 	onError?: (error: string) => void;
 	onManualFallback?: () => void;
 }
@@ -43,6 +44,12 @@ vi.mock('@/components/QrScanner', () => ({
 			{/* AU-04 集成探针：暴露降级 CTA 触发通道 */}
 			<button type="button" onClick={() => props.onManualFallback?.()}>
 				manual-fallback-stub
+			</button>
+			<button
+				type="button"
+				onClick={() => props.onScanLogin?.({ token: 't1', numberMatching: '123456' })}
+			>
+				scan-login-stub
 			</button>
 		</div>
 	),
@@ -233,6 +240,25 @@ describe('AddAccountPage', () => {
 			});
 			expect(screen.getByTestId('qr-scanner')).toBeInTheDocument();
 			expect(screen.getByText('将二维码对准扫描框')).toBeInTheDocument();
+		});
+
+		it('QR 登录码：扫到 autional://login 后按当前租户跳审批页（slug 不丢）', async () => {
+			render(
+				<MemoryRouter initialEntries={['/platform/add']}>
+					<Routes>
+						<Route path="/:tenantSlug/add" element={<AddAccountPage />} />
+					</Routes>
+				</MemoryRouter>,
+			);
+			await act(async () => {
+				fireEvent.click(screen.getByText('二维码'));
+			});
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
+			});
+			expect(mockNavigate).toHaveBeenCalledWith(
+				'/platform/login-approve?token=t1&nm=123456',
+			);
 		});
 
 		it('switches to Autional bind tab and shows bind heading', async () => {
