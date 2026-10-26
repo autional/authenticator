@@ -32,7 +32,10 @@ interface MockDevice {
 	deviceName: string;
 	deviceFingerprint: string;
 	lastSyncAt: string;
-	accountCount: number;
+	accountCount?: number;
+	scheme?: string;
+	needsResync?: boolean;
+	totpDevices?: string;
 }
 let mockDevices: MockDevice[] = [];
 let mockLoading = false;
@@ -107,7 +110,7 @@ describe('DeviceSyncPage', () => {
 
 	it('renders section headers', async () => {
 		renderPage();
-		expect(screen.getByText('同步设备列表')).toBeInTheDocument();
+		expect(screen.getByText('已登记设备')).toBeInTheDocument();
 		expect(screen.getByText('操作')).toBeInTheDocument();
 	});
 
@@ -125,7 +128,7 @@ describe('DeviceSyncPage', () => {
 		mockDevices = [];
 		renderPage();
 		expect(screen.getByText('暂无已同步的设备')).toBeInTheDocument();
-		expect(screen.getByText('同步设备后可在多设备间共享 TOTP 账户数据')).toBeInTheDocument();
+		expect(screen.getByText('登记设备后可在此查看与解绑（不会上传任何 TOTP 密钥）')).toBeInTheDocument();
 	});
 
 	it('shows loading spinner when fetching devices', async () => {
@@ -162,8 +165,8 @@ describe('DeviceSyncPage', () => {
 
 		expect(screen.getByText('iPhone 15')).toBeInTheDocument();
 		expect(screen.getByText('MacBook Pro')).toBeInTheDocument();
-		expect(screen.getByText('· 12 个账户')).toBeInTheDocument();
-		expect(screen.getByText('· 8 个账户')).toBeInTheDocument();
+		expect(screen.queryByText('· 12 个账户')).not.toBeInTheDocument();
+		expect(screen.queryByText('· 8 个账户')).not.toBeInTheDocument();
 	});
 
 	it('shows device fingerprint truncated', async () => {
@@ -183,11 +186,25 @@ describe('DeviceSyncPage', () => {
 		expect(fingerprint.textContent).toBe('a1b2c3...q7r8s9');
 	});
 
-	it('sync button is disabled when no accounts', async () => {
+	it('sync button stays enabled with empty vault (metadata-only)', async () => {
 		storeState.accounts = [];
 		renderPage();
 		const syncBtn = screen.getByText('同步本设备').closest('button')!;
-		expect(syncBtn).toBeDisabled();
+		expect(syncBtn).not.toBeDisabled();
+	});
+
+	it('legacy 行显示重新登记提示', async () => {
+		mockDevices = [
+			{
+				id: 'dev-legacy',
+				deviceName: 'Old iPhone',
+				deviceFingerprint: 'fpx',
+				lastSyncAt: '2025-01-15T08:00:00.000Z',
+				needsResync: true,
+			},
+		];
+		renderPage();
+		expect(screen.getByText(/旧同步数据已失效/)).toBeInTheDocument();
 	});
 
 	it('sync button is enabled when accounts exist', async () => {
@@ -229,7 +246,7 @@ describe('DeviceSyncPage', () => {
 
 	it('shows security note', async () => {
 		renderPage();
-		expect(screen.getByText(/服务器加密存储/)).toBeInTheDocument();
+		expect(screen.getByText(/不上传任何 TOTP 密钥/)).toBeInTheDocument();
 	});
 
 	describe('AU-21 上限自恢复', () => {

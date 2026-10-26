@@ -42,8 +42,12 @@ export interface SyncDevice {
 	deviceName: string;
 	deviceFingerprint: string;
 	lastSyncAt: string;
-	accountCount: number;
-	/** 后端 GET 返回的解密明文 JSON 数组字符串（如 [{"secret":"..."}]），仅用于推导 accountCount */
+	accountCount?: number;
+	/** metadata_v1=仅登记；e2ee_v1=客户端密文；legacy_v1=历史行（不再回传） */
+	scheme?: string;
+	/** 历史行（服务端可解密形态）已停止回传，需要重新登记 */
+	needsResync?: boolean;
+	/** 仅 e2ee_v1 有值（客户端密文，服务端不解析） */
 	totpDevices?: string;
 }
 
@@ -184,13 +188,7 @@ export function useDeviceSyncList() {
 		try {
 			const res = await getDeviceSyncList();
 			const items = extractList(res) as SyncDevice[];
-			// 后端 GET 返回解密的 totp_devices（明文 JSON 数组字符串），后端响应无 accountCount 字段，
-			// 从明文 JSON 数组长度推导，供列表页展示账户数。
-			const enriched = (Array.isArray(items) ? items : []).map((d) => {
-				const count = parseAccountCount(d.totpDevices);
-				return count != null ? { ...d, accountCount: count } : d;
-			});
-			setDevices(enriched);
+			setDevices(Array.isArray(items) ? items : []);
 		} catch (err: unknown) {
 			setError(extractApiErrorMessage(err, t('deviceSync.loadFailed')));
 		} finally {
@@ -205,51 +203,21 @@ export function useDeviceSyncList() {
 	return { devices, loading, error, refetch: fetchDevices };
 }
 
-/**
- * 从后端解密返回的 totp_devices 明文 JSON 数组字符串解析账户数。
- * 格式示例: `[{"secret":"JBSWY3DPEHPK3PXP","name":"Autional",...}]`
- */
-function parseAccountCount(totpDevices?: string): number | null {
-	if (!totpDevices) return null;
-	try {
-		const parsed = JSON.parse(totpDevices);
-		return Array.isArray(parsed) ? parsed.length : null;
-	} catch {
-		return null;
-	}
-}
-
 export function useSyncDevice() {
 	const { t } = useTranslation();
 	const [syncing, setSyncing] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
 	const sync = useCallback(
-		async (deviceName: string, accounts: TotpAccount[]) => {
+		async (deviceName: string) => {
 			setSyncing(true);
 			setError(null);
 			try {
 				const deviceFingerprint = await computeDeviceFingerprint();
-				// 后端契约: totp_devices 必须是明文 JSON 数组字符串（如 [{"secret":"..."}]），
-				// 服务端统一加密存储（device_sync_handler.go Encrypt(明文)）。
-				// 此前误发本地 AES-GCM 加密 blob（iv:ciphertext）→ 后端 json.Unmarshal 400。
-				const plainJson = JSON.stringify(
-					accounts.map((a) => ({
-						id: a.id,
-						name: a.name,
-						username: a.username,
-						secret: a.secret,
-						algorithm: a.algorithm,
-						digits: a.digits,
-						period: a.period,
-					})),
-				);
-
-				await syncDevice({
-					deviceName,
-					deviceFingerprint,
-					totpDevices: plainJson,
-				});
+				// 安全口径（2026-10）：设备同步只登记设备，**不上传任何 TOTP 密钥**。
+				// 跨设备迁移走「设置 → 数据管理 → 加密导出/导入」（用户口令加密）。
+				// totpDevices 置空：后端按 metadata_v1 处理（旧生成物类型仍要求该字段）。
+				await syncDevice({ deviceName, deviceFingerprint, totpDevices: '' });
 			} catch (err: unknown) {
 				// AU-21：上限错误 → 可行动提示（去重/解绑自恢复）。契约驱动：ui_observation='action_required'
 				if (semanticsOfError(err)?.uiObservation === 'action_required') {

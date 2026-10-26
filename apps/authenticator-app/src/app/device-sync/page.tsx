@@ -13,7 +13,6 @@ import {
 	Trash2,
 } from 'lucide-react';
 import { extractApiError } from '@autional/shared';
-import { useAuthenticatorStore } from '@/lib/store';
 import { useDeviceSyncList, useSyncDevice, useDeleteSyncDevice } from '@/hooks/use-cloud-backup';
 import { showToast } from '@autional/ui';
 import BottomNav from '@/components/BottomNav';
@@ -24,21 +23,16 @@ export default function DeviceSyncPage() {
 	const { t, i18n } = useTranslation();
 	const navigate = useNavigate();
 	const slug = useTenantSlug();
-	const { accounts } = useAuthenticatorStore();
 	const { devices, loading, error, refetch } = useDeviceSyncList();
 	const { sync, syncing, error: syncError } = useSyncDevice();
 	const { remove, error: removeError } = useDeleteSyncDevice();
 	const [syncSuccess, setSyncSuccess] = useState(false);
 
 	const handleSync = async () => {
-		if (accounts.length === 0) {
-			showToast(t('home.noAccounts'), 'error');
-			return;
-		}
 		setSyncSuccess(false);
 		try {
 			const deviceName = getDeviceName(t('deviceSync.unknownDevice'));
-			await sync(deviceName, accounts);
+			await sync(deviceName);
 			setSyncSuccess(true);
 			showToast(t('deviceSync.success'), 'success');
 			refetch();
@@ -148,9 +142,9 @@ export default function DeviceSyncPage() {
 												<span className="text-[10px] text-[var(--color-text-muted)]">
 													{formatDate(device.lastSyncAt)}
 												</span>
-												{device.accountCount != null && (
+												{device.needsResync && (
 													<span className="text-[10px] text-[var(--color-text-muted)]">
-														· {t('settings.accountsCountLabel', { n: device.accountCount })}
+														· {t('deviceSync.needsResync')}
 													</span>
 												)}
 											</div>
@@ -183,7 +177,7 @@ export default function DeviceSyncPage() {
 					<div className="rounded-xl border border-auth-border bg-auth-surface divide-y divide-auth-border">
 						<button
 							onClick={handleSync}
-							disabled={syncing || accounts.length === 0}
+							disabled={syncing}
 							className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-auth-elevated/50 transition-colors disabled:opacity-50"
 						>
 							<div className="flex items-center gap-3">
@@ -191,9 +185,7 @@ export default function DeviceSyncPage() {
 								<div>
 									<span className="text-sm text-[var(--color-text-primary)]">{t('deviceSync.syncThis')}</span>
 									<p className="text-[11px] text-[var(--color-text-muted)]">
-										{accounts.length > 0
-											? t('settings.accountsCountLabel', { n: accounts.length })
-											: t('home.noAccounts')}
+										{t('deviceSync.syncThisDesc')}
 									</p>
 								</div>
 							</div>
