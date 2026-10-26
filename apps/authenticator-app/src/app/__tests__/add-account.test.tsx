@@ -125,7 +125,7 @@ describe('AddAccountPage', () => {
 		it('renders all 3 tabs visible', () => {
 			renderAddAccount();
 			expect(screen.getByText('手动输入')).toBeInTheDocument();
-			expect(screen.getByText('二维码')).toBeInTheDocument();
+			expect(screen.getByText('扫一扫')).toBeInTheDocument();
 			expect(screen.getByText('Autional 绑定')).toBeInTheDocument();
 		});
 
@@ -234,12 +234,23 @@ describe('AddAccountPage', () => {
 	describe('tab switching', () => {
 		it('switches to QR tab and shows scanner text', async () => {
 			renderAddAccount();
-			const qrTab = screen.getByText('二维码');
+			const qrTab = screen.getByText('扫一扫');
 			await act(async () => {
 				fireEvent.click(qrTab);
 			});
 			expect(screen.getByTestId('qr-scanner')).toBeInTheDocument();
 			expect(screen.getByText('将二维码对准扫描框')).toBeInTheDocument();
+		});
+
+		it('带 ?tab=qr 直接落在扫一扫（扫码入口）', async () => {
+			render(
+				<MemoryRouter initialEntries={['/platform/add?tab=qr']}>
+					<Routes>
+						<Route path="/:tenantSlug/add" element={<AddAccountPage />} />
+					</Routes>
+				</MemoryRouter>,
+			);
+			expect(await screen.findByTestId('qr-scanner')).toBeInTheDocument();
 		});
 
 		it('QR 登录码：扫到 autional://login 后按当前租户跳审批页（slug 不丢）', async () => {
@@ -251,7 +262,7 @@ describe('AddAccountPage', () => {
 				</MemoryRouter>,
 			);
 			await act(async () => {
-				fireEvent.click(screen.getByText('二维码'));
+				fireEvent.click(screen.getByText('扫一扫'));
 			});
 			await act(async () => {
 				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
@@ -286,7 +297,7 @@ describe('AddAccountPage', () => {
 		it('AU-04 降级集成：QrScanner onManualFallback 触发 → 切回手动输入 tab', async () => {
 			renderAddAccount();
 			await act(async () => {
-				fireEvent.click(screen.getByText('二维码'));
+				fireEvent.click(screen.getByText('扫一扫'));
 			});
 			expect(screen.getByTestId('qr-scanner')).toBeInTheDocument();
 

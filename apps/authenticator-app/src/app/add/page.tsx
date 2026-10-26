@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
 	ArrowLeft,
@@ -26,13 +26,14 @@ type Tab = 'manual' | 'qr' | 'bind';
 
 export default function AddAccountPage() {
 	const navigate = useNavigate();
+	const [searchParams] = useSearchParams();
 	const slug = useTenantSlug();
 	const { t } = useTranslation();
 	const addAccount = useAuthenticatorStore((s) => s.addAccount);
 	const accounts = useAuthenticatorStore((s) => s.accounts);
 	const { user } = useAuth();
 
-	const [tab, setTab] = useState<Tab>('manual');
+	const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'qr' ? 'qr' : 'manual');
 	const [migratedAccounts, setMigratedAccounts] = useState<MigratedAccount[] | null>(null);
 
 	// Manual form state

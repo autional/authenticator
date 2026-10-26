@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router';
-import { ShieldCheck, Search, X, LayoutGrid, List, Copy } from 'lucide-react';
+import { ShieldCheck, Search, X, LayoutGrid, List, Copy, QrCode } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { showToast, Input } from '@autional/ui';
 import { useAuthenticatorStore } from '@/lib/store';
@@ -145,7 +145,16 @@ export default function HomePage() {
 				<div className="flex h-[var(--layout-header-height)] items-center gap-2">
 					<ShieldCheck className="h-6 w-6 shrink-0 text-primary-500" />
 					<h1 className="min-w-0 truncate text-lg font-bold text-[var(--color-text-primary)]">{t('home.title')}</h1>
-					<LanguageSwitcher className="ml-auto shrink-0" />
+					<button
+						type="button"
+						onClick={() => navigate(toSlugged('/add?tab=qr', slug))}
+						aria-label={t('home.scan')}
+						title={t('home.scan')}
+						className="ml-auto shrink-0 rounded-xl border border-auth-border bg-auth-elevated p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+					>
+						<QrCode className="h-5 w-5" />
+					</button>
+					<LanguageSwitcher className="shrink-0" />
 				</div>
 
 				{/* 行 B：搜索 + 计数 + 多选 + 视图切换 */}

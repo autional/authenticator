@@ -1,4 +1,4 @@
-import { ShieldPlus } from 'lucide-react';
+import { ShieldPlus, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { toSlugged, useTenantSlug } from '../lib/slug';
@@ -15,12 +15,21 @@ export default function EmptyState() {
 			</div>
 			<h2 className="mb-1 text-lg font-semibold text-[var(--color-text-primary)]">{t('home.noAccounts')}</h2>
 			<p className="mb-6 text-sm text-[var(--color-text-secondary)]">{t('home.emptyDesc')}</p>
-			<button
-				onClick={() => navigate(toSlugged('/add', slug))}
-				className="rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-95 transition-all"
-			>
-				{t('home.addAccount')}
-			</button>
+			<div className="flex w-full max-w-[240px] flex-col gap-2">
+				<button
+					onClick={() => navigate(toSlugged('/add', slug))}
+					className="rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-95 transition-all"
+				>
+					{t('home.addAccount')}
+				</button>
+				<button
+					onClick={() => navigate(toSlugged('/add?tab=qr', slug))}
+					className="flex items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-elevated px-6 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-auth-border transition-all"
+				>
+					<QrCode className="h-4 w-4" />
+					{t('home.scan')}
+				</button>
+			</div>
 		</div>
 	);
 }

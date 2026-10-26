@@ -132,6 +132,15 @@ describe('HomePage', () => {
 			expect(mockNavigate).toHaveBeenCalledWith('/add');
 		});
 
+		it('扫一扫 CTA 跳扫码入口（?tab=qr）', async () => {
+			renderHome();
+			const button = screen.getByText('扫一扫');
+			await act(async () => {
+				fireEvent.click(button);
+			});
+			expect(mockNavigate).toHaveBeenCalledWith('/add?tab=qr');
+		});
+
 		it('shows search input', async () => {
 			renderHome();
 			expect(screen.getByPlaceholderText('搜索账户...')).toBeInTheDocument();
