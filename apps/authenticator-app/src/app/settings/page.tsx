@@ -509,7 +509,7 @@ export default function SettingsPage() {
 							<button
 								type="button"
 								onClick={() => {
-									window.location.href = buildLoginUrl();
+									window.location.href = buildLoginUrl(window.location.origin + '/');
 								}}
 								className="mt-3 w-full rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] transition-all"
 							>

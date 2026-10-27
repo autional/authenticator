@@ -36,7 +36,7 @@ export default function EmptyState() {
 				<button
 					type="button"
 					onClick={() => {
-						window.location.href = buildLoginUrl();
+						window.location.href = buildLoginUrl(window.location.origin + '/');
 					}}
 					className="mt-3 text-xs text-primary-400 hover:text-primary-300"
 				>

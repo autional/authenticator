@@ -52,7 +52,10 @@ function LegacyRedirect({ to }: { to: string }) {
 
 function LayoutWrapper() {
 	const { tenantSlug } = useParams();
+	const { isAuthenticated } = useAuth();
 	const local = tenantSlug === LOCAL_MODE_SLUG;
+	// 已登录用户在 /local：回根漏斗（会进租户首页），避免与租户路由并存造成困惑
+	if (local && isAuthenticated) return <Navigate to="/" replace />;
 	return (
 		<TenantSlugProvider value={tenantSlug}>
 			{/* 本地模式无租户可校验：跳过公开租户名单闸门（保险库本就与租户无关） */}
