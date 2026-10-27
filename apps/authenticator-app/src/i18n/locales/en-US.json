@@ -257,7 +257,7 @@
   "deviceSync.synced": "Synced",
   "deviceSync.success": "Device registered",
   "deviceSync.needsResync": "Legacy sync data invalidated — please re-register from the source device",
-  "deviceSync.encryptionNote1": "Device sync only registers device metadata; no TOTP secrets are uploaded and the server cannot read your codes.",
+  "deviceSync.encryptionNote1": "Device sync only registers device metadata; no TOTP secrets are uploaded. The server does not decrypt — it only stores ciphertext.",
   "deviceSync.encryptionNote2": "To migrate across devices, use Settings → Data → encrypted export/import (encrypted with your passphrase).",
   "deviceSync.unknownDevice": "Unknown device",
   "deviceSync.loadFailed": "Failed to load device list",
