@@ -163,6 +163,8 @@ export default function HomePage() {
 					    absolute 图标 + 算出来的 pl-9，加上 absolute 的清除按钮 + pr-8。 */}
 					<div className="min-w-0 flex-1">
 						<Input
+							id="account-search"
+							name="account-search"
 							type="text"
 							size="sm"
 							value={searchQuery}

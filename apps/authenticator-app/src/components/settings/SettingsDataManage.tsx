@@ -40,6 +40,8 @@ export default function SettingsDataManage({
 						<span className="text-sm text-[var(--color-text-primary)]">{t('settings.importBackup')}</span>
 					</div>
 					<input
+						id="backup-import"
+						name="backup-import"
 						type="file"
 						accept="application/json"
 						onChange={onImportChange}
