@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "node ../../scripts/gen-env.mjs && vite --port 13108",
     "build": "node ../../scripts/gen-env.mjs && tsc && vite build",
+    "prebuild": "node ../../scripts/check-pwa-config.mjs",
     "build:harness": "vite build --config vite.harness.config.ts",
     "preview": "vite preview --port 13108",
     "lint": "eslint src/",
