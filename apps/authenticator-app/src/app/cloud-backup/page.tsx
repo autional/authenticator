@@ -26,6 +26,7 @@ import BackupPassphraseDialog, {
 	type BackupPassphraseMode,
 } from '@/components/cloud-backup/BackupPassphraseDialog';
 import BackupRecoveryDialog from '@/components/cloud-backup/BackupRecoveryDialog';
+import BackupRotatePassphraseDialog from '@/components/cloud-backup/BackupRotatePassphraseDialog';
 import BackupRestoreDialog from '@/components/cloud-backup/BackupRestoreDialog';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
@@ -35,7 +36,14 @@ export default function CloudBackupPage() {
 	const slug = useTenantSlug();
 	const { accounts } = useAuthenticatorStore();
 	const { backup, format, needsRestore, loading, error, refetch } = useCloudBackup();
-	const { uploading, prepareNew, uploadPrepared, uploadExisting } = useUploadCloudBackup();
+	const {
+		uploading,
+		prepareNew,
+		uploadPrepared,
+		uploadExisting,
+		rotatePassphrase,
+		prepareRecoveryRotation,
+	} = useUploadCloudBackup();
 	const { downloading, downloadLegacy, downloadV2 } = useDownloadCloudBackup();
 	const [importSuccess, setImportSuccess] = useState(false);
 
@@ -46,12 +54,18 @@ export default function CloudBackupPage() {
 	const [pendingEnvelope, setPendingEnvelope] = useState<BackupEnvelopeV2 | null>(null);
 	const [pendingDek, setPendingDek] = useState<CryptoKey | null>(null);
 	const [recoveryCode, setRecoveryCode] = useState('');
+	const [pendingExpectedHash, setPendingExpectedHash] = useState<string | null>(null);
+	const [pendingAccountCount, setPendingAccountCount] = useState(0);
+	const [passphraseIntent, setPassphraseIntent] = useState<'upload' | 'rotate-recovery'>('upload');
+	const [rotateOpen, setRotateOpen] = useState(false);
 	const [dialogError, setDialogError] = useState<string | null>(null);
 
 	const resetPending = () => {
 		setPendingEnvelope(null);
 		setPendingDek(null);
 		setRecoveryCode('');
+		setPendingExpectedHash(null);
+		setPendingAccountCount(0);
 	};
 
 	const startUpload = () => {
@@ -60,6 +74,7 @@ export default function CloudBackupPage() {
 			return;
 		}
 		setDialogError(null);
+		setPassphraseIntent('upload');
 		if (!backup || format === 'v1') {
 			setPassphraseMode('create');
 		} else {
@@ -68,9 +83,28 @@ export default function CloudBackupPage() {
 		setPassphraseOpen(true);
 	};
 
+	const startRotateRecovery = () => {
+		if (format !== 'v2') return;
+		setDialogError(null);
+		setPassphraseIntent('rotate-recovery');
+		setPassphraseMode('unlock');
+		setPassphraseOpen(true);
+	};
+
 	const handlePassphrase = async (passphrase: string) => {
 		setDialogError(null);
 		try {
+			if (passphraseIntent === 'rotate-recovery') {
+				const prepared = await prepareRecoveryRotation(passphrase);
+				setPendingEnvelope(prepared.envelope);
+				setPendingDek(prepared.dek);
+				setRecoveryCode(prepared.recoveryCode);
+				setPendingExpectedHash(prepared.expectedLatestHash);
+				setPendingAccountCount(prepared.accountCount);
+				setPassphraseOpen(false);
+				setRecoveryOpen(true);
+				return;
+			}
 			if (passphraseMode === 'create') {
 				const created = await prepareNew(accounts, passphrase);
 				setPendingEnvelope(created.envelope);
@@ -93,10 +127,27 @@ export default function CloudBackupPage() {
 		if (!pendingEnvelope || !pendingDek) return;
 		setDialogError(null);
 		try {
-			await uploadPrepared(pendingEnvelope, pendingDek, accounts.length);
+			await uploadPrepared(
+				pendingEnvelope,
+				pendingDek,
+				pendingAccountCount || accounts.length,
+				pendingExpectedHash ?? undefined,
+			);
 			setRecoveryOpen(false);
 			resetPending();
 			showToast(t('cloudBackup.uploaded'), 'success');
+			refetch();
+		} catch (err) {
+			setDialogError(errorMessage(err, t('cloudBackup.uploadFailed')));
+		}
+	};
+
+	const handleRotatePassphrase = async (current: string, next: string) => {
+		setDialogError(null);
+		try {
+			await rotatePassphrase(current, next);
+			setRotateOpen(false);
+			showToast(t('cloudBackup.rotateSuccess'), 'success');
 			refetch();
 		} catch (err) {
 			setDialogError(errorMessage(err, t('cloudBackup.uploadFailed')));
@@ -314,6 +365,49 @@ export default function CloudBackupPage() {
 					</div>
 				</section>
 
+				{format === 'v2' && (
+					<section>
+						<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
+							{t('cloudBackup.securityTitle')}
+						</h2>
+						<div className="rounded-xl border border-auth-border bg-auth-surface divide-y divide-auth-border">
+							<button
+								type="button"
+								onClick={() => {
+									setDialogError(null);
+									setRotateOpen(true);
+								}}
+								className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-auth-elevated/50 transition-colors"
+							>
+								<Shield className="h-4 w-4 text-primary-400" />
+								<div>
+									<span className="text-sm text-[var(--color-text-primary)]">
+										{t('cloudBackup.rotatePassphrase')}
+									</span>
+									<p className="text-[11px] text-[var(--color-text-muted)]">
+										{t('cloudBackup.rotatePassphraseDesc')}
+									</p>
+								</div>
+							</button>
+							<button
+								type="button"
+								onClick={startRotateRecovery}
+								className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-auth-elevated/50 transition-colors"
+							>
+								<Shield className="h-4 w-4 text-primary-400" />
+								<div>
+									<span className="text-sm text-[var(--color-text-primary)]">
+										{t('cloudBackup.rotateRecovery')}
+									</span>
+									<p className="text-[11px] text-[var(--color-text-muted)]">
+										{t('cloudBackup.rotateRecoveryDesc')}
+									</p>
+								</div>
+							</button>
+						</div>
+					</section>
+				)}
+
 				<div className="rounded-lg bg-auth-elevated p-3">
 					<div className="flex items-start gap-2">
 						<Shield className="mt-0.5 h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
@@ -346,11 +440,25 @@ export default function CloudBackupPage() {
 					code={recoveryCode}
 					busy={uploading}
 					error={dialogError}
+					confirmLabel={pendingExpectedHash ? t('cloudBackup.recoveryConfirmLabel') : undefined}
 					onConfirm={handleRecoveryConfirm}
 					onCancel={() => {
 						setRecoveryOpen(false);
 						setDialogError(null);
 						resetPending();
+					}}
+				/>
+			)}
+
+			{rotateOpen && (
+				<BackupRotatePassphraseDialog
+					open
+					busy={uploading}
+					error={dialogError}
+					onSubmit={handleRotatePassphrase}
+					onCancel={() => {
+						setRotateOpen(false);
+						setDialogError(null);
 					}}
 				/>
 			)}

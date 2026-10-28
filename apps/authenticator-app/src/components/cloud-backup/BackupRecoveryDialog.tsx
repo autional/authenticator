@@ -7,6 +7,7 @@ export default function BackupRecoveryDialog({
 	code,
 	busy,
 	error,
+	confirmLabel,
 	onConfirm,
 	onCancel,
 }: {
@@ -14,6 +15,7 @@ export default function BackupRecoveryDialog({
 	code: string;
 	busy?: boolean;
 	error?: string | null;
+	confirmLabel?: string;
 	onConfirm: () => void;
 	onCancel: () => void;
 }) {
@@ -117,7 +119,7 @@ export default function BackupRecoveryDialog({
 						onClick={onConfirm}
 						className="flex-1 rounded-lg bg-primary-600 py-2 text-sm font-semibold text-white transition-colors hover:bg-primary-500 disabled:opacity-50"
 					>
-						{t('cloudBackup.createAction')}
+						{confirmLabel ?? t('cloudBackup.createAction')}
 					</button>
 				</div>
 			</div>

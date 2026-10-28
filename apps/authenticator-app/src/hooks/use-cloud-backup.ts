@@ -21,6 +21,7 @@ import { base64ToArrayBuffer, decryptWithKey } from '@/lib/crypto';import {
 	parseEnvelope,
 	reencryptEnvelope,
 	rewrapPassphrase,
+	rotateRecoveryCode,
 	serializeEnvelope,
 	unlockEnvelope,
 	type BackupEnvelopeV2,
@@ -188,8 +189,13 @@ export function useUploadCloudBackup() {
 	const [error, setError] = useState<string | null>(null);
 
 	const commit = useCallback(
-		async (envelope: BackupEnvelopeV2, dek: CryptoKey, accountCount: number) => {
-			// 并发保护：若云端已有另一份 v2 信封（另一台设备刚创建），不得用新 DEK 覆盖。
+		async (
+			envelope: BackupEnvelopeV2,
+			dek: CryptoKey,
+			accountCount: number,
+			expectedLatestHash?: string,
+		) => {
+			// 并发保护：普通上传要求「云端 wraps = 本次 wraps」；轮换要求「云端 wraps = 解锁时的 wraps」。
 			const latestRes = await getCloudBackups();
 			const latestBackup = normalizeBackup(extractItem(latestRes));
 			if (latestBackup?.encryptedData && isEnvelopeV2(latestBackup.encryptedData)) {
@@ -198,7 +204,10 @@ export function useUploadCloudBackup() {
 					hashWraps(latestEnvelope.wraps),
 					hashWraps(envelope.wraps),
 				]);
-				if (latestHash !== incomingHash) {
+				const mismatch = expectedLatestHash
+					? latestHash !== expectedLatestHash
+					: latestHash !== incomingHash;
+				if (mismatch) {
 					throw new BackupEnvelopeError('NEEDS_RESTORE');
 				}
 			}
@@ -242,11 +251,16 @@ export function useUploadCloudBackup() {
 
 	/** 提交已准备好的信封（页面在用户确认恢复码后调用）。 */
 	const uploadPrepared = useCallback(
-		async (envelope: BackupEnvelopeV2, dek: CryptoKey, accountCount: number) => {
+		async (
+			envelope: BackupEnvelopeV2,
+			dek: CryptoKey,
+			accountCount: number,
+			expectedLatestHash?: string,
+		) => {
 			setUploading(true);
 			setError(null);
 			try {
-				await commit(envelope, dek, accountCount);
+				await commit(envelope, dek, accountCount, expectedLatestHash);
 			} catch (err: unknown) {
 				const key = backupErrorKey(err);
 				const message = key
@@ -303,7 +317,81 @@ export function useUploadCloudBackup() {
 		[commit, t],
 	);
 
-	return { uploading, error, prepareNew, uploadPrepared, uploadExisting };
+	/** 更换备份口令：当前口令解锁 → 重包 passphrase wrap → 立即上传。 */
+	const rotatePassphrase = useCallback(
+		async (currentPassphrase: string, nextPassphrase: string) => {
+			setUploading(true);
+			setError(null);
+			try {
+				const res = await getCloudBackups();
+				const backup = normalizeBackup(extractItem(res));
+				if (!backup?.encryptedData || !isEnvelopeV2(backup.encryptedData)) {
+					throw new BackupEnvelopeError('INVALID_FORMAT');
+				}
+				const envelope = parseEnvelope(backup.encryptedData);
+				const expectedLatestHash = await hashWraps(envelope.wraps);
+				const { dek } = await unlockEnvelope(envelope, { passphrase: currentPassphrase });
+				const rotated = await rewrapPassphrase(envelope, dek, nextPassphrase);
+				await commit(rotated, dek, backup.accountCount, expectedLatestHash);
+			} catch (err: unknown) {
+				const key = backupErrorKey(err);
+				const message = key
+					? t(key)
+					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
+				setError(message);
+				throw new Error(message);
+			} finally {
+				setUploading(false);
+			}
+		},
+		[commit, t],
+	);
+
+	/** 准备轮换恢复码：解锁 → 生成新码/新 wrap；页面展示新码后再提交。 */
+	const prepareRecoveryRotation = useCallback(
+		async (passphrase: string) => {
+			setUploading(true);
+			setError(null);
+			try {
+				const res = await getCloudBackups();
+				const backup = normalizeBackup(extractItem(res));
+				if (!backup?.encryptedData || !isEnvelopeV2(backup.encryptedData)) {
+					throw new BackupEnvelopeError('INVALID_FORMAT');
+				}
+				const envelope = parseEnvelope(backup.encryptedData);
+				const expectedLatestHash = await hashWraps(envelope.wraps);
+				const { dek } = await unlockEnvelope(envelope, { passphrase });
+				const { envelope: rotated, recoveryCode } = await rotateRecoveryCode(envelope, dek);
+				return {
+					envelope: rotated,
+					recoveryCode,
+					dek,
+					accountCount: backup.accountCount,
+					expectedLatestHash,
+				};
+			} catch (err: unknown) {
+				const key = backupErrorKey(err);
+				const message = key
+					? t(key)
+					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
+				setError(message);
+				throw new Error(message);
+			} finally {
+				setUploading(false);
+			}
+		},
+		[t],
+	);
+
+	return {
+		uploading,
+		error,
+		prepareNew,
+		uploadPrepared,
+		uploadExisting,
+		rotatePassphrase,
+		prepareRecoveryRotation,
+	};
 }
 
 export function useDownloadCloudBackup() {
