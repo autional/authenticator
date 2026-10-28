@@ -291,7 +291,7 @@ describe('AddAccountPage', () => {
 				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
 			});
 			expect(mockNavigate).toHaveBeenCalledWith(
-				'/platform/login-approve?token=t1&nm=123456',
+				'/login-approve?token=t1&nm=123456',
 			);
 		});
 

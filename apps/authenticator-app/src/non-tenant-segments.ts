@@ -23,6 +23,7 @@ export const NON_TENANT_SEGMENTS = [
 	'device-sync',
 	'devices',
 	'login-approve',
+	'local',
 	'notification',
 	'notifications',
 	'push-approve',

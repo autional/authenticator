@@ -1,19 +1,16 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { Routes, Route, Outlet, useParams, Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { toSlugged, useTenantSlug } from './lib/slug';
+import { readLastTenantSlug, rememberTenantSlug, useSessionTenantSlug } from './lib/slug';
 import {
-	RequireAuth,
 	OAuthCallbackPage,
 	TenantSlugProvider,
-	TenantIndexGuard,
-	TenantRootRedirect,
+	buildLoginUrl,
 	useAuth,
 	useBranding,
 	BrandingInitializer,
 } from '@autional/shared';
-import { LOCAL_MODE_SLUG, useIsLocalMode } from './lib/slug';
 import ErrorBoundary from './components/ErrorBoundary';
 import TenantSlugGate from './components/TenantSlugGate';
 import UnlockGate from './components/UnlockScreen';
@@ -43,77 +40,79 @@ function NotFoundRoute() {
 	);
 }
 
-/** 旧路径客户端重定向：按 tenantSlug 组装新绝对路径，保留 query/hash，replace 历史记录。 */
+/** 旧路径客户端重定向：去租户后目标就是根路径，保留 query/hash。 */
 function LegacyRedirect({ to }: { to: string }) {
-	const slug = useTenantSlug();
 	const { search, hash } = useLocation();
-	return <Navigate to={`${toSlugged(to, slug)}${search}${hash}`} replace />;
+	return <Navigate to={`${to}${search}${hash}`} replace />;
+}
+
+/** 旧本地模式链接：/local/xxx → /xxx（一个发布周期兼容）。 */
+function LocalRedirect() {
+	const { pathname, search, hash } = useLocation();
+	const next = pathname.replace(/^\/local(?=\/|$)/, '') || '/';
+	return <Navigate to={`${next}${search}${hash}`} replace />;
+}
+
+/** 品牌：旧别名 slug 优先；否则用会话租户；都没有则空（默认品牌）。 */
+function BrandingFor({ slug }: { slug: string }) {
+	const sessionSlug = useSessionTenantSlug();
+	useEffect(() => {
+		if (sessionSlug) rememberTenantSlug(sessionSlug);
+	}, [sessionSlug]);
+	return <BrandingInitializer slug={slug || sessionSlug} />;
 }
 
 function LayoutWrapper() {
 	const { tenantSlug } = useParams();
-	const { isAuthenticated } = useAuth();
-	const local = tenantSlug === LOCAL_MODE_SLUG;
-	// 已登录用户在 /local：回根漏斗（会进租户首页），避免与租户路由并存造成困惑
-	if (local && isAuthenticated) return <Navigate to="/" replace />;
+	const slug = tenantSlug ?? '';
+	useEffect(() => {
+		if (slug) rememberTenantSlug(slug);
+	}, [slug]);
 	return (
-		<TenantSlugProvider value={tenantSlug}>
-			{/* 本地模式无租户可校验：跳过公开租户名单闸门（保险库本就与租户无关） */}
-			{local ? (
-				<Outlet />
-			) : (
-				/* AU-30：已认证未知 slug 全子路由禁渲染真实页（未认证面仍由 RequireAuth 闸门负责） */
+		<TenantSlugProvider value={slug}>
+			<BrandingFor slug={slug} />
+			{slug ? (
 				<TenantSlugGate notFound={<NotFoundRoute />}>
 					<Outlet />
 				</TenantSlugGate>
+			) : (
+				<Outlet />
 			)}
 		</TenantSlugProvider>
 	);
 }
 
-/** 本地模式（/local）免登录；其余租户段仍强制 RequireAuth。 */
-function VaultGate({ children }: { children: ReactNode }) {
-	const { tenantSlug } = useParams();
-	if (tenantSlug === LOCAL_MODE_SLUG) return <>{children}</>;
-	return <RequireAuth notFound={<NotFoundRoute />}>{children}</RequireAuth>;
-}
-
-/** 裸根：未登录直接落本地保险库；已登录沿用共享租户漏斗。 */
-function RootRedirect() {
-	const { isAuthenticated } = useAuth();
-	if (!isAuthenticated) return <Navigate to={`/${LOCAL_MODE_SLUG}/`} replace />;
-	return <TenantRootRedirect />;
-}
-
-/** 仅服务端页面（通知/活动/设备/云备份/设备同步/审批）：本地模式回首页。 */
+/** 服务端页面：未登录 → auth 登录页（带租户 + 回跳）。 */
 function ServerOnly({ children }: { children: ReactNode }) {
+	const { t } = useTranslation();
 	const { isAuthenticated } = useAuth();
-	if (!isAuthenticated) return <Navigate to={`/${LOCAL_MODE_SLUG}/`} replace />;
-	return <>{children}</>;
-}
+	const sessionSlug = useSessionTenantSlug();
+	const location = useLocation();
+	const loginUrl = useMemo(() => {
+		if (isAuthenticated) return '';
+		const target = `${location.pathname}${location.search}${location.hash}`;
+		return buildLoginUrl(
+			`${window.location.origin}${target}`,
+			true,
+			sessionSlug || readLastTenantSlug() || null,
+		);
+	}, [isAuthenticated, location.pathname, location.search, location.hash, sessionSlug]);
 
-/** 首页租户索引闸门：本地模式跳过（没有可校验的公开租户）。 */
-function IndexGuard({ children }: { children: ReactNode }) {
-	const local = useIsLocalMode();
-	if (local) return <>{children}</>;
-	return <TenantIndexGuard notFound={<NotFoundRoute />}>{children}</TenantIndexGuard>;
-}
+	useEffect(() => {
+		if (loginUrl) window.location.replace(loginUrl);
+	}, [loginUrl]);
 
-/** 品牌初始化：本地模式（/local）没有租户可查，显式传空 slug 关掉公开租户请求。 */
-function BrandingGate() {
-	const { pathname } = useLocation();
-	const local = pathname.split('/').filter(Boolean)[0] === LOCAL_MODE_SLUG;
-	return <BrandingInitializer slug={local ? '' : undefined} />;
+	if (isAuthenticated) return <>{children}</>;
+	return <LoadingScreen message={t('common.loading')} />;
 }
 
 export default function App() {
 	const { t } = useTranslation();
-	useBranding();
+	useBranding({ applyCustomCss: false });
 
 	return (
 		<ToastProvider>
 			<ErrorBoundary>
-				<BrandingGate />
 				<UnlockGate>
 					<a
 						href="#main-content"
@@ -134,17 +133,16 @@ export default function App() {
 							<Routes>
 								<Route path="/oauth/callback" element={<OAuthCallbackPage />} />
 
-								{/* 裸根漏斗：有会话直达 /<slug>，否则落本地保险库 /local */}
-								<Route path="/" element={<RootRedirect />} />
+								{/* 旧 /local/*：一个发布周期内 302 到根路径（客户端重定向） */}
+								<Route path="/local/*" element={<LocalRedirect />} />
 
-								<Route
-									path="/:tenantSlug"
-									element={
-										<VaultGate>
-											<LayoutWrapper />
-										</VaultGate>
-									}
-								>
+								{/* 保险库在根路径：未登录也可用；服务端页各自 ServerOnly 门禁 */}
+								<Route path="/" element={<LayoutWrapper />}>
+									{appRoutes(t)}
+								</Route>
+
+								{/* 旧 /{slug}/* 链接兼容：同一路由树，slug 只用于品牌/登录上下文 */}
+								<Route path="/:tenantSlug/*" element={<LayoutWrapper />}>
 									{appRoutes(t)}
 								</Route>
 
@@ -161,14 +159,7 @@ export default function App() {
 function appRoutes(t: (key: string) => string) {
 	return (
 		<>
-			<Route
-				index
-				element={
-					<IndexGuard>
-						<HomePage />
-					</IndexGuard>
-				}
-			/>
+			<Route index element={<HomePage />} />
 			<Route
 				path="add"
 				element={

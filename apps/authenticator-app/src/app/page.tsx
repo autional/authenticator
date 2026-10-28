@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { ShieldCheck, Search, X, LayoutGrid, List, Copy, QrCode } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { showToast, Input } from '@autional/ui';
+import { useTenantBrandingStore } from '@autional/shared';
 import { useAuthenticatorStore } from '@/lib/store';
 import { generateTOTP } from '@/lib/totp';
 import TotpCard from '@/components/TotpCard';
@@ -17,6 +18,7 @@ export default function HomePage() {
 	const navigate = useNavigate();
 	const slug = useTenantSlug();
 	const { t } = useTranslation();
+	const branding = useTenantBrandingStore((s) => s.branding);
 	const {
 		accounts,
 		removeAccount,
@@ -143,8 +145,18 @@ export default function HomePage() {
 			<header className="sticky top-0 z-10 flex flex-col border-b border-auth-border bg-auth-bg/80 px-4 pb-3 backdrop-blur-md">
 				{/* 行 A：品牌题头（定高行） */}
 				<div className="flex h-[var(--layout-header-height)] items-center gap-2">
-					<ShieldCheck className="h-6 w-6 shrink-0 text-primary-500" />
-					<h1 className="min-w-0 truncate text-lg font-bold text-[var(--color-text-primary)]">{t('home.title')}</h1>
+					{branding?.logoUrl ? (
+						<img
+							src={branding.logoUrl}
+							alt={branding.companyName || t('home.title')}
+							className="h-6 w-6 shrink-0 rounded-md object-contain"
+						/>
+					) : (
+						<ShieldCheck className="h-6 w-6 shrink-0 text-primary-500" />
+					)}
+					<h1 className="min-w-0 truncate text-lg font-bold text-[var(--color-text-primary)]">
+						{branding?.companyName || t('home.title')}
+					</h1>
 					<button
 						type="button"
 						onClick={() => navigate(toSlugged('/add?tab=qr', slug))}
