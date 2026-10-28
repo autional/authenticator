@@ -10,12 +10,27 @@ import {
 	syncDevice,
 	deleteSyncDevice,
 } from '@/lib/api';
+import { base64ToArrayBuffer, decryptWithKey } from '@/lib/crypto';import {
+	BackupEnvelopeError,
+	backupTypeOf,
+	checksumOfData,
+	createEnvelope,
+	decryptEnvelope,
+	hashWraps,
+	isEnvelopeV2,
+	parseEnvelope,
+	reencryptEnvelope,
+	rewrapPassphrase,
+	serializeEnvelope,
+	unlockEnvelope,
+	type BackupEnvelopeV2,
+} from '@/lib/backup-envelope';
 import {
-	encryptWithKey,
-	decryptWithKey,
-	arrayBufferToBase64,
-	base64ToArrayBuffer,
-} from '@/lib/crypto';
+	getCachedDek,
+	readBackupKey,
+	setCachedDek,
+	writeBackupKey,
+} from '@/lib/backup-key';
 
 let _ensureDeviceKey: (() => Promise<CryptoKey>) | null = null;
 async function getEnsureDeviceKey(): Promise<() => Promise<CryptoKey>> {
@@ -51,19 +66,73 @@ export interface SyncDevice {
 	totpDevices?: string;
 }
 
+export type BackupFormat = 'v1' | 'v2';
+
+function normalizeBackup(raw: unknown): CloudBackup | null {
+	if (!raw || typeof raw !== 'object') return null;
+	const item = raw as CloudBackup & { encrypted_data?: string };
+	return {
+		...item,
+		encryptedData: item.encryptedData ?? item.encrypted_data ?? '',
+	};
+}
+
+function serializeAccounts(accounts: TotpAccount[]): string {
+	return JSON.stringify(
+		accounts.map((a) => ({
+			id: a.id,
+			name: a.name,
+			username: a.username,
+			secret: a.secret,
+			algorithm: a.algorithm,
+			digits: a.digits,
+			period: a.period,
+			icon: a.icon,
+			group: a.group,
+			order: a.order,
+			createdAt: a.createdAt,
+		})),
+	);
+}
+
+function parseAccounts(json: string): TotpAccount[] {
+	const parsed = JSON.parse(json) as Partial<TotpAccount>[];
+	return parsed.map((a) => ({ ...a, type: a.type || 'totp' })) as TotpAccount[];
+}
+
+function backupErrorKey(err: unknown): string | null {
+	if (err instanceof BackupEnvelopeError) {
+		switch (err.code) {
+			case 'INVALID_SECRET':
+				return 'cloudBackup.passphraseWrong';
+			case 'INVALID_ENVELOPE':
+			case 'INVALID_FORMAT':
+				return 'cloudBackup.invalidFormat';
+			case 'WEAK_PASSPHRASE':
+				return 'cloudBackup.passphraseTooShort';
+			case 'NEEDS_RESTORE':
+				return 'cloudBackup.restoreFirst';
+			default:
+				return 'cloudBackup.downloadFailed';
+		}
+	}
+	return null;
+}
+
 export function useCloudBackup() {
 	const { t } = useTranslation();
 	const [backup, setBackup] = useState<CloudBackup | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
+	const [needsRestore, setNeedsRestore] = useState<boolean | null>(null);
 
 	const fetchBackup = useCallback(async () => {
 		setLoading(true);
 		setError(null);
 		try {
 			const res = await getCloudBackups();
-			const data = extractItem(res) as CloudBackup | null;
-			setBackup(data ?? null);
+			const data = normalizeBackup(extractItem(res));
+			setBackup(data);
 		} catch (err: unknown) {
 			if ((err as { response?: { status?: number } })?.response?.status !== 404) {
 				setError(extractApiErrorMessage(err, t('cloudBackup.loadFailed')));
@@ -78,7 +147,39 @@ export function useCloudBackup() {
 		fetchBackup();
 	}, [fetchBackup]);
 
-	return { backup, loading, error, refetch: fetchBackup };
+	const format: BackupFormat | null = backup?.encryptedData
+		? isEnvelopeV2(backup.encryptedData)
+			? 'v2'
+			: 'v1'
+		: null;
+
+	// v2 且本地没有对应 wraps（或 wraps 已被其它设备换过）→ 需要先恢复。
+	useEffect(() => {
+		let cancelled = false;
+		if (format !== 'v2' || !backup?.encryptedData) {
+			setNeedsRestore(null);
+			return;
+		}
+		(async () => {
+			try {
+				const envelope = parseEnvelope(backup.encryptedData);
+				const local = readBackupKey();
+				if (!local) {
+					if (!cancelled) setNeedsRestore(true);
+					return;
+				}
+				const hash = await hashWraps(envelope.wraps);
+				if (!cancelled) setNeedsRestore(hash !== local.wrapHash);
+			} catch {
+				if (!cancelled) setNeedsRestore(true);
+			}
+		})();
+		return () => {
+			cancelled = true;
+		};
+	}, [format, backup?.encryptedData]);
+
+	return { backup, format, needsRestore, loading, error, refetch: fetchBackup };
 }
 
 export function useUploadCloudBackup() {
@@ -86,41 +187,52 @@ export function useUploadCloudBackup() {
 	const [uploading, setUploading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const upload = useCallback(
-		async (accounts: TotpAccount[]) => {
+	const commit = useCallback(
+		async (envelope: BackupEnvelopeV2, dek: CryptoKey, accountCount: number) => {
+			// 并发保护：若云端已有另一份 v2 信封（另一台设备刚创建），不得用新 DEK 覆盖。
+			const latestRes = await getCloudBackups();
+			const latestBackup = normalizeBackup(extractItem(latestRes));
+			if (latestBackup?.encryptedData && isEnvelopeV2(latestBackup.encryptedData)) {
+				const latestEnvelope = parseEnvelope(latestBackup.encryptedData);
+				const [latestHash, incomingHash] = await Promise.all([
+					hashWraps(latestEnvelope.wraps),
+					hashWraps(envelope.wraps),
+				]);
+				if (latestHash !== incomingHash) {
+					throw new BackupEnvelopeError('NEEDS_RESTORE');
+				}
+			}
+			const checksum = await checksumOfData(envelope.data);
+			await uploadCloudBackup({
+				encrypted_data: serializeEnvelope(envelope),
+				backup_type: backupTypeOf(envelope),
+				device_name: getDeviceName(t('deviceSync.unknownDevice')),
+				account_count: accountCount,
+				checksum,
+			});
+			writeBackupKey({
+				wrapHash: await hashWraps(envelope.wraps),
+				wraps: envelope.wraps,
+			});
+			setCachedDek(dek);
+		},
+		[t],
+	);
+
+	/** 首次上传：创建新 DEK + 口令包 + 恢复码包；返回恢复码给页面展示。 */
+	const prepareNew = useCallback(
+		async (accounts: TotpAccount[], passphrase: string) => {
 			setUploading(true);
 			setError(null);
 			try {
-				const encryptionKey = await (await getEnsureDeviceKey())();
-				const json = JSON.stringify(
-					accounts.map((a) => ({
-						id: a.id,
-						name: a.name,
-						username: a.username,
-						secret: a.secret,
-						algorithm: a.algorithm,
-						digits: a.digits,
-						period: a.period,
-						icon: a.icon,
-						group: a.group,
-						order: a.order,
-						createdAt: a.createdAt,
-					})),
-				);
-				const { ciphertext, iv } = await encryptWithKey(json, encryptionKey);
-				const encryptedData = `${arrayBufferToBase64(iv)}:${arrayBufferToBase64(ciphertext)}`;
-				const checksum = await computeSHA256(json);
-
-				await uploadCloudBackup({
-					encrypted_data: encryptedData,
-					backup_type: 'totp',
-					device_name: getDeviceName(t('deviceSync.unknownDevice')),
-					account_count: accounts.length,
-					checksum,
-				});
+				return await createEnvelope(serializeAccounts(accounts), passphrase);
 			} catch (err: unknown) {
-				setError(extractApiErrorMessage(err, t('cloudBackup.uploadFailed')));
-				throw err;
+				const key = backupErrorKey(err);
+				const message = key
+					? t(key)
+					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
+				setError(message);
+				throw new Error(message);
 			} finally {
 				setUploading(false);
 			}
@@ -128,7 +240,70 @@ export function useUploadCloudBackup() {
 		[t],
 	);
 
-	return { upload, uploading, error };
+	/** 提交已准备好的信封（页面在用户确认恢复码后调用）。 */
+	const uploadPrepared = useCallback(
+		async (envelope: BackupEnvelopeV2, dek: CryptoKey, accountCount: number) => {
+			setUploading(true);
+			setError(null);
+			try {
+				await commit(envelope, dek, accountCount);
+			} catch (err: unknown) {
+				const key = backupErrorKey(err);
+				const message = key
+					? t(key)
+					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
+				setError(message);
+				throw new Error(message);
+			} finally {
+				setUploading(false);
+			}
+		},
+		[commit, t],
+	);
+
+	/** 已有 v2 备份：用当前口令解锁服务端信封，换数据后上传（wraps 不变）。 */
+	const uploadExisting = useCallback(
+		async (accounts: TotpAccount[], passphrase: string) => {
+			setUploading(true);
+			setError(null);
+			try {
+				const res = await getCloudBackups();
+				const backup = normalizeBackup(extractItem(res));
+				if (!backup?.encryptedData || !isEnvelopeV2(backup.encryptedData)) {
+					throw new BackupEnvelopeError('INVALID_FORMAT');
+				}
+				const envelope = parseEnvelope(backup.encryptedData);
+				const local = readBackupKey();
+				const serverHash = await hashWraps(envelope.wraps);
+				// 本地 wraps 与服务端不一致（另一设备换过口令/恢复码）→ 必须重新解锁。
+				let unlocked = local?.wrapHash === serverHash ? getCachedDek() : null;
+				let needsRewrap = false;
+				if (!unlocked) {
+					const result = await unlockEnvelope(envelope, { passphrase });
+					unlocked = result.dek;
+					needsRewrap = result.needsRewrap;
+				}
+				let next = envelope;
+				if (needsRewrap) {
+					next = await rewrapPassphrase(next, unlocked, passphrase);
+				}
+				next = await reencryptEnvelope(next, unlocked, serializeAccounts(accounts));
+				await commit(next, unlocked, accounts.length);
+			} catch (err: unknown) {
+				const key = backupErrorKey(err);
+				const message = key
+					? t(key)
+					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
+				setError(message);
+				throw new Error(message);
+			} finally {
+				setUploading(false);
+			}
+		},
+		[commit, t],
+	);
+
+	return { uploading, error, prepareNew, uploadPrepared, uploadExisting };
 }
 
 export function useDownloadCloudBackup() {
@@ -136,23 +311,19 @@ export function useDownloadCloudBackup() {
 	const [downloading, setDownloading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 
-	const download = useCallback(async (): Promise<TotpAccount[] | null> => {
+	/** 旧格式（v1）：仅创建它的设备可解。 */
+	const downloadLegacy = useCallback(async (): Promise<TotpAccount[] | null> => {
 		setDownloading(true);
 		setError(null);
 		try {
 			const res = await getCloudBackups();
-			const data = extractItem(res) as CloudBackup | null;
-			// 后端可能返回 snake_case 的 encrypted_data（旧契约），兼容读取
-			const encryptedData =
-				data?.encryptedData ?? (data as CloudBackup & { encrypted_data?: string })?.encrypted_data;
-			if (!encryptedData) {
-				// 404 means no backup exists — not an error
+			const data = normalizeBackup(extractItem(res));
+			if (!data?.encryptedData) {
 				if (!data) return null;
 				setError(t('cloudBackup.noBackupData'));
 				return null;
 			}
-			const raw = encryptedData as string;
-			const [ivB64, cipherB64] = raw.split(':');
+			const [ivB64, cipherB64] = data.encryptedData.split(':');
 			if (!ivB64 || !cipherB64) {
 				setError(t('cloudBackup.invalidFormat'));
 				return null;
@@ -161,8 +332,7 @@ export function useDownloadCloudBackup() {
 			const iv = base64ToArrayBuffer(ivB64);
 			const ciphertext = base64ToArrayBuffer(cipherB64);
 			const json = await decryptWithKey(ciphertext, iv, encryptionKey);
-			const parsedAccounts = JSON.parse(json) as Partial<TotpAccount>[];
-			return parsedAccounts.map((a) => ({ ...a, type: a.type || 'totp' })) as TotpAccount[];
+			return parseAccounts(json);
 		} catch (err: unknown) {
 			if ((err as { response?: { status?: number } })?.response?.status !== 404) {
 				setError(extractApiErrorMessage(err, t('cloudBackup.downloadFailed')));
@@ -173,7 +343,46 @@ export function useDownloadCloudBackup() {
 		}
 	}, [t]);
 
-	return { download, downloading, error };
+	/** v2：口令或恢复码解锁，成功后把 wraps 写回本地。 */
+	const downloadV2 = useCallback(
+		async (secret: { passphrase?: string; recoveryCode?: string }): Promise<TotpAccount[] | null> => {
+			setDownloading(true);
+			setError(null);
+			try {
+				const res = await getCloudBackups();
+				const data = normalizeBackup(extractItem(res));
+				if (!data?.encryptedData || !isEnvelopeV2(data.encryptedData)) {
+					setError(t('cloudBackup.noBackupData'));
+					return null;
+				}
+				const envelope = parseEnvelope(data.encryptedData);
+				const { dek, needsRewrap } = await unlockEnvelope(envelope, secret);
+				const json = await decryptEnvelope(envelope, dek);
+				writeBackupKey({
+					wrapHash: await hashWraps(envelope.wraps),
+					wraps: envelope.wraps,
+				});
+				setCachedDek(dek);
+				if (needsRewrap) {
+					// 低迭代旧信封：提示用户下次上传会自动重包（不阻断恢复）。
+					console.warn('backup envelope kdf below policy; will rewrap on next upload');
+				}
+				return parseAccounts(json);
+			} catch (err: unknown) {
+				const key = backupErrorKey(err);
+				const message = key
+					? t(key)
+					: extractApiErrorMessage(err, t('cloudBackup.downloadFailed'));
+				setError(message);
+				throw new Error(message);
+			} finally {
+				setDownloading(false);
+			}
+		},
+		[t],
+	);
+
+	return { downloading, error, downloadLegacy, downloadV2 };
 }
 
 export function useDeviceSyncList() {
@@ -259,14 +468,6 @@ export function useDeleteSyncDevice() {
 	);
 
 	return { remove, removing, error };
-}
-
-async function computeSHA256(input: string): Promise<string> {
-	const data = new TextEncoder().encode(input);
-	const hash = await crypto.subtle.digest('SHA-256', data);
-	return Array.from(new Uint8Array(hash))
-		.map((b) => b.toString(16).padStart(2, '0'))
-		.join('');
 }
 
 async function computeDeviceFingerprint(): Promise<string> {

@@ -23,8 +23,11 @@ vi.mock('@/lib/store', () => ({
 }));
 
 const mockRefetch = vi.fn();
-const mockUpload = vi.fn();
-const mockDownload = vi.fn().mockResolvedValue([]);
+const mockPrepareNew = vi.fn();
+const mockUploadPrepared = vi.fn();
+const mockUploadExisting = vi.fn();
+const mockDownloadLegacy = vi.fn().mockResolvedValue([]);
+const mockDownloadV2 = vi.fn().mockResolvedValue([]);
 
 interface MockBackup {
 	id: string;
@@ -34,23 +37,29 @@ interface MockBackup {
 	deviceName: string;
 }
 let mockBackup: MockBackup | null = null;
+let mockFormat: 'v1' | 'v2' | null = null;
 let mockLoading = false;
 let mockError: string | null = null;
 
 vi.mock('@/hooks/use-cloud-backup', () => ({
 	useCloudBackup: () => ({
 		backup: mockBackup,
+		format: mockFormat,
+		needsRestore: null,
 		loading: mockLoading,
 		error: mockError,
 		refetch: mockRefetch,
 	}),
 	useUploadCloudBackup: () => ({
-		upload: mockUpload,
+		prepareNew: mockPrepareNew,
+		uploadPrepared: mockUploadPrepared,
+		uploadExisting: mockUploadExisting,
 		uploading: false,
 		error: null,
 	}),
 	useDownloadCloudBackup: () => ({
-		download: mockDownload,
+		downloadLegacy: mockDownloadLegacy,
+		downloadV2: mockDownloadV2,
 		downloading: false,
 		error: null,
 	}),
@@ -81,9 +90,11 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	storeState = { accounts: [] };
 	mockBackup = null;
+	mockFormat = null;
 	mockLoading = false;
 	mockError = null;
-	mockDownload.mockResolvedValue([]);
+	mockDownloadLegacy.mockResolvedValue([]);
+	mockDownloadV2.mockResolvedValue([]);
 });
 
 describe('CloudBackupPage', () => {
@@ -131,12 +142,13 @@ describe('CloudBackupPage', () => {
 			version: 1,
 			deviceName: 'iPhone',
 		};
+		mockFormat = 'v1';
 		renderPage();
 		expect(screen.getByText('上次备份时间')).toBeInTheDocument();
 		expect(screen.getByText('账户数量')).toBeInTheDocument();
 		expect(screen.getByText('5')).toBeInTheDocument();
-		expect(screen.getByText('版本')).toBeInTheDocument();
-		expect(screen.getByText('v1')).toBeInTheDocument();
+		expect(screen.getByText('备份格式')).toBeInTheDocument();
+		expect(screen.getByText('旧格式（仅本机）')).toBeInTheDocument();
 		expect(screen.getByText('设备')).toBeInTheDocument();
 		expect(screen.getByText('iPhone')).toBeInTheDocument();
 	});
@@ -161,14 +173,31 @@ describe('CloudBackupPage', () => {
 		expect(uploadBtn).not.toBeDisabled();
 	});
 
-	it('clicking upload triggers upload function', async () => {
+	it('clicking upload opens the passphrase dialog', async () => {
 		storeState.accounts = [{ id: '1', name: 'Test', username: 'u' }];
 		renderPage();
 		const uploadBtn = screen.getByText('上传备份').closest('button')!;
 		await act(async () => {
 			fireEvent.click(uploadBtn);
 		});
-		expect(mockUpload).toHaveBeenCalled();
+		expect(screen.getByText('设置备份口令')).toBeInTheDocument();
+	});
+
+	it('download v2 opens the restore dialog', async () => {
+		mockBackup = {
+			id: 'backup-1',
+			createdAt: '2025-01-15T10:30:00.000Z',
+			accountCount: 5,
+			version: 2,
+			deviceName: 'iPhone',
+		};
+		mockFormat = 'v2';
+		renderPage();
+		const downloadBtn = screen.getByText('下载备份').closest('button')!;
+		await act(async () => {
+			fireEvent.click(downloadBtn);
+		});
+		expect(screen.getByText('恢复云备份')).toBeInTheDocument();
 	});
 
 	it('download is disabled when no backup', async () => {

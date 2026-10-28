@@ -11,6 +11,7 @@ import App from './App';
 import './non-tenant-segments';
 import './app/globals.css';
 import { initializeStorage } from './lib/storage';
+import { clearSessionKeys } from './lib/session-keys';
 import { setupPwaLifecycle } from './lib/pwa-lifecycle';
 import ErrorBoundary from './components/ErrorBoundary';
 
@@ -73,4 +74,6 @@ async function bootstrap() {
 }
 
 setupPwaLifecycle();
+// 页面卸载/刷新时清掉内存密钥（不删密文）
+window.addEventListener('pagehide', clearSessionKeys);
 bootstrap();

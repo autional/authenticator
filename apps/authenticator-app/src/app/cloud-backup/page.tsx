@@ -19,8 +19,14 @@ import {
 	useUploadCloudBackup,
 	useDownloadCloudBackup,
 } from '@/hooks/use-cloud-backup';
+import type { BackupEnvelopeV2 } from '@/lib/backup-envelope';
 import { showToast } from '@autional/ui';
 import BottomNav from '@/components/BottomNav';
+import BackupPassphraseDialog, {
+	type BackupPassphraseMode,
+} from '@/components/cloud-backup/BackupPassphraseDialog';
+import BackupRecoveryDialog from '@/components/cloud-backup/BackupRecoveryDialog';
+import BackupRestoreDialog from '@/components/cloud-backup/BackupRestoreDialog';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
 export default function CloudBackupPage() {
@@ -28,46 +34,116 @@ export default function CloudBackupPage() {
 	const navigate = useNavigate();
 	const slug = useTenantSlug();
 	const { accounts } = useAuthenticatorStore();
-	const { backup, loading, error, refetch } = useCloudBackup();
-	const { upload, uploading, error: uploadError } = useUploadCloudBackup();
-	const { download, downloading, error: downloadError } = useDownloadCloudBackup();
-	const [importError, setImportError] = useState<string | null>(null);
+	const { backup, format, needsRestore, loading, error, refetch } = useCloudBackup();
+	const { uploading, prepareNew, uploadPrepared, uploadExisting } = useUploadCloudBackup();
+	const { downloading, downloadLegacy, downloadV2 } = useDownloadCloudBackup();
 	const [importSuccess, setImportSuccess] = useState(false);
 
-	const handleUpload = async () => {
+	const [passphraseOpen, setPassphraseOpen] = useState(false);
+	const [passphraseMode, setPassphraseMode] = useState<BackupPassphraseMode>('create');
+	const [recoveryOpen, setRecoveryOpen] = useState(false);
+	const [restoreOpen, setRestoreOpen] = useState(false);
+	const [pendingEnvelope, setPendingEnvelope] = useState<BackupEnvelopeV2 | null>(null);
+	const [pendingDek, setPendingDek] = useState<CryptoKey | null>(null);
+	const [recoveryCode, setRecoveryCode] = useState('');
+	const [dialogError, setDialogError] = useState<string | null>(null);
+
+	const resetPending = () => {
+		setPendingEnvelope(null);
+		setPendingDek(null);
+		setRecoveryCode('');
+	};
+
+	const startUpload = () => {
 		if (accounts.length === 0) {
 			showToast(t('home.noAccounts'), 'error');
 			return;
 		}
+		setDialogError(null);
+		if (!backup || format === 'v1') {
+			setPassphraseMode('create');
+		} else {
+			setPassphraseMode('unlock');
+		}
+		setPassphraseOpen(true);
+	};
+
+	const handlePassphrase = async (passphrase: string) => {
+		setDialogError(null);
 		try {
-			await upload(accounts);
-			showToast(t('cloudBackup.upload'), 'success');
+			if (passphraseMode === 'create') {
+				const created = await prepareNew(accounts, passphrase);
+				setPendingEnvelope(created.envelope);
+				setPendingDek(created.dek);
+				setRecoveryCode(created.recoveryCode);
+				setPassphraseOpen(false);
+				setRecoveryOpen(true);
+				return;
+			}
+			await uploadExisting(accounts, passphrase);
+			setPassphraseOpen(false);
+			showToast(t('cloudBackup.uploaded'), 'success');
 			refetch();
-		} catch {
-			showToast(uploadError || t('settings.pushFailed'), 'error');
+		} catch (err) {
+			setDialogError(errorMessage(err, t('cloudBackup.uploadFailed')));
 		}
 	};
 
-	const handleDownload = async () => {
-		setImportError(null);
-		setImportSuccess(false);
+	const handleRecoveryConfirm = async () => {
+		if (!pendingEnvelope || !pendingDek) return;
+		setDialogError(null);
 		try {
-			const accounts = await download();
-			if (!accounts) {
-				showToast(downloadError || t('settings.pushFailed'), 'error');
+			await uploadPrepared(pendingEnvelope, pendingDek, accounts.length);
+			setRecoveryOpen(false);
+			resetPending();
+			showToast(t('cloudBackup.uploaded'), 'success');
+			refetch();
+		} catch (err) {
+			setDialogError(errorMessage(err, t('cloudBackup.uploadFailed')));
+		}
+	};
+
+	const importRestored = (restored: Awaited<ReturnType<typeof downloadV2>>) => {
+		if (!restored) return false;
+		if (restored.length === 0) {
+			showToast(t('home.noAccounts'), 'info');
+			return false;
+		}
+		const { importAccounts } = useAuthenticatorStore.getState();
+		importAccounts(restored);
+		setImportSuccess(true);
+		showToast(t('cloudBackup.restored'), 'success');
+		setTimeout(() => setImportSuccess(false), 3000);
+		return true;
+	};
+
+	const startDownload = async () => {
+		setDialogError(null);
+		if (format === 'v2') {
+			setRestoreOpen(true);
+			return;
+		}
+		// v1：仅创建它的设备可解
+		showToast(t('cloudBackup.legacyHint'), 'info');
+		const restored = await downloadLegacy();
+		if (!importRestored(restored)) {
+			showToast(t('cloudBackup.legacyFailed'), 'error');
+		}
+	};
+
+	const handleRestore = async (secret: { passphrase?: string; recoveryCode?: string }) => {
+		setDialogError(null);
+		try {
+			const restored = await downloadV2(secret);
+			if (!restored) {
+				setDialogError(t('cloudBackup.noBackupData'));
 				return;
 			}
-			if (accounts.length === 0) {
-				showToast(t('home.noAccounts'), 'info');
-				return;
+			if (importRestored(restored)) {
+				setRestoreOpen(false);
 			}
-			const { importAccounts } = useAuthenticatorStore.getState();
-			importAccounts(accounts);
-			setImportSuccess(true);
-			showToast(t('cloudBackup.restored'), 'success');
-			setTimeout(() => setImportSuccess(false), 3000);
-		} catch {
-			showToast(downloadError || t('settings.pushFailed'), 'error');
+		} catch (err) {
+			setDialogError(errorMessage(err, t('cloudBackup.downloadFailed')));
 		}
 	};
 
@@ -80,7 +156,14 @@ export default function CloudBackupPage() {
 		}
 	};
 
-	const displayError = error || uploadError || downloadError || importError;
+	const formatLabel =
+		format === 'v2'
+			? t('cloudBackup.formatV2')
+			: format === 'v1'
+				? t('cloudBackup.formatV1')
+				: t('cloudBackup.unknown');
+
+	const displayError = error || dialogError;
 
 	return (
 		<div className="flex h-full flex-col">
@@ -135,8 +218,16 @@ export default function CloudBackupPage() {
 								</div>
 								<div className="flex items-center gap-3 px-4 py-3">
 									<Shield className="h-4 w-4 shrink-0 text-[var(--color-text-secondary)]" />
-									<span className="text-sm text-[var(--color-text-secondary)]">{t('cloudBackup.version')}</span>
-									<span className="ml-auto text-sm text-[var(--color-text-primary)]">v{backup.version}</span>
+									<span className="text-sm text-[var(--color-text-secondary)]">{t('cloudBackup.format')}</span>
+									<span
+										className={`ml-auto text-sm ${
+											format === 'v2'
+												? 'text-[var(--color-success-text)]'
+												: 'text-[var(--color-warning-text)]'
+										}`}
+									>
+										{formatLabel}
+									</span>
 								</div>
 								<div className="flex items-center gap-3 px-4 py-3">
 									<Cloud className="h-4 w-4 shrink-0 text-[var(--color-text-secondary)]" />
@@ -145,6 +236,11 @@ export default function CloudBackupPage() {
 										{backup.deviceName || t('cloudBackup.unknown')}
 									</span>
 								</div>
+								{format === 'v1' && (
+									<p className="px-4 py-3 text-xs text-[var(--color-warning-text)]">
+										{t('cloudBackup.legacyHint')}
+									</p>
+								)}
 							</div>
 						) : (
 							<div className="flex flex-col items-center justify-center py-10 text-center px-4">
@@ -162,7 +258,7 @@ export default function CloudBackupPage() {
 					</h2>
 					<div className="rounded-xl border border-auth-border bg-auth-surface divide-y divide-auth-border">
 						<button
-							onClick={handleUpload}
+							onClick={startUpload}
 							disabled={uploading || accounts.length === 0}
 							className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-auth-elevated/50 transition-colors disabled:opacity-50"
 						>
@@ -175,6 +271,11 @@ export default function CloudBackupPage() {
 											? t('settings.accountsCountLabel', { n: accounts.length })
 											: t('home.noAccounts')}
 									</p>
+									{needsRestore && (
+										<p className="text-[11px] text-[var(--color-warning-text)]">
+											{t('cloudBackup.needsRestoreHint')}
+										</p>
+									)}
 								</div>
 							</div>
 							{uploading ? (
@@ -183,7 +284,7 @@ export default function CloudBackupPage() {
 						</button>
 
 						<button
-							onClick={handleDownload}
+							onClick={startDownload}
 							disabled={downloading || !backup}
 							className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-auth-elevated/50 transition-colors disabled:opacity-50"
 						>
@@ -191,6 +292,9 @@ export default function CloudBackupPage() {
 								<Download className="h-4 w-4 text-primary-400" />
 								<div>
 									<span className="text-sm text-[var(--color-text-primary)]">{t('cloudBackup.download')}</span>
+									<p className="text-[11px] text-[var(--color-text-muted)]">
+										{format === 'v2' ? t('cloudBackup.downloadHintV2') : t('cloudBackup.downloadHintV1')}
+									</p>
 								</div>
 							</div>
 							{downloading ? (
@@ -221,7 +325,55 @@ export default function CloudBackupPage() {
 				</div>
 			</div>
 
+			{passphraseOpen && (
+				<BackupPassphraseDialog
+					open
+					mode={passphraseMode}
+					busy={uploading}
+					error={dialogError}
+					onSubmit={handlePassphrase}
+					onCancel={() => {
+						setPassphraseOpen(false);
+						setDialogError(null);
+						resetPending();
+					}}
+				/>
+			)}
+
+			{recoveryOpen && (
+				<BackupRecoveryDialog
+					open
+					code={recoveryCode}
+					busy={uploading}
+					error={dialogError}
+					onConfirm={handleRecoveryConfirm}
+					onCancel={() => {
+						setRecoveryOpen(false);
+						setDialogError(null);
+						resetPending();
+					}}
+				/>
+			)}
+
+			{restoreOpen && (
+				<BackupRestoreDialog
+					open
+					busy={downloading}
+					error={dialogError}
+					onSubmit={handleRestore}
+					onCancel={() => {
+						setRestoreOpen(false);
+						setDialogError(null);
+					}}
+				/>
+			)}
+
 			<BottomNav />
 		</div>
 	);
+}
+
+function errorMessage(err: unknown, fallback: string): string {
+	if (err instanceof Error && err.message) return err.message;
+	return fallback;
 }

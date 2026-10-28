@@ -90,6 +90,7 @@ vi.mock('@/lib/api', () => ({
 
 vi.mock('@/lib/storage', () => ({
 	setPinProtection: vi.fn(() => Promise.resolve()),
+	clearDeviceKeyCache: vi.fn(),
 }));
 
 vi.mock('@/lib/crypto', () => ({

@@ -77,6 +77,11 @@ export async function ensureDeviceKey(): Promise<CryptoKey> {
 // Refactor to StorageManager class in next major iteration (FE-049).
 let cachedDeviceKey: CryptoKey | null = null;
 
+/** 清内存中的设备密钥（锁屏/登出/页面卸载）。不删除 localStorage 中的密文。 */
+export function clearDeviceKeyCache(): void {
+	cachedDeviceKey = null;
+}
+
 function readPayload(): StoragePayload | null {
 	const raw = localStorage.getItem(STORAGE_KEY);
 	if (!raw) return null;

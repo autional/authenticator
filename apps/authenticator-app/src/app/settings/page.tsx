@@ -32,6 +32,7 @@ import {
 } from '@/lib/webauthn';
 import { generateBackupCodes, getBackupCodesCount } from '@/lib/api';
 import { setPinProtection } from '@/lib/storage';
+import { clearSessionKeys } from '@/lib/session-keys';
 import {
 	derivePinKey,
 	encryptWithKey,
@@ -48,6 +49,10 @@ export default function SettingsPage() {
 	const { theme, toggle: toggleTheme } = useTheme();
 	const { accounts, importAccounts, hasPin, setHasPin } = useAuthenticatorStore();
 	const handleLogout = useLogout();
+	const onLogout = () => {
+		clearSessionKeys();
+		handleLogout();
+	};
 	const { isAuthenticated } = useAuth();
 
 	const [pinInput, setPinInput] = useState('');
@@ -497,7 +502,7 @@ export default function SettingsPage() {
 				{isAuthenticated ? (
 					<>
 						<SettingsCloud />
-						<SettingsAccount onLogout={handleLogout} />
+						<SettingsAccount onLogout={onLogout} />
 					</>
 				) : (
 					<section>
