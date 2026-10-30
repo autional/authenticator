@@ -120,7 +120,7 @@ export default function App() {
 						{t('common.skipToContent')}
 					</a>
 					<PwaInstallPrompt />
-					<div className="mx-auto flex h-screen max-w-md flex-col bg-auth-bg">
+					<div className="mx-auto flex h-screen max-w-md flex-col bg-auth-bg pt-[env(safe-area-inset-top)]">
 						{/* 底部让位：值 = 底栏高度令牌 + 一段常规间距（112px = 64 + 48）。
 						    原先写的是一个魔法数字 pb-28 —— 而它本来就是两个令牌的和，只是没写出来。
 						    写成算式之后：值逐字相同（零视觉变化），但从此可算、可调、可查；
