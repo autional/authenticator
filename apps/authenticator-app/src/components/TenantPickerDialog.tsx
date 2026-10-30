@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getPortalUrl } from '@autional/shared';
 
@@ -20,9 +20,39 @@ export default function TenantPickerDialog({
 }) {
 	const { t } = useTranslation();
 	const [slug, setSlug] = useState(recent || '');
+	const [catalog, setCatalog] = useState<string[]>([]);
+
+	// 打开时拉一次公开租户名单做自动补全（不依赖 QueryClient，弹窗可独立测试）。
+	useEffect(() => {
+		if (!open || catalog.length > 0) return;
+		let cancelled = false;
+		fetch('/bff/tenant/api/v1/tenant/public/tenants')
+			.then((r) => (r.ok ? r.json() : null))
+			.then((j: any) => {
+				const list = Array.isArray(j?.items) ? j.items : Array.isArray(j?.data) ? j.data : [];
+				if (!cancelled) {
+					setCatalog(
+						list
+							.map((x: any) => String(x?.slug || x?.name || '').toLowerCase())
+							.filter(Boolean),
+					);
+				}
+			})
+			.catch(() => {
+				/* 名单不可用：退化为手输 */
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [open, catalog.length]);
+
 	if (!open) return null;
 
+	// 大小写归一：输入与匹配都转小写，提交也用归一值。
 	const normalized = slug.trim().toLowerCase();
+	const matches = normalized
+		? catalog.filter((x) => x !== normalized && x.includes(normalized)).slice(0, 6)
+		: [];
 	const brandUrl = getPortalUrl('brand');
 
 	const submit = (event: React.FormEvent) => {
@@ -51,10 +81,30 @@ export default function TenantPickerDialog({
 						value={slug}
 						onChange={(e) => setSlug(e.target.value)}
 						placeholder={t('signIn.placeholder')}
-						autoComplete="organization"
+						autoComplete="off"
+						autoCapitalize="none"
+						autoCorrect="off"
+						spellCheck={false}
 						autoFocus
 						className="w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-primary-500"
 					/>
+					{matches.length > 0 && (
+						<ul role="listbox" className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-auth-border bg-auth-elevated">
+							{matches.map((name) => (
+								<li key={name}>
+									<button
+										type="button"
+										role="option"
+										aria-selected={name === normalized}
+										onClick={() => setSlug(name)}
+										className="block w-full px-3 py-2 text-left text-sm text-[var(--color-text-primary)] hover:bg-auth-border"
+									>
+										{name}
+									</button>
+								</li>
+							))}
+						</ul>
+					)}
 					<div className="mt-2 flex flex-wrap gap-2">
 						{recent && (
 							<button
