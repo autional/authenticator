@@ -66,6 +66,10 @@ export async function uploadCloudBackup(data: Record<string, unknown>) {
 	return await GeneratedApi.authMeAuthenticatorBackupPost(data);
 }
 
+export async function deleteAllCloudBackups(): Promise<void> {
+	await apiClient.delete('/auth/me/authenticator/backup');
+}
+
 export async function deleteCloudBackup(id: string): Promise<void> {
 	return await GeneratedApi.authMeAuthenticatorBackupByBackupDelete(id);
 }

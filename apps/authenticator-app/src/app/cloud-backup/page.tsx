@@ -7,6 +7,7 @@ import {
 	Upload,
 	Download,
 	RefreshCw,
+	Trash2,
 	Clock,
 	Hash,
 	Shield,
@@ -18,6 +19,7 @@ import {
 	useCloudBackup,
 	useUploadCloudBackup,
 	useDownloadCloudBackup,
+	useDeleteCloudBackup,
 } from '@/hooks/use-cloud-backup';
 import type { BackupEnvelopeV2 } from '@/lib/backup-envelope';
 import { showToast } from '@autional/ui';
@@ -45,6 +47,8 @@ export default function CloudBackupPage() {
 		prepareRecoveryRotation,
 	} = useUploadCloudBackup();
 	const { downloading, downloadLegacy, downloadV2 } = useDownloadCloudBackup();
+	const { deleting, deleteAllBackups } = useDeleteCloudBackup();
+	const [deleteOpen, setDeleteOpen] = useState(false);
 	const [importSuccess, setImportSuccess] = useState(false);
 
 	const [passphraseOpen, setPassphraseOpen] = useState(false);
@@ -151,6 +155,19 @@ export default function CloudBackupPage() {
 			refetch();
 		} catch (err) {
 			setDialogError(errorMessage(err, t('cloudBackup.uploadFailed')));
+		}
+	};
+
+	const handleDelete = async () => {
+		if (!backup) return;
+		try {
+			await deleteAllBackups();
+			setDeleteOpen(false);
+			showToast(t('cloudBackup.deleteSuccess'), 'success');
+			refetch();
+		} catch {
+			// error 由 hook 暴露；页面通过 toast 提示
+			showToast(t('cloudBackup.deleteFailed'), 'error');
 		}
 	};
 
@@ -362,6 +379,43 @@ export default function CloudBackupPage() {
 							<RefreshCw className="h-4 w-4 text-[var(--color-text-secondary)]" />
 							<span className="text-sm text-[var(--color-text-secondary)]">{t('cloudBackup.refresh')}</span>
 						</button>
+
+						{backup && (
+							<>
+								<button
+									type="button"
+									onClick={() => setDeleteOpen(true)}
+									disabled={deleting}
+									className="flex w-full items-center gap-3 px-4 py-3 text-left hover:bg-danger/10 transition-colors disabled:opacity-50"
+								>
+									<Trash2 className="h-4 w-4 text-[var(--color-danger-text)]" />
+									<span className="text-sm text-[var(--color-danger-text)]">{t('cloudBackup.delete')}</span>
+								</button>
+								{deleteOpen && (
+									<div className="px-4 py-3">
+										<p className="text-xs text-[var(--color-text-muted)]">{t('cloudBackup.deleteDesc')}</p>
+										<div className="mt-3 flex gap-2">
+											<button
+												type="button"
+												onClick={handleDelete}
+												disabled={deleting}
+												className="rounded-lg bg-danger px-3 py-1.5 text-xs font-medium text-white disabled:opacity-50"
+											>
+												{deleting ? '…' : t('cloudBackup.deleteConfirm')}
+											</button>
+											<button
+												type="button"
+												onClick={() => setDeleteOpen(false)}
+												disabled={deleting}
+												className="rounded-lg border border-auth-border px-3 py-1.5 text-xs text-[var(--color-text-secondary)]"
+											>
+												{t('cloudBackup.deleteCancel')}
+											</button>
+										</div>
+									</div>
+								)}
+							</>
+						)}
 					</div>
 				</section>
 

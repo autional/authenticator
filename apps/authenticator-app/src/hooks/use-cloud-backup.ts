@@ -9,6 +9,8 @@ import {
 	getDeviceSyncList,
 	syncDevice,
 	deleteSyncDevice,
+	deleteCloudBackup,
+	deleteAllCloudBackups,
 } from '@/lib/api';
 import { base64ToArrayBuffer, decryptWithKey } from '@/lib/crypto';import {
 	BackupEnvelopeError,
@@ -583,4 +585,42 @@ function getDeviceName(unknownLabel = 'Unknown device'): string {
 	if (ua.includes('Mac')) return 'Mac';
 	if (ua.includes('Linux')) return 'Linux';
 	return unknownLabel;
+}
+
+/** 删除云端备份（单一入口：identity；storage 侧拒绝跨域删除）。 */
+export function useDeleteCloudBackup() {
+	const { t } = useTranslation();
+	const [deleting, setDeleting] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+
+	const deleteBackup = useCallback(
+		async (id: string) => {
+			setDeleting(true);
+			setError(null);
+			try {
+				await deleteCloudBackup(id);
+			} catch (err) {
+				setError(extractApiErrorMessage(err, t('cloudBackup.deleteFailed')));
+				throw err;
+			} finally {
+				setDeleting(false);
+			}
+		},
+		[t],
+	);
+
+	const deleteAllBackups = useCallback(async () => {
+		setDeleting(true);
+		setError(null);
+		try {
+			await deleteAllCloudBackups();
+		} catch (err) {
+			setError(extractApiErrorMessage(err, t('cloudBackup.deleteFailed')));
+			throw err;
+		} finally {
+			setDeleting(false);
+		}
+	}, [t]);
+
+	return { deleting, error, deleteBackup, deleteAllBackups };
 }
