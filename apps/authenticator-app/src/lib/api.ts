@@ -67,7 +67,8 @@ export async function uploadCloudBackup(data: Record<string, unknown>) {
 }
 
 export async function deleteAllCloudBackups(): Promise<void> {
-	await apiClient.delete('/auth/me/authenticator/backup');
+	// 网关路由前缀必须带 /identity/api/v1（裸 /auth/... 会 404；2026-10-30 线上实证）
+	await apiClient.delete('/identity/api/v1/auth/me/authenticator/backup');
 }
 
 export async function deleteCloudBackup(id: string): Promise<void> {
