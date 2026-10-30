@@ -2,7 +2,7 @@ import { ShieldPlus, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '@autional/shared';
-import { signIn } from '../lib/sign-in';
+import { useSignIn } from '../lib/use-sign-in';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 
 export default function EmptyState() {
@@ -10,6 +10,7 @@ export default function EmptyState() {
 	const slug = useTenantSlug();
 	const { t } = useTranslation();
 	const { isAuthenticated } = useAuth();
+	const { signIn, dialog } = useSignIn();
 
 	return (
 		<div className="flex flex-col items-center justify-center px-6 py-16 text-center">
@@ -36,14 +37,13 @@ export default function EmptyState() {
 			{!isAuthenticated && (
 				<button
 					type="button"
-					onClick={() => {
-						signIn(window.location.origin + '/');
-					}}
+					onClick={signIn}
 					className="mt-3 text-xs text-primary-400 hover:text-primary-300"
 				>
 					{t('home.signIn')}
 				</button>
 			)}
+			{dialog}
 		</div>
 	);
 }

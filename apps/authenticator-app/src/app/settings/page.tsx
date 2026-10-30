@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@autional/ui';
 import { useLogout, useAuth, extractApiErrorMessage } from '@autional/shared';
-import { signIn } from '@/lib/sign-in';
+import { useSignIn } from '@/lib/use-sign-in';
 import { Info } from 'lucide-react';
 import { showToast } from '@autional/ui';
 import { useAuthenticatorStore, type TotpAccount } from '@/lib/store';
@@ -44,6 +44,7 @@ import {
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
 export default function SettingsPage() {
+	const { signIn, dialog } = useSignIn();
 	const navigate = useNavigate();
 	const slug = useTenantSlug();
 	const { t } = useTranslation();
@@ -506,6 +507,7 @@ export default function SettingsPage() {
 						<SettingsAccount onLogout={onLogout} />
 					</>
 				) : (
+					<>
 					<section>
 						<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
 							{t('settings.localModeTitle')}
@@ -514,15 +516,15 @@ export default function SettingsPage() {
 							<p className="text-sm text-[var(--color-text-secondary)]">{t('settings.localModeDesc')}</p>
 							<button
 								type="button"
-								onClick={() => {
-									signIn(window.location.origin + '/');
-								}}
+								onClick={signIn}
 								className="mt-3 w-full rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] transition-all"
 							>
 								{t('settings.localModeLogin')}
 							</button>
 						</div>
 					</section>
+					{dialog}
+					</>
 				)}
 
 				<section>

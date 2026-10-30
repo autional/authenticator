@@ -1,14 +1,12 @@
-import { lazy, Suspense, useEffect, useMemo } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Routes, Route, Outlet, useParams, Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { readLastTenantSlug, rememberTenantSlug, useSessionTenantSlug } from './lib/slug';
+import { rememberTenantSlug, useSessionTenantSlug } from './lib/slug';
+import { useSignIn } from './lib/use-sign-in';
 import {
 	OAuthCallbackPage,
 	TenantSlugProvider,
-	initiateOAuthLogin,
-	isOAuthEnabled,
-	buildLoginUrl,
 	useAuth,
 	useBranding,
 	BrandingInitializer,
@@ -84,33 +82,27 @@ function LayoutWrapper() {
 	);
 }
 
-/** 服务端页面：未登录 → auth 登录页（带租户 + 回跳）。 */
+/** 服务端页面：未登录 → 应用内选择组织并登录（不再自动整页跳转）。 */
 function ServerOnly({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
 	const { isAuthenticated } = useAuth();
-	const sessionSlug = useSessionTenantSlug();
-	const location = useLocation();
-	const loginUrl = useMemo(() => {
-		if (isAuthenticated) return '';
-		const target = `${location.pathname}${location.search}${location.hash}`;
-		return buildLoginUrl(
-			`${window.location.origin}${target}`,
-			true,
-			sessionSlug || readLastTenantSlug() || null,
-		);
-	}, [isAuthenticated, location.pathname, location.search, location.hash, sessionSlug]);
-
-	useEffect(() => {
-		if (isAuthenticated) return;
-		if (isOAuthEnabled()) {
-			void initiateOAuthLogin(undefined, window.location.href);
-			return;
-		}
-		if (loginUrl) window.location.replace(loginUrl);
-	}, [isAuthenticated, loginUrl]);
+	const { signIn, dialog } = useSignIn();
 
 	if (isAuthenticated) return <>{children}</>;
-	return <LoadingScreen message={t('common.loading')} />;
+
+	return (
+		<div className="flex min-h-[60vh] flex-col items-center justify-center px-6 text-center">
+			<p className="mb-4 text-sm text-[var(--color-text-secondary)]">{t('signIn.required')}</p>
+			<button
+				type="button"
+				onClick={signIn}
+				className="rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-primary-500 active:scale-[0.98]"
+			>
+				{t('signIn.action')}
+			</button>
+			{dialog}
+		</div>
+	);
 }
 
 export default function App() {
