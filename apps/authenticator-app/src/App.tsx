@@ -127,7 +127,7 @@ export default function App() {
 						    底栏高度改一次，这里跟着改，不会再有人去数像素。 */}
 						<main
 							id="main-content"
-							className="flex-1 overflow-y-auto pb-[calc(var(--layout-bottom-nav-height)+var(--space-12))]"
+							className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none pb-[calc(var(--layout-bottom-nav-height)+var(--space-12))]"
 						>
 							<Routes>
 								<Route path="/oauth/callback" element={<OAuthCallbackPage />} />

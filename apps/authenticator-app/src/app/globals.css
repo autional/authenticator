@@ -7,10 +7,13 @@
 @layer base {
   html {
     background-color: var(--color-bg-primary);
+    overflow-x: hidden;
   }
   body {
     color: var(--color-text-primary);
+    overflow-x: hidden;
     overscroll-behavior-y: none;
+    overscroll-behavior-x: none;
     -webkit-tap-highlight-color: transparent;
   }
 }
