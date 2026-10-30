@@ -6,6 +6,8 @@ import { readLastTenantSlug, rememberTenantSlug, useSessionTenantSlug } from './
 import {
 	OAuthCallbackPage,
 	TenantSlugProvider,
+	initiateOAuthLogin,
+	isOAuthEnabled,
 	buildLoginUrl,
 	useAuth,
 	useBranding,
@@ -99,8 +101,13 @@ function ServerOnly({ children }: { children: ReactNode }) {
 	}, [isAuthenticated, location.pathname, location.search, location.hash, sessionSlug]);
 
 	useEffect(() => {
+		if (isAuthenticated) return;
+		if (isOAuthEnabled()) {
+			void initiateOAuthLogin(undefined, window.location.href);
+			return;
+		}
 		if (loginUrl) window.location.replace(loginUrl);
-	}, [loginUrl]);
+	}, [isAuthenticated, loginUrl]);
 
 	if (isAuthenticated) return <>{children}</>;
 	return <LoadingScreen message={t('common.loading')} />;

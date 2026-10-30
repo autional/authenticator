@@ -1,7 +1,8 @@
 import { ShieldPlus, QrCode } from 'lucide-react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { buildLoginUrl, useAuth } from '@autional/shared';
+import { useAuth } from '@autional/shared';
+import { signIn } from '../lib/sign-in';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 
 export default function EmptyState() {
@@ -36,7 +37,7 @@ export default function EmptyState() {
 				<button
 					type="button"
 					onClick={() => {
-						window.location.href = buildLoginUrl(window.location.origin + '/');
+						signIn(window.location.origin + '/');
 					}}
 					className="mt-3 text-xs text-primary-400 hover:text-primary-300"
 				>

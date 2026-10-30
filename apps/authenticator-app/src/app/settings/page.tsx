@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@autional/ui';
-import { useLogout, useAuth, buildLoginUrl, extractApiErrorMessage } from '@autional/shared';
+import { useLogout, useAuth, extractApiErrorMessage } from '@autional/shared';
+import { signIn } from '@/lib/sign-in';
 import { Info } from 'lucide-react';
 import { showToast } from '@autional/ui';
 import { useAuthenticatorStore, type TotpAccount } from '@/lib/store';
@@ -514,7 +515,7 @@ export default function SettingsPage() {
 							<button
 								type="button"
 								onClick={() => {
-									window.location.href = buildLoginUrl(window.location.origin + '/');
+									signIn(window.location.origin + '/');
 								}}
 								className="mt-3 w-full rounded-xl bg-primary-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] transition-all"
 							>

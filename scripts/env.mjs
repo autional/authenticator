@@ -54,6 +54,8 @@ export function readBuildEnv(env = process.env) {
   const fallbackLang = pickLang(env.FALLBACK_LANG) ?? defaultLang;
   const cdnHost = (env.CDN_HOST || 'https://cdn.autional.cn').replace(/\/+$/, '');
   const siteHost = new URL(siteUrl).host;
+  // Authenticator App 的 OAuth 客户端（公开标识，非密钥）；缺省用平台种子客户端。
+  const oauthClientId = env.VITE_OAUTH_CLIENT_ID || '01AR0000000000000000000005';
   const rootDomain = siteHost.split('.').slice(-2).join('.');
   /**
    * 前端 API 基址策略（2026-10-27）：
@@ -83,6 +85,7 @@ export function readBuildEnv(env = process.env) {
     siteUrl,
     defaultLang,
     fallbackLang,
+    oauthClientId,
     cdnHost,
     siteHost,
     rootDomain,
