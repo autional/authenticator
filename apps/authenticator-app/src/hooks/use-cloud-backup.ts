@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { extractItem, extractList, extractApiErrorMessage, extractApiError } from '@autional/shared';
 import type { TotpAccount } from '@/lib/store';
+import { parseAccounts, serializeAccounts } from '@/lib/backup-payload';
 import { semanticsOfError } from '@/lib/error-semantics';
 import {
 	getCloudBackups,
@@ -78,29 +79,6 @@ function normalizeBackup(raw: unknown): CloudBackup | null {
 		...item,
 		encryptedData: item.encryptedData ?? item.encrypted_data ?? '',
 	};
-}
-
-function serializeAccounts(accounts: TotpAccount[]): string {
-	return JSON.stringify(
-		accounts.map((a) => ({
-			id: a.id,
-			name: a.name,
-			username: a.username,
-			secret: a.secret,
-			algorithm: a.algorithm,
-			digits: a.digits,
-			period: a.period,
-			icon: a.icon,
-			group: a.group,
-			order: a.order,
-			createdAt: a.createdAt,
-		})),
-	);
-}
-
-function parseAccounts(json: string): TotpAccount[] {
-	const parsed = JSON.parse(json) as Partial<TotpAccount>[];
-	return parsed.map((a) => ({ ...a, type: a.type || 'totp' })) as TotpAccount[];
 }
 
 function backupErrorKey(err: unknown): string | null {

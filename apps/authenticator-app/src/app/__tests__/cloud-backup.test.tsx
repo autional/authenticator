@@ -28,6 +28,7 @@ const mockUploadPrepared = vi.fn();
 const mockUploadExisting = vi.fn();
 const mockDownloadLegacy = vi.fn().mockResolvedValue([]);
 const mockDownloadV2 = vi.fn().mockResolvedValue([]);
+const mockDeleteAllBackups = vi.fn().mockResolvedValue(undefined);
 
 interface MockBackup {
 	id: string;
@@ -72,6 +73,11 @@ vi.mock('@/hooks/use-cloud-backup', () => ({
 	useSyncDevice: () => ({
 		sync: vi.fn(),
 		syncing: false,
+		error: null,
+	}),
+	useDeleteCloudBackup: () => ({
+		deleting: false,
+		deleteAllBackups: mockDeleteAllBackups,
 		error: null,
 	}),
 }));
