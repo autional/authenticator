@@ -12,7 +12,7 @@ import { useTranslation } from 'react-i18next';
 export default function NotFoundPage() {
 	const { t } = useTranslation();
 	return (
-		<div className="flex h-full flex-col items-center justify-center px-4 text-center">
+		<div className="flex min-h-full flex-col items-center justify-center px-4 text-center">
 			<div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary-500/10">
 				<FileQuestion size={40} className="text-primary-500" />
 			</div>

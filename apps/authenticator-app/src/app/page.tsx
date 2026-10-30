@@ -137,7 +137,7 @@ export default function HomePage() {
 	);
 
 	return (
-		<div className="flex h-full flex-col">
+		<div className="flex min-h-full flex-col">
 			{/* Network Status Banner */}
 			<NetworkStatus />
 

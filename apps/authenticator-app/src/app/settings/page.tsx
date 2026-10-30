@@ -406,7 +406,7 @@ export default function SettingsPage() {
 	};
 
 	return (
-		<div className="flex h-full flex-col">
+		<div className="flex min-h-full flex-col">
 			<SettingsHeader onBack={() => navigate(toSlugged('/', slug))} />
 
 			<div className="flex-1 space-y-6 px-4 py-4">

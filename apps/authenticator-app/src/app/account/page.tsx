@@ -108,7 +108,7 @@ export default function AccountDetailPage() {
 
 	if (!account) {
 		return (
-			<div className="flex h-full flex-col items-center justify-center text-[var(--color-text-secondary)]">
+			<div className="flex min-h-full flex-col items-center justify-center text-[var(--color-text-secondary)]">
 				<h1 className="text-lg font-bold text-[var(--color-text-primary)]">{t('account.notFound')}</h1>
 				<button
 					onClick={() => navigate(toSlugged('/', slug))}
@@ -121,7 +121,7 @@ export default function AccountDetailPage() {
 	}
 
 	return (
-		<div className="flex h-full flex-col">
+		<div className="flex min-h-full flex-col">
 			{/* Header */}
 			<header className="sticky top-0 z-10 flex items-center gap-3 border-b border-auth-border bg-auth-bg/80 h-[var(--layout-header-height)] px-4 backdrop-blur-md">
 				<button
