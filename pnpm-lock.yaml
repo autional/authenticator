@@ -51,8 +51,8 @@ importers:
   apps/authenticator-app:
     dependencies:
       '@autional/shared':
-        specifier: 0.1.0-rc.47
-        version: 0.1.0-rc.47(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
+        specifier: 0.1.0-rc.48
+        version: 0.1.0-rc.48(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
       '@autional/tailwind-preset':
         specifier: 0.1.0-rc.10
         version: 0.1.0-rc.10(tailwindcss@3.4.19)
@@ -60,8 +60,8 @@ importers:
         specifier: 0.1.0-rc.18
         version: 0.1.0-rc.18
       '@autional/ui':
-        specifier: 0.1.0-rc.54
-        version: 0.1.0-rc.54(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
+        specifier: 0.1.0-rc.55
+        version: 0.1.0-rc.55(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
       '@tanstack/react-query':
         specifier: 5.100.9
         version: 5.100.9(react@19.2.5)
@@ -172,8 +172,8 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@autional/shared@0.1.0-rc.47':
-    resolution: {integrity: sha512-kh/xvV5Lio/mGe0BSqOalaJWzBvv1U1gF5r36AzEtJpWqNKvCuU8XFVwfesOT6c3H/QXTN5VGeraMCBf1BNsqA==}
+  '@autional/shared@0.1.0-rc.48':
+    resolution: {integrity: sha512-hEOJori28D1MftmZiKf34u6VMmWE4i9LelMeSDXElBuJXXmB5G/SLU5s1k44ljPKGHD1Dtg8KHuAWjUyZ0R+vA==}
     peerDependencies:
       react: 19.2.5
       react-dom: 19.2.5
@@ -192,8 +192,8 @@ packages:
   '@autional/tsconfig@0.1.0-rc':
     resolution: {integrity: sha512-I/sxYpmIRekrDgRKAjdJhSq4LGcQbKgUwIGwepGj/rn8EDcTFHQu4ZDHbaS6aHyVLj1kEG8TYQnXtF8MMQ0+EA==}
 
-  '@autional/ui@0.1.0-rc.54':
-    resolution: {integrity: sha512-cGp8H1IcbAT9WdzsYXt4aPBQQ34d0r71oB4F2OdXYFaOPOTWAwza0JMl5JRaOrMEdHIxU92EL5SrExj92UREwQ==}
+  '@autional/ui@0.1.0-rc.55':
+    resolution: {integrity: sha512-mlZuNfGlCtXwEUDKlxulzmV/47lqdbP0qI2fgkyktek8CgWJ/9wT4YiRC5ptKwjdBFylF+tQIXq9JwgNfI6yTw==}
     peerDependencies:
       '@autional/tokens': '>=0.1.0-rc'
       antd: '>=6.0.0'
@@ -2455,6 +2455,10 @@ packages:
     resolution: {integrity: sha512-BR7VvDCVHO+q2xBEWskxS6DJE1qRnb7DxzUrogb71CWoSficBxYsiAGd+Kl0mmq/MprG9yArRkyrQxTO6XjMzA==}
     hasBin: true
 
+  semver@6.3.2:
+    resolution: {integrity: sha512-GYrCADwpu6yV5OAvchkQ27Z5wwMxWAEMg5NNWjyHh/5DboFFqbdbvYNIvZouQpxXyeMPoTOh0vdPYKlf0ZswdQ==}
+    hasBin: true
+
   serialize-javascript@7.1.2:
     resolution: {integrity: sha512-GL2BWwVa6JydKO6l/ljVgjAZF4QJ3S7dWDWi53s5GZT8PJzD2fNxi67HANQGKAqPrwEpL5ba7gUBGi0Ls/sEoQ==}
     engines: {node: '>=20.0.0'}
@@ -2991,7 +2995,7 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@autional/shared@0.1.0-rc.47(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))':
+  '@autional/shared@0.1.0-rc.48(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@tanstack/react-query': 5.100.9(react@19.2.5)
@@ -3020,7 +3024,7 @@ snapshots:
 
   '@autional/tsconfig@0.1.0-rc': {}
 
-  '@autional/ui@0.1.0-rc.54(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)':
+  '@autional/ui@0.1.0-rc.55(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@autional/tokens': 0.1.0-rc.18
       i18next: 26.0.10(typescript@5.8.3)
@@ -3088,7 +3092,7 @@ snapshots:
       '@babel/helper-replace-supers': 7.29.7(@babel/core@7.29.7)
       '@babel/helper-skip-transparent-expression-wrappers': 7.29.7
       '@babel/traverse': 7.29.8
-      semver: 6.3.1
+      semver: 6.3.2
     transitivePeerDependencies:
       - supports-color
 
@@ -3097,7 +3101,7 @@ snapshots:
       '@babel/core': 7.29.7
       '@babel/helper-annotate-as-pure': 7.29.7
       regexpu-core: 6.5.2
-      semver: 6.3.1
+      semver: 6.3.2
 
   '@babel/helper-define-polyfill-provider@0.6.8(@babel/core@7.29.7)':
     dependencies:
@@ -3668,7 +3672,7 @@ snapshots:
       babel-plugin-polyfill-corejs3: 0.14.2(@babel/core@7.29.7)
       babel-plugin-polyfill-regenerator: 0.6.8(@babel/core@7.29.7)
       core-js-compat: 3.50.0
-      semver: 6.3.1
+      semver: 6.3.2
     transitivePeerDependencies:
       - supports-color
 
@@ -4280,7 +4284,7 @@ snapshots:
       '@babel/compat-data': 7.29.7
       '@babel/core': 7.29.7
       '@babel/helper-define-polyfill-provider': 0.6.8(@babel/core@7.29.7)
-      semver: 6.3.1
+      semver: 6.3.2
     transitivePeerDependencies:
       - supports-color
 
@@ -5383,6 +5387,8 @@ snapshots:
   scheduler@0.27.0: {}
 
   semver@6.3.1: {}
+
+  semver@6.3.2: {}
 
   serialize-javascript@7.1.2: {}
 
