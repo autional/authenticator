@@ -46,11 +46,16 @@ function LegacyRedirect({ to }: { to: string }) {
 	return <Navigate to={`${to}${search}${hash}`} replace />;
 }
 
-/** 旧本地模式链接：/local/xxx → /xxx（一个发布周期兼容）。 */
-function LocalRedirect() {
-	const { pathname, search, hash } = useLocation();
+/** 旧本地模式链接目标：`/local/xxx` → `/xxx`（保留 query/hash）。 */
+export function legacyLocalTarget(pathname: string, search = '', hash = ''): string {
 	const next = pathname.replace(/^\/local(?=\/|$)/, '') || '/';
-	return <Navigate to={`${next}${search}${hash}`} replace />;
+	return `${next}${search}${hash}`;
+}
+
+/** 旧本地模式链接：/local/xxx → /xxx（一个发布周期兼容）。 */
+export function LocalRedirect() {
+	const { pathname, search, hash } = useLocation();
+	return <Navigate to={legacyLocalTarget(pathname, search, hash)} replace />;
 }
 
 /** 品牌：旧别名 slug 优先；否则用会话租户；都没有则空（默认品牌）。 */
@@ -62,12 +67,22 @@ function BrandingFor({ slug }: { slug: string }) {
 	return <BrandingInitializer slug={slug || sessionSlug} />;
 }
 
-function LayoutWrapper() {
+export function LayoutWrapper() {
 	const { tenantSlug } = useParams();
 	const slug = tenantSlug ?? '';
+
+	// B3 兼容层：/local/* 必须落到根路径的同一页。
+	// React Router 的路由打分里，`/:tenantSlug/*` 的**具体子段**（settings / devices …）
+	// 会赢过 `/local/*` 的 splat，于是 "local" 被当成租户 → TenantSlugGate 查不到 → 404。
+	// 所以在这里按 slug 短路；旧书签/旧深链因此仍然可用（query/hash 原样保留）。
+	const isLegacyLocal = slug === 'local';
+
 	useEffect(() => {
-		if (slug) rememberTenantSlug(slug);
-	}, [slug]);
+		// legacy "local" 不是租户，不写「最近租户」，否则会污染下次登录的默认组织。
+		if (slug && !isLegacyLocal) rememberTenantSlug(slug);
+	}, [slug, isLegacyLocal]);
+
+	if (isLegacyLocal) return <LocalRedirect />;
 	return (
 		<TenantSlugProvider value={slug}>
 			<BrandingFor slug={slug} />
