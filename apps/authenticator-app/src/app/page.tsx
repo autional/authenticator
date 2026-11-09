@@ -207,7 +207,7 @@ export default function HomePage() {
 								setBatchMode(true);
 							}
 						}}
-						className={`shrink-0 whitespace-nowrap rounded-lg px-2 py-1 text-xs font-medium transition-colors ${
+						className={`inline-flex min-h-[32px] shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
 							batchMode ? 'bg-primary-600 text-white' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
 						}`}
 					>

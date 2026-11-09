@@ -38,7 +38,7 @@ export default function EmptyState() {
 				<button
 					type="button"
 					onClick={signIn}
-					className="mt-3 text-xs text-primary-400 hover:text-primary-300"
+					className="mt-3 inline-flex min-h-[32px] items-center rounded-lg px-2 text-xs text-primary-400 hover:text-primary-300"
 				>
 					{t('home.signIn')}
 				</button>
