@@ -14,8 +14,11 @@ const mockAuthQrLoginCancelPost = vi.fn();
 
 vi.mock('@autional/shared', async () => {
 	const actual = await vi.importActual('@autional/shared');
+	const actualCodes = (actual as { ERROR_CODES?: Record<string, number> }).ERROR_CODES ?? {};
 	return {
 		...actual,
+		// 模拟 shared 发布后的形态：新码已进 ERROR_CODES（当前安装版尚无此键）
+		ERROR_CODES: { ...actualCodes, QR_LOGIN_TENANT_MISMATCH: 61000905 },
 		GeneratedApi: {
 			authQrLoginStatus: (...args: unknown[]) => mockAuthQrLoginStatus(...args),
 			authQrLoginScanPost: (...args: unknown[]) => mockAuthQrLoginScanPost(...args),
@@ -95,7 +98,30 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		expect(screen.getAllByText('返回首页').length).toBeGreaterThan(0);
 	});
 
-	it('T12 批准时租户不匹配 → 本地化终态提示，不给无效重试', async () => {
+	it('T12 批准时租户不匹配（专用错误码 61000905）→ 本地化终态提示', async () => {
+		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
+		mockAuthQrLoginScanPost.mockResolvedValue({ code: 0, data: {} });
+		mockAuthQrLoginConfirmPost.mockRejectedValue(apiError(403, '61000905'));
+
+		renderPage('/login-approve?token=t1');
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: '批准登录' })).toBeInTheDocument();
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: '批准登录' }));
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.getByText('当前登录账号不属于该登录请求所在的组织，请用该组织的账号重新扫码'),
+			).toBeInTheDocument();
+		});
+		expect(screen.queryByText('重试')).toBeNull();
+		expect(screen.getByText('返回首页')).toBeInTheDocument();
+	});
+
+	it('T12b 旧后端（无专用码、仅英文 detail）→ 文案兜底仍本地化', async () => {
 		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
 		mockAuthQrLoginScanPost.mockResolvedValue({ code: 0, data: {} });
 		mockAuthQrLoginConfirmPost.mockRejectedValue({
@@ -119,8 +145,6 @@ describe('LoginApprovePage (AU-27/28)', () => {
 				screen.getByText('当前登录账号不属于该登录请求所在的组织，请用该组织的账号重新扫码'),
 			).toBeInTheDocument();
 		});
-		expect(screen.queryByText('重试')).toBeNull();
-		expect(screen.getByText('返回首页')).toBeInTheDocument();
 	});
 
 	it('T13 批准时会话已过期 → 终态 expiredDesc，不再给无效重试', async () => {

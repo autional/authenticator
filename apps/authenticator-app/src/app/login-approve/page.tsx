@@ -4,8 +4,8 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@autional/ui';
-import { GeneratedApi, GeneratedTypes, extractApiError, extractItem } from '@autional/shared';
-import { semanticsOfError } from '@/lib/error-semantics';
+import { ERROR_CODES, GeneratedApi, GeneratedTypes, extractApiError, extractItem } from '@autional/shared';
+import { errorCodeOf, semanticsOfError } from '@/lib/error-semantics';
 
 // Autional QR login approval page（AU-27/28 W2：七态状态机 + 零信任预校验）
 // Entry: /login-approve?token=xxx&nm=123456
@@ -150,10 +150,13 @@ export default function LoginApprovePage() {
 			} else if (semanticsOfError(err)?.uiObservation === 'expired') {
 				// 会话在审批期间过期：重试必然失败，直接给终态出路
 				setState({ status: 'invalid', message: t('loginApprove.expiredDesc') });
-			} else if (/tenant mismatch/i.test(message)) {
+			} else if (
+				Number(errorCodeOf(err)) === Number((ERROR_CODES as Record<string, number>).QR_LOGIN_TENANT_MISMATCH) ||
+				/tenant mismatch/i.test(message)
+			) {
 				// 租户不匹配：当前账号不属于该登录请求所在组织。
-				// TODO：后端应给专用错误码（61000905）并进 @autional/shared 语义表；
-				// 当前仅有英文 detail，先按文案识别，避免用户看到英文 + 无效重试。
+				// 新后端返回专用错误码 61000905（ERROR_CODES.QR_LOGIN_TENANT_MISMATCH）；
+				// 旧后端只有英文 detail，保留文案兜底，直到 shared 包升级完成。
 				setState({ status: 'invalid', message: t('loginApprove.tenantMismatch') });
 			} else {
 				setState({ status: 'error', message });
