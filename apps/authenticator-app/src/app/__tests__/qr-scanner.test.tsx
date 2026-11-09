@@ -18,7 +18,7 @@ vi.mock('html5-qrcode', () => ({
 	},
 }));
 
-import QrScanner, { SCANNER_START_TIMEOUT_MS } from '../../components/QrScanner';
+import QrScanner, { SCANNER_START_TIMEOUT_MS, QR_ERROR_THROTTLE_MS } from '../../components/QrScanner';
 
 async function flushAsync() {
 	await act(async () => {
@@ -91,5 +91,73 @@ describe('QrScanner 降级出路 (AU-04)', () => {
 		expect(document.querySelector('.animate-spin')).toBeNull();
 		expect(screen.queryByText('无法访问摄像头')).toBeNull();
 		expect(screen.queryByText('摄像头启动超时。可改用手动输入添加账户')).toBeNull();
+	});
+});
+
+/**
+ * 取景几何回归锁：
+ * - 不给库传 qrbox（库遮罩按视频高算厚度却铺满正方形容器 → 白框变 200×(W−h+200)）。
+ * - 只用 transform 缩放绘制层，不改 <video> 布局盒（否则解码 canvas 各向异性压扁 QR）。
+ */
+describe('QrScanner 取景几何', () => {
+	it('T5 不传 qrbox，取景框由组件自绘且为正方形', async () => {
+		mockStart.mockResolvedValue(undefined);
+		render(<QrScanner onScan={vi.fn()} />);
+		await flushAsync();
+		await flushAsync();
+
+		expect(mockStart).toHaveBeenCalledTimes(1);
+		const [cameraConfig, scanConfig] = mockStart.mock.calls[0];
+		expect(cameraConfig).toEqual({ facingMode: 'environment' });
+		expect(scanConfig).not.toHaveProperty('qrbox');
+		expect(screen.getByTestId('qr-frame')).toHaveClass('aspect-square');
+	});
+
+	it('T6 横向摄像头在方形容器里：只 scale 绘制层，布局盒宽高保持不动', async () => {
+		mockStart.mockImplementation(async () => {
+			const region = document.getElementById('qr-scanner-region') as HTMLDivElement;
+			Object.defineProperty(region, 'clientWidth', { value: 400, configurable: true });
+			Object.defineProperty(region, 'clientHeight', { value: 400, configurable: true });
+			const video = document.createElement('video');
+			// 400×300 = 横向画面；容器 400×400
+			Object.defineProperty(video, 'clientWidth', { value: 400, configurable: true });
+			Object.defineProperty(video, 'clientHeight', { value: 300, configurable: true });
+			region.appendChild(video);
+		});
+		render(<QrScanner onScan={vi.fn()} />);
+		await flushAsync();
+		await flushAsync();
+
+		const video = document.querySelector('video') as HTMLVideoElement;
+		expect(video.style.width).toBe('');
+		expect(video.style.height).toBe('');
+		expect(video.style.transform).toMatch(/^scale\(1\.33/);
+	});
+});
+
+/**
+ * 解码失败节流：扫描回调按 fps 逐帧触发，对非 MFA 二维码曾 10 次/秒刷 toast。
+ */
+describe('QrScanner 解码失败节流', () => {
+	it('T7 同一失败文案在节流窗口内只提示一次，窗口过后可再次提示', async () => {
+		let decoded: ((text: string) => void) | undefined;
+		mockStart.mockImplementation(async (_cam: unknown, _cfg: unknown, cb: (text: string) => void) => {
+			decoded = cb;
+		});
+		const onError = vi.fn();
+		render(<QrScanner onScan={vi.fn()} onError={onError} />);
+		await flushAsync();
+		await flushAsync();
+
+		await act(async () => {
+			for (let i = 0; i < 10; i++) decoded?.('https://example.com/not-a-totp');
+		});
+		expect(onError).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(QR_ERROR_THROTTLE_MS + 10);
+			decoded?.('https://example.com/not-a-totp');
+		});
+		expect(onError).toHaveBeenCalledTimes(2);
 	});
 });
