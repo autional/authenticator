@@ -410,6 +410,7 @@
   "loginApprove.expiredDesc": "Request expired. Start a new one on your computer.",
   "loginApprove.cancelledDesc": "This request was denied.",
   "loginApprove.rateLimited": "Too many attempts. Please wait and retry.",
+  "loginApprove.tenantMismatch": "Your account does not belong to the organization that requested this login. Scan again with an account from that organization.",
   "loginApprove.invalidTitle": "Invalid login request",
   "loginApprove.errorTitle": "Error",
   "pushApprove.missingParams": "Missing challenge ID",

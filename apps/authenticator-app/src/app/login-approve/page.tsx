@@ -147,6 +147,11 @@ export default function LoginApprovePage() {
 			if (semanticsOfError(err)?.uiObservation === 'conflict') {
 				// 已被处理/并发 → 以服务端真实状态收敛（非假态）
 				await precheck();
+			} else if (/tenant mismatch/i.test(message)) {
+				// 租户不匹配：当前账号不属于该登录请求所在组织。
+				// TODO：后端应给专用错误码（61000905）并进 @autional/shared 语义表；
+				// 当前仅有英文 detail，先按文案识别，避免用户看到英文 + 无效重试。
+				setState({ status: 'invalid', message: t('loginApprove.tenantMismatch') });
 			} else {
 				setState({ status: 'error', message });
 			}

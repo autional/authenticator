@@ -95,6 +95,34 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		expect(screen.getAllByText('返回首页').length).toBeGreaterThan(0);
 	});
 
+	it('T12 批准时租户不匹配 → 本地化终态提示，不给无效重试', async () => {
+		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
+		mockAuthQrLoginScanPost.mockResolvedValue({ code: 0, data: {} });
+		mockAuthQrLoginConfirmPost.mockRejectedValue({
+			response: {
+				status: 400,
+				data: { code: '10000001', title: 'invalid request', detail: 'qr login tenant mismatch' },
+			},
+		});
+
+		renderPage('/login-approve?token=t1');
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: '批准登录' })).toBeInTheDocument();
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: '批准登录' }));
+		});
+
+		await waitFor(() => {
+			expect(
+				screen.getByText('当前登录账号不属于该登录请求所在的组织，请用该组织的账号重新扫码'),
+			).toBeInTheDocument();
+		});
+		expect(screen.queryByText('重试')).toBeNull();
+		expect(screen.getByText('返回首页')).toBeInTheDocument();
+	});
+
 	it('T10 拒绝 → denied 终态，且提供「返回首页」出路', async () => {
 		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
 		mockAuthQrLoginCancelPost.mockResolvedValue({ code: 0, data: {} });

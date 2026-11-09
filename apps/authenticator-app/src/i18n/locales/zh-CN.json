@@ -410,6 +410,7 @@
   "loginApprove.expiredDesc": "请求已过期，请在电脑端重新发起",
   "loginApprove.cancelledDesc": "该请求已被拒绝",
   "loginApprove.rateLimited": "操作过于频繁，请稍后再试",
+  "loginApprove.tenantMismatch": "当前登录账号不属于该登录请求所在的组织，请用该组织的账号重新扫码",
   "loginApprove.invalidTitle": "登录请求无效",
   "loginApprove.errorTitle": "出错了",
   "pushApprove.missingParams": "缺少验证参数",
