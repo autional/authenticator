@@ -91,6 +91,26 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		await waitFor(() => {
 			expect(screen.getByText('已批准登录')).toBeInTheDocument();
 		});
+		// 终态必须有明确出路（PWA 里没有「关闭页面」可言）；此处同测试内渲染了两次，取全部
+		expect(screen.getAllByText('返回首页').length).toBeGreaterThan(0);
+	});
+
+	it('T10 拒绝 → denied 终态，且提供「返回首页」出路', async () => {
+		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
+		mockAuthQrLoginCancelPost.mockResolvedValue({ code: 0, data: {} });
+
+		renderPage('/login-approve?token=t1');
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: '拒绝' })).toBeInTheDocument();
+		});
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: '拒绝' }));
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('已拒绝登录')).toBeInTheDocument();
+		});
+		expect(screen.getByText('返回首页')).toBeInTheDocument();
 	});
 
 	it('T4 pending + Option A：批准 = Scan → Confirm 顺序链 → approved', async () => {

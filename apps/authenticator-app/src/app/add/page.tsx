@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import {
@@ -13,13 +13,19 @@ import {
 	Download,
 } from 'lucide-react';
 import { useAuth, extractApiErrorMessage } from '@autional/shared';
-import QrScanner from '@/components/QrScanner';
+import QrScanner, { type LoginScanResult } from '@/components/QrScanner';
 import { useAuthenticatorStore } from '@/lib/store';
 import { validateSecret, generateTOTP } from '@/lib/totp';
 import BottomNav from '@/components/BottomNav';
 import { showToast } from '@autional/ui';
 import { enableTotp, verifyTotpSetup } from '@/lib/api';
 import type { MigratedAccount } from '@/lib/otpauth-migration';
+import { useSignIn } from '@/lib/use-sign-in';
+import {
+	clearPendingApproval,
+	savePendingApproval,
+	takePendingApproval,
+} from '@/lib/pending-approval';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
 type Tab = 'manual' | 'qr' | 'bind';
@@ -32,9 +38,35 @@ export default function AddAccountPage() {
 	const addAccount = useAuthenticatorStore((s) => s.addAccount);
 	const accounts = useAuthenticatorStore((s) => s.accounts);
 	const { user, isAuthenticated } = useAuth();
+	const { signIn, dialog } = useSignIn();
 
 	const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'qr' ? 'qr' : 'manual');
 	const [migratedAccounts, setMigratedAccounts] = useState<MigratedAccount[] | null>(null);
+	/** 未登录时扫到的登录码：不丢弃，登录后自动续上审批。 */
+	const [pendingLogin, setPendingLogin] = useState<LoginScanResult | null>(null);
+
+	/** 进入扫码登录审批页（保留当前租户段）。 */
+	const goApprove = (challenge: LoginScanResult) => {
+		const nm = challenge.numberMatching
+			? `&nm=${encodeURIComponent(challenge.numberMatching)}`
+			: '';
+		navigate(
+			toSlugged(`/login-approve?token=${encodeURIComponent(challenge.token)}${nm}`, slug),
+		);
+	};
+
+	/**
+	 * 登录回跳后（整页 OAuth，React 状态已丢）用 sessionStorage 票据续上审批；
+	 * 也覆盖「卡片打开时登录态在原地变为 true」的情况。
+	 */
+	useEffect(() => {
+		if (!isAuthenticated) return;
+		const pending = pendingLogin ?? takePendingApproval();
+		if (!pending) return;
+		setPendingLogin(null);
+		goApprove(pending);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [isAuthenticated, pendingLogin]);
 
 	// Manual form state
 	const [name, setName] = useState('');
@@ -289,7 +321,7 @@ export default function AddAccountPage() {
 					</form>
 				)}
 
-				{tab === 'qr' && !migratedAccounts && (
+				{tab === 'qr' && !migratedAccounts && !pendingLogin && (
 					<QrScanner
 						onScan={(result) => {
 							const exists = accounts.some(
@@ -316,26 +348,54 @@ export default function AddAccountPage() {
 							showToast(t('add.migrationTitle', { n: accounts.length }), 'success');
 						}}
 						onScanLogin={(challenge) => {
-							// 扫码登录审批需要「谁在批」：本地模式没有身份，直接提示先登录
+							// 未登录不能只弹 toast：扫描器在这一帧后自停，会留下「黑屏死路」。
+							// 改为切到可操作卡片（登录后自动续上审批 / 重新扫码）。
 							if (!isAuthenticated) {
-								showToast(t('add.loginRequiredForApprove'), 'error');
+								setPendingLogin(challenge);
 								return;
 							}
 							// QR 登录审批（桌面端扫码登录）：扫到 autional://login?... 后进审批页；
 							// 租户隔离由服务端 Confirm 的「JWT 租户 == 会话租户」硬校验保证，此处只做导航。
-							const nm = challenge.numberMatching
-								? `&nm=${encodeURIComponent(challenge.numberMatching)}`
-								: '';
-							navigate(
-								toSlugged(
-									`/login-approve?token=${encodeURIComponent(challenge.token)}${nm}`,
-									slug,
-								),
-							);
+							goApprove(challenge);
 						}}
 						onError={(err) => showToast(err, 'error')}
 						onManualFallback={() => setTab('manual')}
 					/>
+				)}
+
+				{tab === 'qr' && pendingLogin && !isAuthenticated && (
+					<div className="flex flex-col items-center rounded-xl border border-auth-border bg-auth-surface p-6 text-center">
+						<div className="mb-3 flex h-14 w-14 items-center justify-center rounded-md bg-primary-500/10">
+							<Shield className="h-7 w-7 text-primary-500" />
+						</div>
+						<h2 className="text-base font-semibold text-[var(--color-text-primary)]">
+							{t('add.loginRequiredForApprove')}
+						</h2>
+						<p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+							{t('add.loginApproveDesc')}
+						</p>
+						<button
+							type="button"
+							onClick={() => {
+								savePendingApproval(pendingLogin);
+								signIn();
+							}}
+							className="mt-4 w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white transition-all hover:bg-primary-500 active:scale-[0.98]"
+						>
+							{t('add.signInToApprove')}
+						</button>
+						<button
+							type="button"
+							onClick={() => {
+								clearPendingApproval();
+								setPendingLogin(null);
+							}}
+							className="mt-2 w-full rounded-xl bg-auth-elevated py-3 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-auth-border"
+						>
+							{t('add.rescan')}
+						</button>
+						{dialog}
+					</div>
 				)}
 
 				{tab === 'qr' && migratedAccounts && (

@@ -190,6 +190,12 @@ export default function LoginApprovePage() {
 					</div>
 					<h1 className="text-xl font-bold">{t('loginApprove.approvedTitle')}</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">{t('loginApprove.approvedDesc')}</p>
+					<Link
+						to="/"
+						className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[var(--color-border-subtle)] bg-transparent px-4 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-muted)]"
+					>
+						{t('notFound.backHome')}
+					</Link>
 				</div>
 			</div>
 		);
@@ -204,6 +210,12 @@ export default function LoginApprovePage() {
 					</div>
 					<h1 className="text-xl font-bold">{t('loginApprove.deniedTitle')}</h1>
 					<p className="text-sm text-[var(--color-text-muted)]">{t('loginApprove.deniedDesc')}</p>
+					<Link
+						to="/"
+						className="inline-flex h-10 w-full items-center justify-center rounded-md border border-[var(--color-border-subtle)] bg-transparent px-4 text-sm font-medium text-[var(--color-text-primary)] transition-colors hover:bg-[var(--color-bg-muted)]"
+					>
+						{t('notFound.backHome')}
+					</Link>
 				</div>
 			</div>
 		);

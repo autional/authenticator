@@ -59,6 +59,11 @@ vi.mock('@/components/BottomNav', () => ({
 	default: () => <div data-testid="bottom-nav">BottomNav</div>,
 }));
 
+const mockSignIn = vi.fn();
+vi.mock('@/lib/use-sign-in', () => ({
+	useSignIn: () => ({ signIn: mockSignIn, dialog: null }),
+}));
+
 vi.mock('@autional/ui', () => ({
 	showToast: vi.fn(),
 }));
@@ -94,6 +99,7 @@ vi.mock('@autional/shared', async () => {
 
 import AddAccountPage from '../add/page';
 import { showToast } from '@autional/ui';
+import { savePendingApproval } from '@/lib/pending-approval';
 
 function renderAddAccount() {
 	return render(
@@ -106,6 +112,7 @@ function renderAddAccount() {
 beforeEach(() => {
 	vi.clearAllMocks();
 	mockNavigate.mockReset();
+	sessionStorage.clear();
 	mockValidateSecret.mockResolvedValue(true);
 	mockGenerateTOTP.mockResolvedValue({ code: '123456', remainingSeconds: 25, progress: 0.83 });
 	storeState = {
@@ -256,7 +263,7 @@ describe('AddAccountPage', () => {
 			expect(await screen.findByTestId('qr-scanner')).toBeInTheDocument();
 		});
 
-		it('本地模式：隐藏 Autional 绑定页签，扫码登录提示先登录', async () => {
+		it('本地模式：隐藏 Autional 绑定页签，扫码登录给出可操作出路（不留黑屏）', async () => {
 			authState.isAuthenticated = false;
 			render(
 				<MemoryRouter initialEntries={['/local/add']}>
@@ -272,8 +279,64 @@ describe('AddAccountPage', () => {
 			await act(async () => {
 				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
 			});
-			expect(vi.mocked(showToast)).toHaveBeenCalled();
+			// 扫描器被换成卡片，而不是留在原地黑屏
+			expect(screen.queryByTestId('qr-scanner')).not.toBeInTheDocument();
+			expect(screen.getByText('扫码登录需要先登录 Autional 账号')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: '登录并继续' })).toBeInTheDocument();
 			expect(mockNavigate).not.toHaveBeenCalled();
+		});
+
+		it('未登录扫到登录码 → 重新扫码：扫描器恢复', async () => {
+			authState.isAuthenticated = false;
+			render(
+				<MemoryRouter initialEntries={['/local/add']}>
+					<Routes>
+						<Route path="/:tenantSlug/add" element={<AddAccountPage />} />
+					</Routes>
+				</MemoryRouter>,
+			);
+			await act(async () => {
+				fireEvent.click(screen.getByText('扫一扫'));
+			});
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
+			});
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '重新扫码' }));
+			});
+			expect(screen.getByTestId('qr-scanner')).toBeInTheDocument();
+		});
+
+		it('未登录扫到登录码 → 登录并继续：票据入 sessionStorage 并触发登录', async () => {
+			authState.isAuthenticated = false;
+			render(
+				<MemoryRouter initialEntries={['/local/add']}>
+					<Routes>
+						<Route path="/:tenantSlug/add" element={<AddAccountPage />} />
+					</Routes>
+				</MemoryRouter>,
+			);
+			await act(async () => {
+				fireEvent.click(screen.getByText('扫一扫'));
+			});
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: 'scan-login-stub' }));
+			});
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '登录并继续' }));
+			});
+			expect(mockSignIn).toHaveBeenCalledTimes(1);
+			expect(sessionStorage.getItem('authenticator.pending-approval.v1')).toContain('t1');
+		});
+
+		it('登录回跳后（sessionStorage 有票据）自动续上审批页', async () => {
+			authState.isAuthenticated = true;
+			savePendingApproval({ token: 't9', numberMatching: '87654321' });
+			renderAddAccount();
+			await waitFor(() => {
+				expect(mockNavigate).toHaveBeenCalledWith('/login-approve?token=t9&nm=87654321');
+			});
+			expect(sessionStorage.getItem('authenticator.pending-approval.v1')).toBeNull();
 		});
 
 		it('QR 登录码：扫到 autional://login 后按当前租户跳审批页（slug 不丢）', async () => {
