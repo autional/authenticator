@@ -164,6 +164,39 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		expect(mockAuthQrLoginConfirmPost).toHaveBeenCalledTimes(1);
 	});
 
+	it('T11 pending：进入页面即 Scan（桌面端可见「已扫描」），点批准只走 Confirm', async () => {
+		const order: string[] = [];
+		mockAuthQrLoginStatus.mockResolvedValue({
+			code: 0,
+			data: { status: 'pending', numberMatching: '123456' },
+		});
+		mockAuthQrLoginScanPost.mockImplementation(async () => {
+			order.push('scan');
+			return { code: 0, data: {} };
+		});
+		mockAuthQrLoginConfirmPost.mockImplementation(async () => {
+			order.push('confirm');
+			return { code: 0, data: {} };
+		});
+
+		renderPage('/login-approve?token=t1&nm=123456');
+
+		// 未点击任何按钮前就已标记 scanned
+		await waitFor(() => {
+			expect(order).toEqual(['scan']);
+		});
+		expect(screen.getByRole('button', { name: '批准登录' })).toBeInTheDocument();
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: '批准登录' }));
+		});
+		await waitFor(() => {
+			expect(screen.getByText('已批准登录')).toBeInTheDocument();
+		});
+		expect(order).toEqual(['scan', 'confirm']);
+		expect(mockAuthQrLoginScanPost).toHaveBeenCalledTimes(1);
+	});
+
 	it('T6 网络错误 → error 态；点「重试」→ authQrLoginStatus 真实二次调用（真重试锁）', async () => {
 		mockAuthQrLoginStatus.mockRejectedValue(new Error('net'));
 		renderPage('/login-approve?token=t1');

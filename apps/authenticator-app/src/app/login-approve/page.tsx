@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@autional/ui';
@@ -86,14 +86,58 @@ export default function LoginApprovePage() {
 		void precheck();
 	}, [precheck]);
 
+	/**
+	 * 扫码即标记：进入审批页就调一次 Scan（best-effort），
+	 * 让桌面端立刻显示「已扫描，请在手机上确认」（原本直到点批准才 Scan）。
+	 * 用同一个 Promise 串行：用户抢在标记完成前点「批准」时，await 这一笔而不是重复 Scan
+	 * （重复 Scan 会被服务端判 AlreadyResolved，反而把批准弄失败）。
+	 */
+	const scanPromiseRef = useRef<Promise<unknown> | null>(null);
+	const autoMarkedRef = useRef('');
+
+	const markScanned = useCallback(() => {
+		if (!token) return Promise.resolve();
+		if (!scanPromiseRef.current) {
+			scanPromiseRef.current = (async () => {
+				await GeneratedApi.authQrLoginScanPost({ token });
+				setState((prev) =>
+					prev.status === 'pending'
+						? { status: 'scanned', numberMatching: prev.numberMatching }
+						: prev,
+				);
+			})().catch((err) => {
+				// 失败后允许下一次（如点批准时）重试
+				scanPromiseRef.current = null;
+				throw err;
+			});
+		}
+		return scanPromiseRef.current;
+	}, [token]);
+
+	useEffect(() => {
+		scanPromiseRef.current = null;
+		autoMarkedRef.current = '';
+	}, [token]);
+
+	useEffect(() => {
+		if (!token || state.status !== 'pending') return;
+		// 每个 token 只自动标记一次；失败由 precheck 回读真实状态，避免失败循环
+		if (autoMarkedRef.current === token) return;
+		autoMarkedRef.current = token;
+		void markScanned().catch(() => {
+			void precheck();
+		});
+	}, [token, state.status, markScanned, precheck]);
+
 	const handleApprove = async () => {
 		// 硬闸：空 token / 非合法态不可达提交（AU-27 结案证据）
 		if (!token || !(state.status === 'pending' || state.status === 'scanned')) return;
 		setBusy(true);
 		try {
-			// Option A（2026-10-04 拍板）：pending 深链批准 = Scan → Confirm 顺序自足链
+			// Option A（2026-10-04 拍板）：pending 深链批准 = 确保已 Scan → Confirm。
+			// 进入页面时已自动 Scan；这里 await 同一笔，避免重复 Scan 被判 AlreadyResolved。
 			if (state.status === 'pending') {
-				await GeneratedApi.authQrLoginScanPost({ token });
+				await markScanned().catch(() => undefined);
 			}
 			await GeneratedApi.authQrLoginConfirmPost({ token });
 			setState({ status: 'approved' });
