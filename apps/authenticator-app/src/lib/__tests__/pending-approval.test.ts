@@ -17,20 +17,23 @@ describe('pending-approval（扫码登录待审批票据）', () => {
 		vi.useRealTimers();
 	});
 
-	it('保存后取出：返回 token/numberMatching，并立即清除（一次性）', () => {
+	it('保存后取出：返回 ready + token/numberMatching，并立即清除（一次性）', () => {
 		savePendingApproval({ token: 'tok_1', numberMatching: '123456' });
 
-		expect(takePendingApproval()).toEqual({ token: 'tok_1', numberMatching: '123456' });
+		expect(takePendingApproval()).toEqual({
+			status: 'ready',
+			challenge: { token: 'tok_1', numberMatching: '123456' },
+		});
 		expect(takePendingApproval()).toBeNull();
 	});
 
-	it('超过 5 分钟 → 视为过期，返回 null 且清除', () => {
+	it('超过 5 分钟 → 返回 expired（供 UI 提示）且清除', () => {
 		vi.useFakeTimers();
 		vi.setSystemTime(new Date('2026-11-09T10:00:00Z'));
 		savePendingApproval({ token: 'tok_old' });
 
 		vi.setSystemTime(new Date('2026-11-09T10:06:00Z'));
-		expect(takePendingApproval()).toBeNull();
+		expect(takePendingApproval()).toEqual({ status: 'expired' });
 		expect(sessionStorage.length).toBe(0);
 	});
 

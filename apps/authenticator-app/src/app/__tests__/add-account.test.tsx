@@ -339,6 +339,19 @@ describe('AddAccountPage', () => {
 			expect(sessionStorage.getItem('authenticator.pending-approval.v1')).toBeNull();
 		});
 
+		it('票据已过期 → 提示重新扫码，不跳审批', async () => {
+			authState.isAuthenticated = true;
+			sessionStorage.setItem(
+				'authenticator.pending-approval.v1',
+				JSON.stringify({ token: 't_old', at: Date.now() - 6 * 60 * 1000 }),
+			);
+			renderAddAccount();
+			await waitFor(() => {
+				expect(vi.mocked(showToast)).toHaveBeenCalled();
+			});
+			expect(mockNavigate).not.toHaveBeenCalled();
+		});
+
 		it('QR 登录码：扫到 autional://login 后按当前租户跳审批页（slug 不丢）', async () => {
 			render(
 				<MemoryRouter initialEntries={['/platform/add']}>

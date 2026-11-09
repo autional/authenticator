@@ -147,6 +147,9 @@ export default function LoginApprovePage() {
 			if (semanticsOfError(err)?.uiObservation === 'conflict') {
 				// 已被处理/并发 → 以服务端真实状态收敛（非假态）
 				await precheck();
+			} else if (semanticsOfError(err)?.uiObservation === 'expired') {
+				// 会话在审批期间过期：重试必然失败，直接给终态出路
+				setState({ status: 'invalid', message: t('loginApprove.expiredDesc') });
 			} else if (/tenant mismatch/i.test(message)) {
 				// 租户不匹配：当前账号不属于该登录请求所在组织。
 				// TODO：后端应给专用错误码（61000905）并进 @autional/shared 语义表；

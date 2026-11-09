@@ -61,10 +61,17 @@ export default function AddAccountPage() {
 	 */
 	useEffect(() => {
 		if (!isAuthenticated) return;
-		const pending = pendingLogin ?? takePendingApproval();
-		if (!pending) return;
+		const taken = pendingLogin
+			? { status: 'ready' as const, challenge: pendingLogin }
+			: takePendingApproval();
+		if (!taken) return;
+		if (taken.status === 'expired') {
+			// 登录耗时超过票据 TTL：明确告知而不是静默落到添加页
+			showToast(t('add.approvalExpired'), 'error');
+			return;
+		}
 		setPendingLogin(null);
-		goApprove(pending);
+		goApprove(taken.challenge);
 		// eslint-disable-next-line react-hooks/exhaustive-deps
 	}, [isAuthenticated, pendingLogin]);
 

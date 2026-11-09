@@ -123,6 +123,27 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		expect(screen.getByText('返回首页')).toBeInTheDocument();
 	});
 
+	it('T13 批准时会话已过期 → 终态 expiredDesc，不再给无效重试', async () => {
+		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
+		mockAuthQrLoginScanPost.mockResolvedValue({ code: 0, data: {} });
+		mockAuthQrLoginConfirmPost.mockRejectedValue(apiError(410, '61000902'));
+
+		renderPage('/login-approve?token=t1');
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: '批准登录' })).toBeInTheDocument();
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: '批准登录' }));
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('请求已过期，请在电脑端重新发起')).toBeInTheDocument();
+		});
+		expect(screen.queryByText('重试')).toBeNull();
+		expect(screen.getByText('返回首页')).toBeInTheDocument();
+	});
+
 	it('T10 拒绝 → denied 终态，且提供「返回首页」出路', async () => {
 		mockAuthQrLoginStatus.mockResolvedValue({ code: 0, data: { status: 'pending' } });
 		mockAuthQrLoginCancelPost.mockResolvedValue({ code: 0, data: {} });

@@ -41,8 +41,13 @@ export function savePendingApproval(challenge: PendingApprovalChallenge): void {
 	}
 }
 
-/** 读取并清除（一次性）。过期、损坏、无 token 一律返回 null。 */
-export function takePendingApproval(): PendingApprovalChallenge | null {
+export type PendingApprovalTake =
+	| { status: 'ready'; challenge: PendingApprovalChallenge }
+	| { status: 'expired' }
+	| null;
+
+/** 读取并清除（一次性）。过期 → {status:'expired'}（供 UI 提示），损坏/无 token → null。 */
+export function takePendingApproval(): PendingApprovalTake {
 	const store = storage();
 	if (!store) return null;
 	try {
@@ -51,8 +56,11 @@ export function takePendingApproval(): PendingApprovalChallenge | null {
 		store.removeItem(KEY);
 		const parsed = JSON.parse(raw) as StoredPendingApproval;
 		if (!parsed?.token || typeof parsed.at !== 'number') return null;
-		if (Date.now() - parsed.at > TTL_MS) return null;
-		return { token: parsed.token, numberMatching: parsed.numberMatching };
+		if (Date.now() - parsed.at > TTL_MS) return { status: 'expired' };
+		return {
+			status: 'ready',
+			challenge: { token: parsed.token, numberMatching: parsed.numberMatching },
+		};
 	} catch {
 		return null;
 	}

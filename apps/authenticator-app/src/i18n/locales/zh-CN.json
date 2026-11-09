@@ -163,6 +163,7 @@
   "add.loginApproveDesc": "登录后会自动继续这次审批，你也可以重新扫码。",
   "add.signInToApprove": "登录并继续",
   "add.rescan": "重新扫码",
+  "add.approvalExpired": "审批已超时，请重新扫码",
   "add.qrDuplicate": "该账户已存在",
   "add.migrationTitle": "发现 {{n}} 个账户",
   "add.migrationConfirm": "确认导入",
