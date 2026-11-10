@@ -3,17 +3,17 @@ import { useSecurityScore } from '@/hooks/use-security-score';
 
 export default function SettingsSecurityScore({
 	accountsCount,
-	pushEnabled,
+	inAppNotifications,
 	hasPin,
 	hasBackupCodes,
 }: {
 	accountsCount: number;
-	pushEnabled: boolean;
+	inAppNotifications: boolean;
 	hasPin: boolean;
 	hasBackupCodes: boolean;
 }) {
 	const { t } = useTranslation();
-	const securityScore = useSecurityScore(accountsCount, hasPin, pushEnabled, hasBackupCodes);
+	const securityScore = useSecurityScore(accountsCount, hasPin, inAppNotifications, hasBackupCodes);
 
 	return (
 		<section>
@@ -59,7 +59,7 @@ export default function SettingsSecurityScore({
 				</div>
 				<div className="mt-3 grid grid-cols-2 gap-2">
 					<ScoreItem label={t('settings.scoreTotpAccounts')} value={accountsCount} max={10} />
-					<ScoreItem label={t('settings.scorePushMfa')} value={pushEnabled ? 1 : 0} max={1} />
+					<ScoreItem label={t('settings.scoreInApp')} value={inAppNotifications ? 1 : 0} max={1} />
 					<ScoreItem label={t('settings.scorePinProtection')} value={hasPin ? 1 : 0} max={1} />
 					<ScoreItem
 						label={t('settings.scoreBackupCodes')}

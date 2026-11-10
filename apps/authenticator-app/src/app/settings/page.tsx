@@ -19,12 +19,9 @@ import SettingsImportPasswordDialog from '@/components/settings/SettingsImportPa
 import SettingsCloud from '@/components/settings/SettingsCloud';
 import SettingsAccount from '@/components/settings/SettingsAccount';
 import SettingsSecurityScore from '@/components/settings/SettingsSecurityScore';
-import SettingsPushMfa from '@/components/settings/SettingsPushMfa';
 import SettingsBiometric from '@/components/settings/SettingsBiometric';
 import SettingsBackupCodes from '@/components/settings/SettingsBackupCodes';
 import SettingsPinProtection from '@/components/settings/SettingsPinProtection';
-import { registerPushSubscription, unregisterPushSubscription } from '@/lib/push';
-import { getVapidPublicKey, subscribeBrowserPush, unsubscribeBrowserPush } from '@autional/shared';
 import {
 	registerBiometric,
 	hasBiometricRegistered,
@@ -73,9 +70,6 @@ export default function SettingsPage() {
 		encrypted: boolean;
 	} | null>(null);
 
-	const [pushEnabled, setPushEnabled] = useState(false);
-	const [pushLoading, setPushLoading] = useState(false);
-	const [pushError, setPushError] = useState<string | null>(null);
 
 	const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
 	const [backupCodesCount, setBackupCodesCount] = useState(0);
@@ -89,14 +83,7 @@ export default function SettingsPage() {
 	const [bioRegistered, setBioRegistered] = useState(false);
 
 	useEffect(() => {
-		if ('serviceWorker' in navigator && 'PushManager' in window) {
-			navigator.serviceWorker.ready.then((reg) => {
-				reg.pushManager.getSubscription().then((sub) => {
-					setPushEnabled(!!sub);
-				});
-			});
-		}
-
+		// 2026-11-10：不再探测/订阅第三方推送（FCM）；通知走应用内 SSE。
 		if (isAuthenticated) {
 			getBackupCodesCount()
 				.then((res) => setBackupCodesCount(res?.count || 0))
@@ -353,52 +340,6 @@ export default function SettingsPage() {
 		}
 	};
 
-	const handlePushToggle = async () => {
-		if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-			setPushError(t('settings.pushBrowserNotSupported'));
-			return;
-		}
-		setPushLoading(true);
-		setPushError(null);
-		try {
-			if (pushEnabled) {
-				// 先取 endpoint 再注销：unsubscribe 之后 getSubscription() 必为 null，
-				// 服务端 DELETE 将永远拿不到地址（AU2-01 幽灵设备行）。
-				const registration = await navigator.serviceWorker.ready;
-				const existing = await registration.pushManager.getSubscription();
-				await unsubscribeBrowserPush();
-				if (existing) await unregisterPushSubscription(existing.endpoint);
-				setPushEnabled(false);
-			} else {
-				const vapidKey = await getVapidPublicKey();
-				if (!vapidKey) {
-					setPushError(t('settings.pushVapidFailed'));
-					setPushLoading(false);
-					return;
-				}
-				const sub = await subscribeBrowserPush(vapidKey);
-				if (!sub) {
-					setPushError(t('settings.pushSubscribeFailed'));
-					setPushLoading(false);
-					return;
-				}
-				const json = sub.toJSON();
-				await registerPushSubscription({
-					endpoint: json.endpoint!,
-					keys: { p256dh: json.keys!.p256dh, auth: json.keys!.auth },
-					device_name: 'Authenticator Web',
-					device_type: 'web',
-					user_agent: navigator.userAgent,
-				});
-				setPushEnabled(true);
-			}
-		} catch (err: unknown) {
-			setPushError(extractApiErrorMessage(err, t('settings.pushFailed')));
-		} finally {
-			setPushLoading(false);
-		}
-	};
-
 	const handleGenerateBackupCodes = async () => {
 		setBackupCodesLoading(true);
 		setBackupCodesError(null);
@@ -430,7 +371,7 @@ export default function SettingsPage() {
 			<div className="flex-1 space-y-6 px-4 py-4">
 				<SettingsSecurityScore
 					accountsCount={accounts.length}
-					pushEnabled={pushEnabled}
+					inAppNotifications={isAuthenticated}
 					hasPin={hasPin}
 					hasBackupCodes={backupCodesCount > 0}
 				/>
@@ -471,12 +412,6 @@ export default function SettingsPage() {
 									onCopy={handleCopyBackupCodes}
 								/>
 
-								<SettingsPushMfa
-									pushEnabled={pushEnabled}
-									pushLoading={pushLoading}
-									pushError={pushError}
-									onToggle={handlePushToggle}
-								/>
 							</>
 						)}
 					</div>

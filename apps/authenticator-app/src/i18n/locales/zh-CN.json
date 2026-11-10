@@ -446,5 +446,6 @@
   "bootstrap.httpsRequired": "此应用需要 HTTPS 或 localhost 环境。",
   "bootstrap.storageInitFailed": "存储初始化失败",
   "bootstrap.cryptoUnsupported": "当前页面使用的协议不支持 Web Crypto API。",
-  "bootstrap.useHttps": "请使用 https:// 协议访问，或在开发环境使用 localhost。"
+  "bootstrap.useHttps": "请使用 https:// 协议访问，或在开发环境使用 localhost。",
+  "settings.scoreInApp": "应用内通知"
 }

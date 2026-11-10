@@ -221,51 +221,12 @@ describe('SettingsPage', () => {
 		});
 	});
 
-	describe('push MFA button', () => {
-		it('renders "启用 Push 通知" button', async () => {
+	describe('push UI removed (2026-11-10)', () => {
+		// 产品口径：不使用第三方推送（FCM）；通知改走应用内 SSE。
+		it('不再渲染 Push 开关', () => {
 			renderSettings();
-			expect(screen.getByText('启用 Push 通知')).toBeInTheDocument();
-		});
-	});
-
-	describe('push disable (AU2-01)', () => {
-		const ENDPOINT = 'https://push.example/device-1';
-		const originalServiceWorker = Object.getOwnPropertyDescriptor(navigator, 'serviceWorker');
-		const originalPushManager = Object.getOwnPropertyDescriptor(window, 'PushManager');
-
-		afterEach(() => {
-			if (originalServiceWorker) Object.defineProperty(navigator, 'serviceWorker', originalServiceWorker);
-			else delete (navigator as { serviceWorker?: unknown }).serviceWorker;
-			if (originalPushManager) Object.defineProperty(window, 'PushManager', originalPushManager);
-			else delete (window as { PushManager?: unknown }).PushManager;
-		});
-
-		it('先取 endpoint 再注销浏览器订阅，并调用服务端 DELETE', async () => {
-			let browserUnsubscribed = false;
-			mockSharedUnsubscribe.mockImplementation(async () => {
-				browserUnsubscribed = true;
-				return true;
-			});
-			const registration = {
-				pushManager: {
-					getSubscription: vi.fn(async () => (browserUnsubscribed ? null : { endpoint: ENDPOINT })),
-				},
-			};
-			Object.defineProperty(navigator, 'serviceWorker', {
-				configurable: true,
-				value: { ready: Promise.resolve(registration) },
-			});
-			Object.defineProperty(window, 'PushManager', { configurable: true, value: class {} });
-
-			renderSettings();
-			const disableButton = (await screen.findByText('禁用 Push 通知')).closest('button');
-			expect(disableButton).not.toBeNull();
-			await act(async () => {
-				fireEvent.click(disableButton!);
-			});
-
-			expect(mockSharedUnsubscribe).toHaveBeenCalledTimes(1);
-			expect(pushLib.unregisterPushSubscription).toHaveBeenCalledWith(ENDPOINT);
+			expect(screen.queryByText('启用 Push 通知')).toBeNull();
+			expect(screen.queryByText('Push 登录审批')).toBeNull();
 		});
 	});
 

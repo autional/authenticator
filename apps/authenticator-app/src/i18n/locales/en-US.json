@@ -446,5 +446,6 @@
   "bootstrap.httpsRequired": "This app requires an HTTPS or localhost environment.",
   "bootstrap.storageInitFailed": "Storage initialization failed",
   "bootstrap.cryptoUnsupported": "The current page protocol does not support the Web Crypto API.",
-  "bootstrap.useHttps": "Please access via https://, or use localhost in development."
+  "bootstrap.useHttps": "Please access via https://, or use localhost in development.",
+  "settings.scoreInApp": "In-app notifications"
 }
