@@ -370,3 +370,90 @@ describe('hasPinProtection edge cases', () => {
 		expect(hasPinProtection()).toBe(false);
 	});
 });
+
+describe('Biometric (PRF) protection', () => {
+	const bindStorage = () => {
+		Object.defineProperty(globalThis, 'localStorage', {
+			value: {
+				getItem: mockStorageGetItem,
+				setItem: mockStorageSetItem,
+				removeItem: mockStorageRemoveItem,
+			},
+			writable: true,
+		});
+	};
+
+	it('binds a PRF key and unlocks without PIN', async () => {
+		bindStorage();
+		const {
+			initializeStorage,
+			saveAccounts,
+			setPinProtection,
+			setBiometricProtection,
+			hasBiometricProtection,
+			unlockWithBiometric,
+		} = await import('../storage');
+
+		await initializeStorage();
+		await saveAccounts([makeAccount({ id: 'acc_bio', name: 'Bio Account' })]);
+		await setPinProtection('123456');
+
+		const prfKey = new Uint8Array(32).fill(7);
+		await setBiometricProtection(prfKey);
+		expect(hasBiometricProtection()).toBe(true);
+
+		const loaded = await unlockWithBiometric(prfKey);
+		expect(loaded).toHaveLength(1);
+		expect(loaded[0].name).toBe('Bio Account');
+	});
+
+	it('rejects a wrong PRF key (AES-GCM auth failure)', async () => {
+		bindStorage();
+		const { initializeStorage, saveAccounts, setPinProtection, setBiometricProtection, unlockWithBiometric } =
+			await import('../storage');
+
+		await initializeStorage();
+		await saveAccounts([makeAccount()]);
+		await setPinProtection('123456');
+		await setBiometricProtection(new Uint8Array(32).fill(1));
+
+		await expect(unlockWithBiometric(new Uint8Array(32).fill(2))).rejects.toThrow();
+	});
+
+	it('refuses biometric unlock when no PRF wrap was bound (PIN wrap is not reusable)', async () => {
+		bindStorage();
+		const { initializeStorage, saveAccounts, setPinProtection, unlockWithBiometric } = await import('../storage');
+
+		await initializeStorage();
+		await saveAccounts([makeAccount()]);
+		await setPinProtection('123456');
+
+		await expect(unlockWithBiometric(new Uint8Array(32).fill(3))).rejects.toThrow(/not bound/i);
+	});
+
+	it('clearBiometricProtection removes only the PRF wrap', async () => {
+		bindStorage();
+		const {
+			initializeStorage,
+			saveAccounts,
+			setPinProtection,
+			setBiometricProtection,
+			clearBiometricProtection,
+			hasBiometricProtection,
+			unlockWithBiometric,
+			unlockWithPin,
+		} = await import('../storage');
+
+		await initializeStorage();
+		await saveAccounts([makeAccount()]);
+		await setPinProtection('123456');
+		const prfKey = new Uint8Array(32).fill(9);
+		await setBiometricProtection(prfKey);
+
+		clearBiometricProtection();
+		expect(hasBiometricProtection()).toBe(false);
+		await expect(unlockWithBiometric(prfKey)).rejects.toThrow(/not bound/i);
+		// PIN 路径仍然可用
+		await expect(unlockWithPin('123456')).resolves.toHaveLength(1);
+	});
+});

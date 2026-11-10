@@ -30,9 +30,10 @@ import {
 	hasBiometricRegistered,
 	clearBiometric,
 	isBiometricAvailable,
+	verifyBiometric,
 } from '@/lib/webauthn';
 import { generateBackupCodes, getBackupCodesCount } from '@/lib/api';
-import { setPinProtection } from '@/lib/storage';
+import { setPinProtection, setBiometricProtection, clearBiometricProtection } from '@/lib/storage';
 import { clearSessionKeys } from '@/lib/session-keys';
 import {
 	derivePinKey,
@@ -322,14 +323,31 @@ export default function SettingsPage() {
 	const handleBiometricToggle = async () => {
 		if (bioRegistered) {
 			clearBiometric();
+			clearBiometricProtection();
 			setBioRegistered(false);
 			showToast(t('settings.biometricCleared'), 'success');
 		} else {
 			const ok = await registerBiometric();
-			if (ok) {
+			if (!ok) {
+				showToast(t('settings.biometricFailed'), 'error');
+				return;
+			}
+			// 注册只创建凭据；解锁还需要把 deviceKey 用 PRF 密钥再包一层（否则解不开 PIN 包裹）。
+			// 因此再走一次断言取得 PRF 密钥——用户会看到第二次生物识别提示。
+			const prfKey = await verifyBiometric();
+			if (!prfKey || prfKey.length === 0) {
+				clearBiometric();
+				setBioRegistered(false);
+				showToast(t('settings.biometricFailed'), 'error');
+				return;
+			}
+			try {
+				await setBiometricProtection(prfKey);
 				setBioRegistered(true);
 				showToast(t('settings.biometricRegistered'), 'success');
-			} else {
+			} catch {
+				clearBiometric();
+				setBioRegistered(false);
 				showToast(t('settings.biometricFailed'), 'error');
 			}
 		}

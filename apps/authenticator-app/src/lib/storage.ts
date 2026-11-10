@@ -45,6 +45,8 @@ interface StoragePayload {
 	salt: string;
 	deviceKey: string | null;
 	deviceKeyWrap: DeviceKeyWrap | null;
+	/** 生物识别解锁：deviceKey 用 PRF 派生密钥再包一层（与 PIN 包裹并存，互不影响） */
+	deviceKeyWrapBio?: DeviceKeyWrap | null;
 	data: {
 		iv: string;
 		ciphertext: string;
@@ -202,22 +204,73 @@ export async function unlockWithBiometric(prfKey: Uint8Array): Promise<TotpAccou
 
 	const payload = readPayload();
 	if (!payload) return [];
-	if (!payload.deviceKeyWrap) {
-		// No PIN set yet — use loadWithoutPin instead
-		throw new Error('Storage is not PIN-protected. Use loadWithoutPin() for unencrypted access.');
+
+	// 生物识别包裹是独立的一层：只有「开启生物识别时用 PRF 密钥包裹过 deviceKey」才能解。
+	// 不能用 deviceKeyWrap（那是 PIN 包裹，密钥材质与迭代次数都不同）——早期实现就是这里解错了，
+	// 导致只要设了 PIN，生物识别解锁必然 AES-GCM 认证失败。
+	const wrap = payload.deviceKeyWrapBio;
+	if (!wrap) {
+		throw new Error('Biometric is not bound to this vault. Re-enable biometric unlock in Settings.');
 	}
 
 	const salt = base64ToArrayBuffer(payload.salt);
-	const pinKey = await deriveKeyFromBytes(prfKey, salt);
+	const bioKey = await deriveKeyFromBytes(prfKey, salt);
 
-	const wrapIv = base64ToArrayBuffer(payload.deviceKeyWrap.iv);
-	const wrapCipher = base64ToArrayBuffer(payload.deviceKeyWrap.ciphertext);
+	const wrapIv = base64ToArrayBuffer(wrap.iv);
+	const wrapCipher = base64ToArrayBuffer(wrap.ciphertext);
 
-	const deviceKeyRawB64 = await decryptWithKey(wrapCipher, wrapIv, pinKey);
+	const deviceKeyRawB64 = await decryptWithKey(wrapCipher, wrapIv, bioKey);
 	const deviceKey = await importDeviceKey(base64ToArrayBuffer(deviceKeyRawB64));
 	cachedDeviceKey = deviceKey;
 
 	return decryptAccounts(payload.data, deviceKey);
+}
+
+/** 是否已把 deviceKey 用 PRF 密钥包裹（决定锁屏是否展示生物识别按钮）。 */
+export function hasBiometricProtection(): boolean {
+	const payload = readPayload();
+	return !!payload?.deviceKeyWrapBio;
+}
+
+/**
+ * 开启生物识别：用 PRF 派生密钥把当前 deviceKey **再包一层**（不改动 PIN 包裹）。
+ * 前置：当前进程已持有可导出的 deviceKey（即保险库已解锁）。
+ */
+export async function setBiometricProtection(prfKey: Uint8Array): Promise<void> {
+	if (!prfKey || prfKey.length === 0) throw new Error('Invalid PRF key');
+	const payload = readPayload();
+	if (!payload) throw new Error('NOT_INITIALIZED');
+
+	let deviceKey = cachedDeviceKey;
+	if (!deviceKey) {
+		if (payload.deviceKey) {
+			deviceKey = await importDeviceKey(base64ToArrayBuffer(payload.deviceKey));
+		} else {
+			deviceKey = null;
+		}
+		if (!deviceKey) throw new Error('UNLOCK_REQUIRED');
+		cachedDeviceKey = deviceKey;
+	}
+	if (!deviceKey.extractable) throw new Error('Device key is not extractable');
+
+	const exportedB64 = arrayBufferToBase64(await exportDeviceKey(deviceKey));
+	const salt = base64ToArrayBuffer(payload.salt);
+	const bioKey = await deriveKeyFromBytes(prfKey, salt);
+	const { ciphertext, iv } = await encryptWithKey(exportedB64, bioKey);
+
+	payload.deviceKeyWrapBio = {
+		iv: arrayBufferToBase64(iv),
+		ciphertext: arrayBufferToBase64(ciphertext),
+	};
+	writePayload(payload);
+}
+
+/** 关闭生物识别：只移除 PRF 包裹，PIN 包裹保持不变。 */
+export function clearBiometricProtection(): void {
+	const payload = readPayload();
+	if (!payload || !payload.deviceKeyWrapBio) return;
+	payload.deviceKeyWrapBio = null;
+	writePayload(payload);
 }
 
 /**

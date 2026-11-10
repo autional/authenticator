@@ -7,6 +7,7 @@ import {
 	hasPinProtection,
 	loadWithoutPin,
 	unlockWithBiometric,
+	hasBiometricProtection,
 } from '@/lib/storage';
 import {
 	hasBiometricRegistered,
@@ -107,7 +108,7 @@ function PinInputScreen() {
 					{isSubmitting ? t('unlock.unlocking') : t('unlock.unlock')}
 				</button>
 
-				{bioAvailable && hasBiometricRegistered() && isPRFSupported() && hasPRFEnabled() && (
+				{bioAvailable && hasBiometricRegistered() && isPRFSupported() && hasPRFEnabled() && hasBiometricProtection() && (
 					<button
 						type="button"
 						onClick={async () => {
