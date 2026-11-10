@@ -111,6 +111,16 @@ export default function NotificationsPage() {
 		fetchUnreadCount();
 	}, [loadFirstPage, fetchUnreadCount]);
 
+	// SSE 流推送新通知时刷新（只刷新本页展示与未读数，不做全局广播）。
+	useEffect(() => {
+		const onPush = () => {
+			loadFirstPage();
+			fetchUnreadCount();
+		};
+		window.addEventListener('autional:notification', onPush);
+		return () => window.removeEventListener('autional:notification', onPush);
+	}, [loadFirstPage, fetchUnreadCount]);
+
 	// 刷新重置回第 1 页（替换而非追加）
 	const handleRefresh = () => {
 		setRefreshing(true);

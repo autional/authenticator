@@ -16,6 +16,7 @@ import TenantSlugGate from './components/TenantSlugGate';
 import UnlockGate from './components/UnlockScreen';
 import { ToastProvider, LoadingScreen } from '@autional/ui';
 import PwaInstallPrompt from './components/PwaInstallPrompt';
+import { useNotificationStream } from './lib/use-notification-stream';
 
 import HomePage from './app/page';
 
@@ -70,6 +71,17 @@ function BrandingFor({ slug }: { slug: string }) {
 export function LayoutWrapper() {
 	const { tenantSlug } = useParams();
 	const slug = tenantSlug ?? '';
+	const { isAuthenticated } = useAuth();
+
+	// 登录态下订阅**本人**通知流（SSE）。身份只来自一次性票据，前端不传 user_id；
+	// 未登录即不建连，登出自动关闭。收到后广播事件，页面各自决定如何刷新。
+	useNotificationStream(isAuthenticated, (n) => {
+		try {
+			window.dispatchEvent(new CustomEvent('autional:notification', { detail: n }));
+		} catch {
+			/* ignore */
+		}
+	});
 
 	// B3 兼容层：/local/* 必须落到根路径的同一页。
 	// React Router 的路由打分里，`/:tenantSlug/*` 的**具体子段**（settings / devices …）
