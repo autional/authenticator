@@ -165,6 +165,7 @@ export default function TotpCard({
 				{/* Delete confirmation overlay */}
 				{showDelete && (
 					<div
+						role="presentation"
 						className="absolute inset-0 flex flex-col items-center justify-center bg-auth-surface/95 backdrop-blur-sm gap-3"
 						onClick={(e) => e.stopPropagation()}
 					>

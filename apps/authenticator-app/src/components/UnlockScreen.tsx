@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Lock, ShieldCheck, AlertCircle, Fingerprint } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useAuthenticatorStore } from '@/lib/store';
@@ -25,6 +25,12 @@ function PinInputScreen() {
 	const { t } = useTranslation();
 	const loadAccounts = useAuthenticatorStore((s) => s.loadAccounts);
 	const setHasPin = useAuthenticatorStore((s) => s.setHasPin);
+	const pinRef = useRef<HTMLInputElement>(null);
+
+	// 进入解锁页即聚焦 PIN 输入（替代 autoFocus：jsx-a11y/no-autofocus 会拦 autoFocus 属性）。
+	useEffect(() => {
+		pinRef.current?.focus();
+	}, []);
 
 	useEffect(() => {
 		isBiometricAvailable().then(setBioAvailable);
@@ -86,6 +92,7 @@ function PinInputScreen() {
 					<Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
 					<input
 						id="unlock-pin-input"
+						ref={pinRef}
 						name="pin"
 						type="password"
 						inputMode="numeric"
@@ -94,7 +101,6 @@ function PinInputScreen() {
 						value={pin}
 						onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
 						placeholder={t('unlock.pinPlaceholder')}
-						autoFocus
 						autoComplete="current-password"
 						aria-label={t('unlock.pinAria')}
 						className="w-full rounded-xl border border-auth-border bg-auth-elevated py-3 pl-10 pr-4 text-center text-lg font-mono tracking-widest text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"

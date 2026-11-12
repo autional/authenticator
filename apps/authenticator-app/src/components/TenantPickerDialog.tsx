@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getPortalUrl } from '@autional/shared';
 
@@ -21,6 +21,12 @@ export default function TenantPickerDialog({
 	const { t } = useTranslation();
 	const [slug, setSlug] = useState(recent || '');
 	const [catalog, setCatalog] = useState<string[]>([]);
+	const slugRef = useRef<HTMLInputElement>(null);
+
+	// 打开时把焦点放到唯一输入框（替代 autoFocus：jsx-a11y/no-autofocus）。
+	useEffect(() => {
+		if (open) slugRef.current?.focus();
+	}, [open]);
 
 	// 打开时拉一次公开租户名单做自动补全（不依赖 QueryClient，弹窗可独立测试）。
 	useEffect(() => {
@@ -78,14 +84,14 @@ export default function TenantPickerDialog({
 					</label>
 					<input
 						id="tenant-slug"
+						ref={slugRef}
 						value={slug}
 						onChange={(e) => setSlug(e.target.value)}
 						placeholder={t('signIn.placeholder')}
 						autoComplete="off"
 						autoCapitalize="none"
 						autoCorrect="off"
-						spellCheck={false}
-						autoFocus
+						spellCheck={false}
 						className="w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-primary-500"
 					/>
 					{matches.length > 0 && (
