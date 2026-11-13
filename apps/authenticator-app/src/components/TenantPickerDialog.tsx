@@ -92,7 +92,7 @@ export default function TenantPickerDialog({
 						autoCapitalize="none"
 						autoCorrect="off"
 						spellCheck={false}
-						className="w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] outline-none focus:border-primary-500"
+						className="w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] focus:border-primary-500"
 					/>
 					{matches.length > 0 && (
 						<ul role="listbox" className="mt-1 max-h-40 overflow-y-auto rounded-lg border border-auth-border bg-auth-elevated">

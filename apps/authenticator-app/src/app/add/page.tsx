@@ -280,7 +280,7 @@ export default function AddAccountPage() {
 								value={name}
 								onChange={(e) => setName(e.target.value)}
 								placeholder={t('add.serviceName')}
-								className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+								className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 							/>
 						</div>
 						<div>
@@ -297,7 +297,7 @@ export default function AddAccountPage() {
 								value={username}
 								onChange={(e) => setUsername(e.target.value)}
 								placeholder={t('add.username')}
-								className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+								className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 							/>
 						</div>
 						<div>
@@ -314,7 +314,7 @@ export default function AddAccountPage() {
 								onChange={(e) => setSecret(e.target.value)}
 								placeholder="JBSWY3DPEHPK3PXP"
 								rows={3}
-								className="w-full resize-none rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+								className="w-full resize-none rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 							/>
 							<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{t('add.secretHint')}</p>
 						</div>
@@ -506,7 +506,7 @@ export default function AddAccountPage() {
 										value={bindName}
 										onChange={(e) => setBindName(e.target.value)}
 										placeholder="Autional"
-										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 									/>
 								</div>
 								<div>
@@ -523,7 +523,7 @@ export default function AddAccountPage() {
 										value={bindUsername}
 										onChange={(e) => setBindUsername(e.target.value)}
 										placeholder={user?.email || user?.username || 'your@email.com'}
-										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 									/>
 								</div>
 
@@ -612,7 +612,7 @@ export default function AddAccountPage() {
 										value={verifyCode}
 										onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
 										placeholder="123456"
-										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-center text-lg font-mono tracking-[0.3em] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-center text-lg font-mono tracking-[0.3em] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 									/>
 								</div>
 

@@ -99,7 +99,7 @@ export default function BottomNav() {
 							key={item.path}
 							onClick={() => navigate(target)}
 							aria-current={isActive ? 'page' : undefined}
-							className={`relative flex flex-col items-center gap-0.5 rounded-lg px-6 py-1 transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
+							className={`relative flex flex-col items-center gap-0.5 rounded-lg px-6 py-1 transition-all duration-150 active:scale-95 ${
 								isActive ? 'text-primary-500 dark:text-primary-400' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
 							}`}
 						>

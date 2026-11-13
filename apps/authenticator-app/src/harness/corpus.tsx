@@ -95,7 +95,7 @@ export default function Corpus() {
 					type="text"
 					readOnly
 					value="Staging Vault"
-					className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+					className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 				/>
 			</Sample>
 
@@ -105,7 +105,7 @@ export default function Corpus() {
 					readOnly
 					value="JBSWY3DPEHPK3PXP"
 					rows={3}
-					className="w-full resize-none rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+					className="w-full resize-none rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 				/>
 			</Sample>
 
@@ -115,7 +115,7 @@ export default function Corpus() {
 					type="text"
 					readOnly
 					value="demo@example.com"
-					className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+					className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 				/>
 			</Sample>
 

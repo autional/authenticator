@@ -84,7 +84,7 @@ export default function BackupPassphraseDialog({
 						value={passphrase}
 						onChange={(e) => setPassphrase(e.target.value)}
 						placeholder={t('cloudBackup.passphrasePlaceholder')}
-						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-primary-500"
+						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-primary-500"
 					/>
 					{isCreate && (
 						<>
@@ -99,7 +99,7 @@ export default function BackupPassphraseDialog({
 								value={confirm}
 								onChange={(e) => setConfirm(e.target.value)}
 								placeholder={t('cloudBackup.passphraseConfirmPlaceholder')}
-								className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-primary-500"
+								className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-primary-500"
 							/>
 						</>
 					)}

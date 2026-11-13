@@ -45,6 +45,11 @@ jobs:
       - name: A11y lint
         run: pnpm --filter @autional/authenticator-app run lint:a11y
 
+      # 焦点可见性守卫：禁止用 outline-none 压掉设计系统的 :focus-visible 焦点环
+      # （唯一例外 = 同一 className 自己画了 ring-*）。脚本无依赖，秒级。
+      - name: Focus-visible guard
+        run: pnpm --filter @autional/authenticator-app run lint:focus
+
       # 构建暂不入门：`pnpm build` 依赖部署侧 env（REGION / SITE_URL / CDN_HOST / API_ORIGIN，
       # 见 scripts/env.mjs）——本地无 API_ORIGIN 时实测失败：
       #   [build-env] 前端 API 模式为 direct 但缺少 API_ORIGIN（跨域直连必须有绝对源站）

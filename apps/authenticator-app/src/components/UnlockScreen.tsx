@@ -103,7 +103,7 @@ function PinInputScreen() {
 						placeholder={t('unlock.pinPlaceholder')}
 						autoComplete="current-password"
 						aria-label={t('unlock.pinAria')}
-						className="w-full rounded-xl border border-auth-border bg-auth-elevated py-3 pl-10 pr-4 text-center text-lg font-mono tracking-widest text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500 focus:ring-1 focus:ring-primary-500/30"
+						className="w-full rounded-xl border border-auth-border bg-auth-elevated py-3 pl-10 pr-4 text-center text-lg font-mono tracking-widest text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 					/>
 				</div>
 				<button

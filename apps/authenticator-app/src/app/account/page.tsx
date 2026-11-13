@@ -175,7 +175,7 @@ export default function AccountDetailPage() {
 							type="text"
 							value={name}
 							onChange={(e) => setName(e.target.value)}
-							className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+							className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 						/>
 					</div>
 
@@ -187,7 +187,7 @@ export default function AccountDetailPage() {
 							type="text"
 							value={username}
 							onChange={(e) => setUsername(e.target.value)}
-							className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+							className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 						/>
 					</div>
 
@@ -221,7 +221,7 @@ export default function AccountDetailPage() {
 								setGroup('');
 							}}
 							placeholder={t('account.groupCustomPlaceholder')}
-							className="mt-2 w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none transition-colors focus:border-primary-500"
+							className="mt-2 w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 						/>
 					</div>
 

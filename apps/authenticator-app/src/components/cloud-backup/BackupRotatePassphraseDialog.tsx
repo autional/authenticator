@@ -77,7 +77,7 @@ export default function BackupRotatePassphraseDialog({
 						value={current}
 						onChange={(e) => setCurrent(e.target.value)}
 						placeholder={t('cloudBackup.currentPassphrase')}
-						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-primary-500"
+						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-primary-500"
 					/>
 					<input
 						id="backup-next-passphrase"
@@ -87,7 +87,7 @@ export default function BackupRotatePassphraseDialog({
 						value={next}
 						onChange={(e) => setNext(e.target.value)}
 						placeholder={t('cloudBackup.newPassphrase')}
-						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-primary-500"
+						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-primary-500"
 					/>
 					<input
 						id="backup-next-passphrase-confirm"
@@ -97,7 +97,7 @@ export default function BackupRotatePassphraseDialog({
 						value={confirm}
 						onChange={(e) => setConfirm(e.target.value)}
 						placeholder={t('cloudBackup.newPassphraseConfirm')}
-						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] outline-none focus:border-primary-500"
+						className="mb-2 w-full rounded-lg border border-auth-border bg-auth-elevated px-3 py-2 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:border-primary-500"
 					/>
 					{(localError || error) && (
 						<p role="alert" className="mb-3 flex items-center gap-1.5 text-xs text-[var(--color-danger-text)]">

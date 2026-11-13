@@ -12,6 +12,7 @@
     "preview": "vite preview --port 13108",
     "lint": "eslint src/",
     "lint:a11y": "eslint -c eslint.a11y.config.mjs --max-warnings 0 \"src/**/*.{ts,tsx}\"",
+    "lint:focus": "node scripts/check-focus-visible.mjs",
     "typecheck": "tsc --noEmit && tsc -p tsconfig.sw.json",
     "test": "vitest run",
     "clean": "rimraf dist"
