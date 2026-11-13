@@ -117,6 +117,62 @@ describe('buildPushNotification', () => {
 	});
 });
 
+describe('buildPushNotification · login_approval', () => {
+	function approvalPayload(code: unknown) {
+		return JSON.stringify({
+			title: 'Login approval request',
+			body: 'Approval code 482913',
+			data: {
+				type: 'login_approval',
+				code,
+				request_id: 'req-1',
+				expires_at: '2026-11-13T12:00:00Z',
+			},
+		});
+	}
+
+	it('6 位码 → /a/<code>，按码去重，文案中英双语', () => {
+		const zh = buildPushNotification(parsePushMessage(approvalPayload('482913')), 'zh-CN');
+		expect(zh).toEqual({
+			title: '登录审批请求',
+			body: '审批码 482913，点击查看',
+			tag: 'login-approval:482913',
+			url: '/a/482913',
+		});
+
+		const en = buildPushNotification(parsePushMessage(approvalPayload('482913')), 'en-US');
+		expect(en).toEqual({
+			title: 'Login approval request',
+			body: 'Approval code 482913 — tap to review',
+			tag: 'login-approval:482913',
+			url: '/a/482913',
+		});
+	});
+
+	it('数字型 code 也接受（统一转字符串）', () => {
+		const spec = buildPushNotification(parsePushMessage(approvalPayload(482913)), 'en-US');
+		expect(spec.url).toBe('/a/482913');
+		expect(spec.tag).toBe('login-approval:482913');
+	});
+
+	it.each(['48291', '4829130', '48a913', '48291 ', '', null, undefined])(
+		'非法码 %s 回落首页且不带 tag',
+		(code) => {
+			const spec = buildPushNotification(parsePushMessage(approvalPayload(code)), 'zh-CN');
+			expect(spec.url).toBe('/');
+			expect(spec.tag).toBeUndefined();
+			expect(spec.title).toBe('登录审批请求');
+		},
+	);
+
+	it('mfa_push 分支行为不变（仍走 /push-approve）', () => {
+		const spec = buildPushNotification(parsePushMessage(mfaPayload()), 'en-US');
+		expect(spec.url).toBe(`/push-approve?challengeId=${CHALLENGE_ID}&numberMatching=42`);
+		expect(spec.tag).toBe(`mfa-push:${CHALLENGE_ID}`);
+		expect(spec.body).toBe('Match number 42 — tap to review');
+	});
+});
+
 describe('resolveClickUrl', () => {
 	it('站内相对路径原样返回', () => {
 		expect(resolveClickUrl({ url: '/push-approve?challengeId=x' })).toBe(

@@ -29,6 +29,8 @@ const DevicesPage = lazy(() => import('./app/devices/page'));
 const CloudBackupPage = lazy(() => import('./app/cloud-backup/page'));
 const DeviceSyncPage = lazy(() => import('./app/device-sync/page'));
 const LoginApprovePage = lazy(() => import('./app/login-approve/page'));
+const ApprovalsPage = lazy(() => import('./app/approvals/page'));
+const ApprovalLinkPage = lazy(() => import('./app/a/page'));
 const NotificationsPage = lazy(() => import('./app/notifications/page'));
 const NotFoundPage = lazy(() => import('./app/not-found/page'));
 
@@ -266,6 +268,26 @@ function appRoutes(t: (key: string) => string) {
 					<ServerOnly>
 						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
 							<LoginApprovePage />
+						</Suspense>
+					</ServerOnly>
+				}
+			/>
+			<Route
+				path="approvals"
+				element={
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<ApprovalsPage />
+						</Suspense>
+					</ServerOnly>
+				}
+			/>
+			<Route
+				path="a/:code"
+				element={
+					<ServerOnly>
+						<Suspense fallback={<LoadingScreen message={t('common.loading')} />}>
+							<ApprovalLinkPage />
 						</Suspense>
 					</ServerOnly>
 				}

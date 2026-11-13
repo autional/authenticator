@@ -3,6 +3,14 @@
  *
  * Triggered by Service Worker notificationclick or directly opened.
  * Displays the push challenge details and allows approve/deny.
+ *
+ * 安全约束（P0）：核验数字（numberMatching）**只从服务端 `getPushChallengeStatus()` 读取**，
+ * 绝不从 URL 查询参数取。审批链接可被伪造 —— 攻击者能把自己挑战的码塞进链接，
+ * 诱导受害者点「批准」从而放行攻击者自己的登录/操作；URL 参数不构成任何信任依据。
+ *
+ * 但服务端 `PushApproveRequest.NumberMatching` 是必填且逐值比对，所以批准/拒绝
+ * **必须回传服务端下发的那个码**（`challenge.numberMatching`），否则一律 400。
+ * 若服务端没给码 → 无法完成双向比对 → 按钮禁用（fail-closed），不回落到 URL 参数。
  */
 
 import { useCallback, useEffect, useState } from 'react';
@@ -21,7 +29,6 @@ export default function PushApprovePage() {
 	const { t } = useTranslation();
 	const [searchParams] = useSearchParams();
 	const challengeId = searchParams.get('challengeId') || '';
-	const urlNumberMatching = searchParams.get('numberMatching') || '';
 
 	const [challenge, setChallenge] = useState<PushChallengeStatus | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -68,11 +75,16 @@ export default function PushApprovePage() {
 		void loadChallenge();
 	}, [loadChallenge]);
 
+	// 只认服务端下发的那份码；URL 的 numberMatching 一律不参与（既不上屏也不回传）
+	const serverNumberMatching = challenge?.numberMatching ?? '';
+	// fail-closed：加载中 / 服务端未给码 → 无法完成双向比对，批准与拒绝都禁用
+	const canDecide = Boolean(challengeId) && serverNumberMatching.length > 0 && !actionLoading;
+
 	const handleApprove = async () => {
-		if (!challengeId) return;
+		if (!challengeId || !serverNumberMatching) return;
 		setActionLoading(true);
 		try {
-			await approvePushChallenge(challengeId, urlNumberMatching);
+			await approvePushChallenge(challengeId, serverNumberMatching);
 			setResult('approved');
 		} catch (err: unknown) {
 			setError(localizeApiError(err, t('pushApprove.approveFailed')));
@@ -82,10 +94,10 @@ export default function PushApprovePage() {
 	};
 
 	const handleDeny = async () => {
-		if (!challengeId) return;
+		if (!challengeId || !serverNumberMatching) return;
 		setActionLoading(true);
 		try {
-			await denyPushChallenge(challengeId, urlNumberMatching);
+			await denyPushChallenge(challengeId, serverNumberMatching);
 			setResult('denied');
 		} catch (err: unknown) {
 			setError(localizeApiError(err, t('pushApprove.denyFailed')));
@@ -191,17 +203,24 @@ export default function PushApprovePage() {
 					</p>
 				)}
 
-				{urlNumberMatching && (
+				{challenge?.numberMatching && (
 					<div className="mb-6 rounded-lg bg-neutral-100 dark:bg-auth-elevated p-4 text-center">
 						<p className="text-xs uppercase tracking-wide text-[var(--color-text-muted)] dark:text-[var(--color-text-muted)]">
 							{t('pushApprove.verificationNumber')}
 						</p>
 						<p className="mt-1 text-4xl font-bold text-[var(--color-text-primary)] dark:text-[var(--color-text-primary)]">
-							{urlNumberMatching}
+							{challenge.numberMatching}
 						</p>
 						<p className="mt-1 text-xs text-[var(--color-text-muted)] dark:text-[var(--color-text-muted)]">
 							{t('pushApprove.numberHint')}
 						</p>
+					</div>
+				)}
+
+				{/* fail-closed：服务端未下发核验数字时明确告知，并禁用两枚按钮（绝不回落到 URL 参数） */}
+				{challenge && !serverNumberMatching && (
+					<div className="mb-4 rounded-lg bg-warning/10 p-3 text-center text-sm text-[var(--color-warning-text)]">
+						{t('pushApprove.missingServerNumber')}
 					</div>
 				)}
 
@@ -214,14 +233,14 @@ export default function PushApprovePage() {
 				<div className="flex gap-3">
 					<button
 						onClick={handleDeny}
-						disabled={actionLoading}
+						disabled={!canDecide}
 						className="flex-1 rounded-lg border border-neutral-200 dark:border-auth-border bg-white dark:bg-auth-elevated px-4 py-3 font-medium text-[var(--color-text-secondary)] dark:text-[var(--color-text-secondary)] transition hover:bg-neutral-50 dark:hover:bg-auth-border disabled:opacity-50"
 					>
 						{actionLoading ? '...' : t('pushApprove.deny')}
 					</button>
 					<button
 						onClick={handleApprove}
-						disabled={actionLoading}
+						disabled={!canDecide}
 						className="flex-1 rounded-lg bg-info dark:bg-primary-600 px-4 py-3 font-medium text-white transition hover:bg-info dark:hover:bg-primary-500 disabled:opacity-50"
 					>
 						{actionLoading ? '...' : t('pushApprove.approve')}
