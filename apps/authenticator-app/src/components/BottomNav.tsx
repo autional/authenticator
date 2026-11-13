@@ -98,17 +98,19 @@ export default function BottomNav() {
 						<button
 							key={item.path}
 							onClick={() => navigate(target)}
-							className={`relative flex flex-col items-center gap-0.5 rounded-lg px-6 py-1 transition-colors ${
+							aria-current={isActive ? 'page' : undefined}
+							className={`relative flex flex-col items-center gap-0.5 rounded-lg px-6 py-1 transition-all duration-150 active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500 ${
 								isActive ? 'text-primary-500 dark:text-primary-400' : 'text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]'
 							}`}
 						>
-							<Icon className="h-5 w-5" strokeWidth={2} />
+							{/* 激活态用「非色彩信号」：加粗描边 + 标签加粗（灰度/色觉障碍下同样可辨） */}
+							<Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 2} />
 							{item.badge != null && item.badge > 0 && (
 								<span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger-soft px-1 text-[9px] font-bold text-[var(--color-danger-text)]">
 									{item.badge > 99 ? '99+' : item.badge}
 								</span>
 							)}
-							<span className="text-[10px] font-medium">{t(item.key)}</span>
+							<span className={`text-[10px] ${isActive ? 'font-semibold' : 'font-medium'}`}>{t(item.key)}</span>
 						</button>
 					);
 				})}

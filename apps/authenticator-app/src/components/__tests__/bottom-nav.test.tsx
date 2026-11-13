@@ -176,4 +176,20 @@ describe('BottomNav · 待审批入口', () => {
 		});
 		expect(mockGet).toHaveBeenCalledTimes(2);
 	});
+
+	it('激活态对辅助技术可见：当前页 aria-current=page，其它页没有', async () => {
+		renderNav();
+
+		// 初始在 /：首页项激活
+		expect(screen.getByRole('button', { name: /账户/ })).toHaveAttribute('aria-current', 'page');
+		expect(screen.getByRole('button', { name: /待审批/ })).not.toHaveAttribute('aria-current');
+
+		// 跳到 /approvals 后归属转移
+		fireEvent.click(screen.getByRole('button', { name: /待审批/ }));
+		await waitFor(() => {
+			expect(screen.getByTestId('approvals-stub')).toBeInTheDocument();
+		});
+		expect(screen.getByRole('button', { name: /待审批/ })).toHaveAttribute('aria-current', 'page');
+		expect(screen.getByRole('button', { name: /账户/ })).not.toHaveAttribute('aria-current');
+	});
 });
