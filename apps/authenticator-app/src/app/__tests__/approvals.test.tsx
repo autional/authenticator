@@ -26,6 +26,10 @@ vi.mock('@autional/ui', async (importOriginal) => ({
 	showToast: vi.fn(),
 }));
 
+vi.mock('@/components/BottomNav', () => ({
+	default: () => <div data-testid="bottom-nav" />,
+}));
+
 import ApprovalsPage from '../approvals/page';
 import ApprovalLinkPage from '../a/page';
 import ApprovalCard from '../../components/ApprovalCard';
@@ -61,6 +65,9 @@ describe('/approvals', () => {
 		await waitFor(() => {
 			expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
 		});
+		// 回归锁：本页是底栏一级入口，必须同时有粘顶标题栏与底部导航（曾漏渲染 BottomNav）
+		expect(screen.getByTestId('bottom-nav')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '返回' })).toBeInTheDocument();
 		expect(mockGet).toHaveBeenCalledWith(PENDING_PATH);
 		expect(screen.getByTestId('approval-code')).toHaveTextContent('482913');
 		// IP 打码（保留前 3 段），UA 截断
