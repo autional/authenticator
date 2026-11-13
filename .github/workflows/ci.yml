@@ -1,6 +1,6 @@
 name: CI
 
-# 单仓唯一流水线：test / typecheck / lint:a11y（存量 lint / build 见下方注释，暂不入门）。
+# 单仓唯一流水线：test / typecheck / lint / lint:a11y（存量 build 见下方注释，暂不入门）。
 # a11y 闸门（AC C-28 / ui-denominator U4）：jsx-a11y recommended，0 error/warn 才算过。
 # 2026-11-13：原 a11y.yml 并入本文件，避免两条 workflow 重复 install。
 
@@ -36,11 +36,11 @@ jobs:
       - name: Typecheck
         run: pnpm typecheck
 
-      # 存量 `pnpm lint`（= `eslint src/`）暂不入门：本仓尚无 eslint.config.*，
-      # 也没有接入共享配置 @autional/eslint-config，实测失败（ESLint 10 要求 flat config）：
-      #   ESLint couldn't find an eslint.config.* file.
-      # 仓内当前唯一 lint 入口是 eslint.a11y.config.mjs（见该文件头注释）。
-      # 接入共享配置后改为 `- name: Lint / run: pnpm lint`。
+      # 存量 lint（= `eslint src/`）已于 2026-11-13 入门：apps/authenticator-app/eslint.config.mjs
+      # 接入共享配置 @autional/eslint-config（与另 8 个门户同一形状），error 必须为 0；
+      # 现存 3 条 warn（no-explicit-any ×2、no-unused-vars ×1）按舰队登记制放行。
+      - name: Lint
+        run: pnpm lint
 
       - name: A11y lint
         run: pnpm --filter @autional/authenticator-app run lint:a11y

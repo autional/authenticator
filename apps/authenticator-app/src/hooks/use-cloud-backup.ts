@@ -221,7 +221,7 @@ export function useUploadCloudBackup() {
 					? t(key)
 					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
 				setError(message);
-				throw new Error(message);
+				throw new Error(message, { cause: err });
 			} finally {
 				setUploading(false);
 			}
@@ -247,7 +247,7 @@ export function useUploadCloudBackup() {
 					? t(key)
 					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
 				setError(message);
-				throw new Error(message);
+				throw new Error(message, { cause: err });
 			} finally {
 				setUploading(false);
 			}
@@ -289,7 +289,7 @@ export function useUploadCloudBackup() {
 					? t(key)
 					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
 				setError(message);
-				throw new Error(message);
+				throw new Error(message, { cause: err });
 			} finally {
 				setUploading(false);
 			}
@@ -319,7 +319,7 @@ export function useUploadCloudBackup() {
 					? t(key)
 					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
 				setError(message);
-				throw new Error(message);
+				throw new Error(message, { cause: err });
 			} finally {
 				setUploading(false);
 			}
@@ -355,7 +355,7 @@ export function useUploadCloudBackup() {
 					? t(key)
 					: extractApiErrorMessage(err, t('cloudBackup.uploadFailed'));
 				setError(message);
-				throw new Error(message);
+				throw new Error(message, { cause: err });
 			} finally {
 				setUploading(false);
 			}
@@ -442,7 +442,7 @@ export function useDownloadCloudBackup() {
 					? t(key)
 					: extractApiErrorMessage(err, t('cloudBackup.downloadFailed'));
 				setError(message);
-				throw new Error(message);
+				throw new Error(message, { cause: err });
 			} finally {
 				setDownloading(false);
 			}
