@@ -28,6 +28,8 @@ vi.mock('@autional/ui', async (importOriginal) => ({
 
 import ApprovalsPage from '../approvals/page';
 import ApprovalLinkPage from '../a/page';
+import ApprovalCard from '../../components/ApprovalCard';
+import type { PendingApproval } from '../../lib/login-approval';
 
 const PENDING_PATH = '/identity/api/v1/auth/login-approval/pending';
 
@@ -122,6 +124,64 @@ describe('/approvals', () => {
 			expect(screen.getByText('暂无待审批的登录请求')).toBeInTheDocument();
 		});
 		expect(screen.queryByTestId('approval-card-111111')).toBeNull();
+	});
+});
+
+describe('ApprovalCard 上下文信号徽标（known_device / familiar_network）', () => {
+	const renderCard = (overrides: Partial<PendingApproval> = {}) =>
+		render(
+			<ApprovalCard
+				item={{ ...pendingItem, ...overrides }}
+				onResolved={vi.fn()}
+				onExpired={vi.fn()}
+			/>,
+		);
+
+	it('true/true → 常用设备 + 常用网络（无「新」徽标）', () => {
+		renderCard({ knownDevice: true, familiarNetwork: true });
+
+		expect(screen.getByTestId('approval-signal-device')).toHaveTextContent('常用设备');
+		expect(screen.getByTestId('approval-signal-network')).toHaveTextContent('常用网络');
+		expect(screen.queryByText('新设备')).toBeNull();
+		expect(screen.queryByText('新网络')).toBeNull();
+	});
+
+	it('false/false → 新设备 + 新网络（警示语义，仍带文字）', () => {
+		renderCard({ knownDevice: false, familiarNetwork: false });
+
+		expect(screen.getByTestId('approval-signal-device')).toHaveTextContent('新设备');
+		expect(screen.getByTestId('approval-signal-network')).toHaveTextContent('新网络');
+		expect(screen.queryByText('常用设备')).toBeNull();
+		expect(screen.queryByText('常用网络')).toBeNull();
+	});
+
+	it('null/null → 一个徽标都不渲染（不显示「未知」、不占位）', () => {
+		renderCard({ knownDevice: null, familiarNetwork: null });
+
+		expect(screen.queryByTestId('approval-signals')).toBeNull();
+		expect(screen.queryByTestId('approval-signal-device')).toBeNull();
+		expect(screen.queryByTestId('approval-signal-network')).toBeNull();
+		expect(screen.queryByText('常用设备')).toBeNull();
+		expect(screen.queryByText('新设备')).toBeNull();
+		expect(screen.queryByText('常用网络')).toBeNull();
+		expect(screen.queryByText('新网络')).toBeNull();
+	});
+
+	it('混合（true / null）→ 只渲染可判定的那一个', () => {
+		renderCard({ knownDevice: true, familiarNetwork: null });
+
+		expect(screen.getByTestId('approval-signal-device')).toHaveTextContent('常用设备');
+		expect(screen.queryByTestId('approval-signal-network')).toBeNull();
+		expect(screen.queryByText('常用网络')).toBeNull();
+		expect(screen.queryByText('新网络')).toBeNull();
+	});
+
+	it('字段缺失（旧版后端未下发）→ 等同于 null，不渲染徽标', () => {
+		renderCard();
+
+		expect(screen.queryByTestId('approval-signals')).toBeNull();
+		expect(screen.queryByText('常用设备')).toBeNull();
+		expect(screen.queryByText('新设备')).toBeNull();
 	});
 });
 

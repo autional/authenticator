@@ -31,6 +31,42 @@ export interface ApprovalCardProps {
 	onExpired: (code: string) => void;
 }
 
+/** 上下文信号徽标的两档语义色（沿用 token，色不单独表意 —— 徽标始终带文字）。 */
+const SIGNAL_TONE_CLASS = {
+	familiar: 'bg-success/10 text-[var(--color-success-text)]',
+	novel: 'bg-warning/10 text-[var(--color-warning-text)]',
+} as const;
+
+type SignalTone = keyof typeof SIGNAL_TONE_CLASS;
+
+interface ContextSignal {
+	key: 'device' | 'network';
+	label: string;
+	tone: SignalTone;
+}
+
+/**
+ * 把后端的 `known_device` / `familiar_network` 折成 0..2 个徽标。
+ * `null`（无法判断）与 `undefined`（旧版后端未下发）一律不渲染 —— 不显示「未知」，也不占位。
+ */
+function toContextSignals(
+	item: PendingApproval,
+	t: (key: string) => string,
+): ContextSignal[] {
+	const signals: ContextSignal[] = [];
+	if (item.knownDevice === true) {
+		signals.push({ key: 'device', label: t('approvals.knownDevice'), tone: 'familiar' });
+	} else if (item.knownDevice === false) {
+		signals.push({ key: 'device', label: t('approvals.newDevice'), tone: 'novel' });
+	}
+	if (item.familiarNetwork === true) {
+		signals.push({ key: 'network', label: t('approvals.familiarNetwork'), tone: 'familiar' });
+	} else if (item.familiarNetwork === false) {
+		signals.push({ key: 'network', label: t('approvals.newNetwork'), tone: 'novel' });
+	}
+	return signals;
+}
+
 export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCardProps) {
 	const { t } = useTranslation();
 	const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor(item.expiresIn)));
@@ -82,6 +118,7 @@ export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCa
 	);
 
 	const originParts = [truncateUa(item.originUa), maskIp(item.originIp)].filter(Boolean);
+	const signals = toContextSignals(item, t);
 
 	return (
 		<div
@@ -104,6 +141,19 @@ export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCa
 					<p className="break-words" data-testid="approval-origin">
 						{t('approvals.originLabel')}: {originParts.join(' · ')}
 					</p>
+				)}
+				{signals.length > 0 && (
+					<div className="flex flex-wrap items-center gap-1.5" data-testid="approval-signals">
+						{signals.map((signal) => (
+							<span
+								key={signal.key}
+								data-testid={`approval-signal-${signal.key}`}
+								className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${SIGNAL_TONE_CLASS[signal.tone]}`}
+							>
+								{signal.label}
+							</span>
+						))}
+					</div>
 				)}
 				<p data-testid="approval-remaining">
 					{remaining > 0

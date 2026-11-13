@@ -5,7 +5,8 @@
  * 自动带 Bearer + X-Tenant-ID，自动解包 {code,message,data|items} 并 camelCase 化）。
  * 端点：
  *   GET  /identity/api/v1/auth/login-approval/pending
- *        → items[]: { code, request_id, origin_ip, origin_ua, expires_in, created_at }
+ *        → items[]: { code, request_id, origin_ip, origin_ua, expires_in, created_at,
+ *                     known_device, familiar_network }
  *   POST /identity/api/v1/auth/login-approval/by-code/:code/approve   （无请求体）
  *   POST /identity/api/v1/auth/login-approval/by-code/:code/deny      （无请求体）
  *
@@ -30,6 +31,16 @@ export interface PendingApproval {
 	/** 剩余有效秒数（服务端按签发时刻算好，前端据此本地倒计时） */
 	expiresIn: number;
 	createdAt?: string;
+	/**
+	 * 该设备此前是否登录过：`true` 常用设备 / `false` 首次见到 / `null` 服务端无法判断。
+	 * 响应经拦截器 camelCase 化（`known_device` → `knownDevice`）。
+	 */
+	knownDevice?: boolean | null;
+	/**
+	 * 是否与该用户近期登录网络同段：`true` 常用网络 / `false` 新网络 / `null` 无法判断。
+	 * 响应经拦截器 camelCase 化（`familiar_network` → `familiarNetwork`）。
+	 */
+	familiarNetwork?: boolean | null;
 }
 
 export async function listPendingApprovals(): Promise<PendingApproval[]> {
