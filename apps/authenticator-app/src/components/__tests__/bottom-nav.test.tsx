@@ -8,7 +8,7 @@ import { MemoryRouter, Routes, Route } from 'react-router';
  *   ② 点击跳 `/approvals`（此前该页存在但无任何入口）；
  *   ③ 未登录不渲染该项、不发请求（服务端数据，未登录必 401）；
  *   ④ 拉取失败静默：入口照常渲染、无角标、不打断导航；
- *   ⑤ 轮询 60s 一次，组件卸载后清理（不 setState）。
+ *   ⑤ 轮询 15s 一次且**仅前台**（隐藏时不请求、回前台立即补拉），卸载后清理（不 setState）。
  */
 
 const { mockGet, mockPost, mockUnreadCount } = vi.hoisted(() => ({
@@ -89,7 +89,24 @@ beforeEach(() => {
 
 afterEach(() => {
 	vi.useRealTimers();
+	restoreVisibility();
 });
+
+/** jsdom 的 visibilityState 只读 → 在本实例上覆写 getter；删掉自有属性即回到原型默认值 'visible'。 */
+function setVisibility(state: 'visible' | 'hidden') {
+	Object.defineProperty(document, 'visibilityState', {
+		configurable: true,
+		get: () => state,
+	});
+}
+
+function restoreVisibility() {
+	delete (document as unknown as Record<string, unknown>).visibilityState;
+}
+
+function emitVisibilityChange() {
+	document.dispatchEvent(new Event('visibilitychange'));
+}
 
 describe('BottomNav · 待审批入口', () => {
 	it('登录后渲染「待审批」并用 pending 条数做角标', async () => {
@@ -156,7 +173,7 @@ describe('BottomNav · 待审批入口', () => {
 		});
 	});
 
-	it('60s 轮询一次，卸载后清理（不再请求、不再 setState）', async () => {
+	it('15s 轮询一次，卸载后清理（不再请求、不再 setState）', async () => {
 		vi.useFakeTimers();
 		const { unmount } = renderNav();
 
@@ -165,16 +182,55 @@ describe('BottomNav · 待审批入口', () => {
 		});
 		expect(mockGet).toHaveBeenCalledTimes(1);
 
+		// 旧的 60s 粒度已被收紧：15s 就该再拉一次
 		await act(async () => {
-			await vi.advanceTimersByTimeAsync(60000);
+			await vi.advanceTimersByTimeAsync(15000);
 		});
 		expect(mockGet).toHaveBeenCalledTimes(2);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(15000);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(3);
 
 		unmount();
 		await act(async () => {
 			await vi.advanceTimersByTimeAsync(180000);
 		});
+		expect(mockGet).toHaveBeenCalledTimes(3);
+	});
+
+	it('页面隐藏时不轮询，回到前台立即补拉一次再恢复节奏', async () => {
+		vi.useFakeTimers();
+		setVisibility('visible');
+		renderNav();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(1);
+
+		// 切到后台：周期到点也不发请求
+		setVisibility('hidden');
+		await act(async () => {
+			emitVisibilityChange();
+			await vi.advanceTimersByTimeAsync(60000);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(1);
+
+		// 回前台：立即补拉一次（不等下一个周期）
+		setVisibility('visible');
+		await act(async () => {
+			emitVisibilityChange();
+			await vi.advanceTimersByTimeAsync(0);
+		});
 		expect(mockGet).toHaveBeenCalledTimes(2);
+
+		// 节奏恢复：再过一个 15s 周期又拉一次
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(15000);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(3);
 	});
 
 	it('激活态对辅助技术可见：当前页 aria-current=page，其它页没有', async () => {

@@ -42,7 +42,9 @@ export default function BottomNav() {
 	}, [userId]);
 
 	useEffect(() => {
-		// 待审批计数同款：登录后才请求（未登录必 401），60s 轮询；失败静默不打断导航
+		// 待审批计数：登录后才请求（未登录必 401）。15s 轮询且**仅前台**（切后台暂停，
+		// 回前台立即补拉一次）—— 审批体验的延迟主要取决于这里的粒度；通知未读数仍走 60s，
+		// 避免把其它接口的压力一起放大。失败静默，不打断导航。
 		if (!isAuthenticated) return;
 		let alive = true;
 		const fetchPending = () => {
@@ -53,10 +55,17 @@ export default function BottomNav() {
 				.catch(() => {});
 		};
 		fetchPending();
-		const interval = setInterval(fetchPending, 60000);
+		const interval = setInterval(() => {
+			if (document.visibilityState === 'visible') fetchPending();
+		}, 15000);
+		const onVisibilityChange = () => {
+			if (document.visibilityState === 'visible') fetchPending();
+		};
+		document.addEventListener('visibilitychange', onVisibilityChange);
 		return () => {
 			alive = false;
 			clearInterval(interval);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	}, [isAuthenticated]);
 

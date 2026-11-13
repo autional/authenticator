@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import { ArrowLeft, RefreshCw } from 'lucide-react';
@@ -12,7 +12,11 @@ import { toSlugged, useTenantSlug } from '../../lib/slug';
 /**
  * 待审批的登录请求（App 侧）。
  *
- * 进入即拉一次 + 手动刷新：登录门户「用 App 确认」发起后，请求会出现在这里。
+ * 进入即拉一次 + 手动刷新 + **前台自动刷新**：登录门户「用 App 确认」发起后，请求会
+ * 出现在这里 —— 用户对延迟的感受几乎全取决于这一页多久能看见新请求。
+ *   - 自动刷新：页面可见时 15s 一次，**静默**（不闪 loading、不重置滚动、不弹全局错误）；
+ *   - 页面不可见时暂停（不空烧请求），回到前台立即补拉一次并恢复节奏；
+ *   - 失败静默：不清空已有列表、不打断已渲染内容，手动刷新按钮始终可用。
  * 过期项（服务端已判 TTL 到点）不展示 —— 留着只会让用户点一个注定失败的按钮。
  *
  * 页壳约束（与 notifications / devices 等一级页一致）：
@@ -27,6 +31,7 @@ export default function ApprovalsPage() {
 	const [loading, setLoading] = useState(true);
 	const [refreshing, setRefreshing] = useState(false);
 	const [error, setError] = useState('');
+	const silentInFlight = useRef(false);
 
 	const load = useCallback(async (mode: 'initial' | 'refresh') => {
 		if (mode === 'refresh') setRefreshing(true);
@@ -47,6 +52,37 @@ export default function ApprovalsPage() {
 	useEffect(() => {
 		void load('initial');
 	}, [load]);
+
+	// 静默刷新：只换数据，不碰 loading；失败不提示、不清空列表（手动刷新始终可用）
+	const silentRefresh = useCallback(async () => {
+		if (silentInFlight.current) return;
+		silentInFlight.current = true;
+		try {
+			const list = await listPendingApprovals();
+			setItems(list.filter((item) => Math.floor(item.expiresIn) > 0));
+			setError('');
+		} catch {
+			// 静默：保留已有列表与错误态
+		} finally {
+			silentInFlight.current = false;
+		}
+	}, []);
+
+	useEffect(() => {
+		const tick = () => {
+			if (document.visibilityState === 'visible') void silentRefresh();
+		};
+		const interval = setInterval(tick, 15000);
+		const onVisibilityChange = () => {
+			// 回前台立即补拉一次，不等下一个 15s 周期
+			if (document.visibilityState === 'visible') void silentRefresh();
+		};
+		document.addEventListener('visibilitychange', onVisibilityChange);
+		return () => {
+			clearInterval(interval);
+			document.removeEventListener('visibilitychange', onVisibilityChange);
+		};
+	}, [silentRefresh]);
 
 	const removeItem = (code: string) => {
 		setItems((prev) => prev.filter((item) => item.code !== code));

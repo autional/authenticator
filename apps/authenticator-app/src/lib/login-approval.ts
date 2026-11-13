@@ -6,7 +6,7 @@
  * 端点：
  *   GET  /identity/api/v1/auth/login-approval/pending
  *        → items[]: { code, request_id, origin_ip, origin_ua, expires_in, created_at,
- *                     known_device, familiar_network }
+ *                     known_device, familiar_network, geo_city }
  *   POST /identity/api/v1/auth/login-approval/by-code/:code/approve   （无请求体）
  *   POST /identity/api/v1/auth/login-approval/by-code/:code/deny      （无请求体）
  *
@@ -41,6 +41,12 @@ export interface PendingApproval {
 	 * 响应经拦截器 camelCase 化（`familiar_network` → `familiarNetwork`）。
 	 */
 	familiarNetwork?: boolean | null;
+	/**
+	 * 发起 IP 的**离线**城市解析（服务端 ip2region，如「广东 深圳」），只用于展示。
+	 * 响应经拦截器 camelCase 化（`geo_city` → `geoCity`）；空串/缺失 = 无法解析（私网 IP、
+	 * 数据文件缺失或能力关闭）→ 前端不渲染该行，不显示「未知」也不占位。
+	 */
+	geoCity?: string;
 }
 
 export async function listPendingApprovals(): Promise<PendingApproval[]> {

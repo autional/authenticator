@@ -421,6 +421,7 @@
   "approvals.loading": "正在读取待审批请求…",
   "approvals.codeLabel": "审批码",
   "approvals.originLabel": "来源",
+  "approvals.locationLabel": "位置",
   "approvals.knownDevice": "常用设备",
   "approvals.newDevice": "新设备",
   "approvals.familiarNetwork": "常用网络",

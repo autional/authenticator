@@ -421,6 +421,7 @@
   "approvals.loading": "Loading pending requests…",
   "approvals.codeLabel": "Approval code",
   "approvals.originLabel": "From",
+  "approvals.locationLabel": "Location",
   "approvals.knownDevice": "Known device",
   "approvals.newDevice": "New device",
   "approvals.familiarNetwork": "Known network",

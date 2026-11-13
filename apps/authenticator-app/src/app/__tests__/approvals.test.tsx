@@ -1,12 +1,14 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router';
 
 /**
  * 登录审批（App 侧）回归锁：
  *   ① `/approvals` 从 pending 渲染审批码 + 打码来源，approve 成功后该项从列表移除；
  *   ② `/a/:code` 的码不是 6 位数字 → 直接终态「链接无效」，零请求；
- *   ③ `/a/:code` 命中自己名下的待审批 → 复用同一张审批卡片。
+ *   ③ `/a/:code` 命中自己名下的待审批 → 复用同一张审批卡片；
+ *   ④ 卡片展示位置（geo_city → geoCity），空/缺失即不渲染；
+ *   ⑤ `/approvals` 前台每 15s 静默自动刷新：不闪 loading、失败不清空列表、不可见时暂停。
  *
  * 安全取向：URL 里的码只用于「挑出这一条」，不构成任何判定依据。
  */
@@ -53,6 +55,35 @@ beforeEach(() => {
 	mockGet.mockResolvedValue({ data: { items: [pendingItem] } });
 	mockPost.mockResolvedValue({ data: {}, status: 200 });
 });
+
+afterEach(() => {
+	vi.useRealTimers();
+	restoreVisibility();
+});
+
+/** jsdom 的 visibilityState 只读 → 在本实例上覆写 getter；删掉自有属性即回到原型默认值 'visible'。 */
+function setVisibility(state: 'visible' | 'hidden') {
+	Object.defineProperty(document, 'visibilityState', {
+		configurable: true,
+		get: () => state,
+	});
+}
+
+function restoreVisibility() {
+	delete (document as unknown as Record<string, unknown>).visibilityState;
+}
+
+function emitVisibilityChange() {
+	document.dispatchEvent(new Event('visibilitychange'));
+}
+
+function renderApprovalsPage() {
+	return render(
+		<MemoryRouter initialEntries={['/approvals']}>
+			<ApprovalsPage />
+		</MemoryRouter>,
+	);
+}
 
 describe('/approvals', () => {
 	it('渲染 pending：审批码 + 打码来源；批准后从列表移除', async () => {
@@ -134,6 +165,72 @@ describe('/approvals', () => {
 	});
 });
 
+describe('/approvals 自动刷新（前台 15s · 静默）', () => {
+	it('可见时每 15s 重拉一次，且不闪 loading（列表内容持续存在）', async () => {
+		vi.useFakeTimers();
+		setVisibility('visible');
+		renderApprovalsPage();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(1);
+		expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(15000);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(2);
+		// 静默刷新：卡片一直在、没有 loading 文案闪现
+		expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+		expect(screen.queryByText('正在读取待审批请求…')).toBeNull();
+	});
+
+	it('页面不可见时不刷新；回到前台立即补拉一次', async () => {
+		vi.useFakeTimers();
+		setVisibility('hidden');
+		renderApprovalsPage();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		// 进入页面本身仍拉一次（用户就是要看数据），随后暂停
+		expect(mockGet).toHaveBeenCalledTimes(1);
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(60000);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(1);
+
+		setVisibility('visible');
+		await act(async () => {
+			emitVisibilityChange();
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		expect(mockGet).toHaveBeenCalledTimes(2);
+	});
+
+	it('自动刷新失败静默：不清空已有列表、不弹全局错误', async () => {
+		vi.useFakeTimers();
+		setVisibility('visible');
+		renderApprovalsPage();
+
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(0);
+		});
+		expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+
+		mockGet.mockRejectedValue(new Error('network down'));
+		await act(async () => {
+			await vi.advanceTimersByTimeAsync(15000);
+		});
+
+		expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+		expect(screen.queryByRole('alert')).toBeNull();
+		expect(screen.queryByText('加载待审批请求失败')).toBeNull();
+	});
+});
+
 describe('ApprovalCard 上下文信号徽标（known_device / familiar_network）', () => {
 	const renderCard = (overrides: Partial<PendingApproval> = {}) =>
 		render(
@@ -189,6 +286,41 @@ describe('ApprovalCard 上下文信号徽标（known_device / familiar_network�
 		expect(screen.queryByTestId('approval-signals')).toBeNull();
 		expect(screen.queryByText('常用设备')).toBeNull();
 		expect(screen.queryByText('新设备')).toBeNull();
+	});
+});
+
+describe('ApprovalCard 位置展示（geo_city → geoCity）', () => {
+	const renderCard = (overrides: Partial<PendingApproval> = {}) =>
+		render(
+			<ApprovalCard
+				item={{ ...pendingItem, ...overrides }}
+				onResolved={vi.fn()}
+				onExpired={vi.fn()}
+			/>,
+		);
+
+	it('有城市 → 单独一行渲染该城市（不与来源挤同一行）', () => {
+		renderCard({ geoCity: '广东 深圳' });
+
+		expect(screen.getByTestId('approval-location')).toHaveTextContent('广东 深圳');
+		// 独立成行：位置不落进「来源」那一行，避免窄屏换行错乱
+		expect(screen.getByTestId('approval-origin').textContent).not.toContain('广东 深圳');
+	});
+
+	it('空串 / 纯空白 → 不渲染位置行（也不显示「未知」）', () => {
+		const { unmount } = renderCard({ geoCity: '' });
+		expect(screen.queryByTestId('approval-location')).toBeNull();
+		unmount();
+
+		const second = renderCard({ geoCity: '   ' });
+		expect(screen.queryByTestId('approval-location')).toBeNull();
+		second.unmount();
+	});
+
+	it('字段缺失（旧版后端未下发）→ 不渲染位置行', () => {
+		renderCard();
+
+		expect(screen.queryByTestId('approval-location')).toBeNull();
 	});
 });
 

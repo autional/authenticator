@@ -12,13 +12,15 @@ import {
 } from '../lib/login-approval';
 
 /**
- * 单条登录审批卡片 —— 审批码 / 来源 / 剩余时间 / 「不是我」「是我」。
+ * 单条登录审批卡片 —— 审批码 / 来源 / 位置 / 剩余时间 / 「不是我」「是我」。
  *
  * 复用点：`/approvals` 列表与 `/a/:code` 短链落地页渲染的是同一个组件，
  * 行为与文案不会在两处漂移。
  *
  * 约束：
  * - 审批码是唯一的判定依据，展示用大字等宽（避免 6/8、0/O 误读）；
+ * - 位置（`geoCity`）单独一行小字：不跟 IP 挤同一行，避免窄屏换行错乱；
+ *   空串/缺失即不渲染（不显示「未知」，也不留占位）；
  * - 剩余时间本地倒计时，归零即回调 onExpired（父级移除，不再对过期项发请求）；
  * - 批准/拒绝失败按 extractApiError 展示可读文案（不静默、不假重试）。
  */
@@ -119,6 +121,8 @@ export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCa
 
 	const originParts = [truncateUa(item.originUa), maskIp(item.originIp)].filter(Boolean);
 	const signals = toContextSignals(item, t);
+	// 位置：只展示服务端解析出的城市（如「广东 深圳」）；空串/缺失 → 整行不渲染
+	const geoCity = (item.geoCity || '').trim();
 
 	return (
 		<div
@@ -140,6 +144,11 @@ export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCa
 				{originParts.length > 0 && (
 					<p className="break-words" data-testid="approval-origin">
 						{t('approvals.originLabel')}: {originParts.join(' · ')}
+					</p>
+				)}
+				{geoCity !== '' && (
+					<p className="break-words" data-testid="approval-location">
+						{t('approvals.locationLabel')}: {geoCity}
 					</p>
 				)}
 				{signals.length > 0 && (
