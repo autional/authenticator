@@ -1,0 +1,51 @@
+name: CI
+
+# 单仓唯一流水线：test / typecheck / lint:a11y（存量 lint / build 见下方注释，暂不入门）。
+# a11y 闸门（AC C-28 / ui-denominator U4）：jsx-a11y recommended，0 error/warn 才算过。
+# 2026-11-13：原 a11y.yml 并入本文件，避免两条 workflow 重复 install。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # pnpm 版本由根 package.json 的 packageManager 提供（唯一真源），此处不再指定。
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      # 存量 `pnpm lint`（= `eslint src/`）暂不入门：本仓尚无 eslint.config.*，
+      # 也没有接入共享配置 @autional/eslint-config，实测失败（ESLint 10 要求 flat config）：
+      #   ESLint couldn't find an eslint.config.* file.
+      # 仓内当前唯一 lint 入口是 eslint.a11y.config.mjs（见该文件头注释）。
+      # 接入共享配置后改为 `- name: Lint / run: pnpm lint`。
+
+      - name: A11y lint
+        run: pnpm --filter @autional/authenticator-app run lint:a11y
+
+      # 构建暂不入门：`pnpm build` 依赖部署侧 env（REGION / SITE_URL / CDN_HOST / API_ORIGIN，
+      # 见 scripts/env.mjs）——本地无 API_ORIGIN 时实测失败：
+      #   [build-env] 前端 API 模式为 direct 但缺少 API_ORIGIN（跨域直连必须有绝对源站）
+      # 补齐部署 env 后可在此追加 `pnpm build`。
