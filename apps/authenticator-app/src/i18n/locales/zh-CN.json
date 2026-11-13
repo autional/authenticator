@@ -1,6 +1,7 @@
 {
   "nav.accounts": "账户",
   "nav.notifications": "通知",
+  "nav.approvals": "待审批",
   "nav.add": "添加",
   "nav.settings": "设置",
   "app.title": "Autional 身份验证器",

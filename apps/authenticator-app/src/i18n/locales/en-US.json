@@ -1,6 +1,7 @@
 {
   "nav.accounts": "Accounts",
   "nav.notifications": "Inbox",
+  "nav.approvals": "Approvals",
   "nav.add": "Add",
   "nav.settings": "Settings",
   "app.title": "Autional Authenticator",
