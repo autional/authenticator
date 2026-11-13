@@ -11,6 +11,7 @@ import BottomNav from '@/components/BottomNav';
 import SettingsHeader from '@/components/settings/SettingsHeader';
 import SettingsNetworkStatusCard from '@/components/settings/SettingsNetworkStatusCard';
 import SettingsAppearance from '@/components/settings/SettingsAppearance';
+import SettingsBackgroundPush from '@/components/settings/SettingsBackgroundPush';
 import SettingsActivity from '@/components/settings/SettingsActivity';
 import SettingsDevices from '@/components/settings/SettingsDevices';
 import SettingsDataManage from '@/components/settings/SettingsDataManage';
@@ -379,6 +380,10 @@ export default function SettingsPage() {
 				<SettingsNetworkStatusCard isOnline={isOnline} />
 
 				<SettingsAppearance theme={theme} onToggle={toggleTheme} />
+
+				{/* 后台审批通知：SSE 已覆盖前台，这里只补「锁屏/切后台」；默认关闭，登录态才有意义
+				    （订阅登记需要服务端账号；本地模式下开关会一直注册失败）。 */}
+				{isAuthenticated && <SettingsBackgroundPush />}
 
 				<section>
 					<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">

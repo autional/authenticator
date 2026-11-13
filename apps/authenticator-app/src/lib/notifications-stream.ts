@@ -29,6 +29,29 @@ export interface StreamHandle {
 const TICKET_PATH = '/notification/api/v1/notifications/stream-ticket';
 const STREAM_PATH = '/notification/api/v1/notifications/stream';
 
+/** 流状态广播事件（detail = StreamStatus）。轮询侧据此决定兜底粒度。 */
+export const STREAM_STATUS_EVENT = 'autional:stream-status';
+
+let currentStatus: StreamStatus = 'closed';
+
+/** 当前流状态（后挂载的消费者用它做初值，避免错过已发生的 open 事件）。 */
+export function getStreamStatus(): StreamStatus {
+	return currentStatus;
+}
+
+/** 只在状态**变化**时广播：断线重连期间会反复 error，不该放大成事件风暴。 */
+function publishStatus(status: StreamStatus): void {
+	if (currentStatus === status) return;
+	currentStatus = status;
+	try {
+		if (typeof window !== 'undefined') {
+			window.dispatchEvent(new CustomEvent<StreamStatus>(STREAM_STATUS_EVENT, { detail: status }));
+		}
+	} catch {
+		/* 广播失败不影响连接本身 */
+	}
+}
+
 /** 申请一次性流票据（走统一 apiClient，自动带登录态与租户头）。 */
 export async function createStreamTicket(): Promise<string> {
 	const res = (await apiClient.post(TICKET_PATH, {})) as
@@ -43,6 +66,11 @@ export function openNotificationStream(opts: {
 	onNotification: (n: StreamNotification) => void;
 	onStatus?: (s: StreamStatus) => void;
 }): StreamHandle {
+	// 状态既有回调也有广播：回调给持有连接的人（App.tsx），广播给任何页面（自适应轮询）。
+	const emitStatus = (status: StreamStatus) => {
+		publishStatus(status);
+		opts.onStatus?.(status);
+	};
 	let closed = false;
 	let es: EventSource | null = null;
 	let timer: ReturnType<typeof setTimeout> | null = null;
@@ -65,7 +93,7 @@ export function openNotificationStream(opts: {
 			});
 			es.onopen = () => {
 				retry = 0;
-				opts.onStatus?.('open');
+				emitStatus('open');
 			};
 			es.onmessage = (ev: MessageEvent<string>) => {
 				try {
@@ -77,11 +105,11 @@ export function openNotificationStream(opts: {
 			es.onerror = () => {
 				es?.close();
 				es = null;
-				opts.onStatus?.('error');
+				emitStatus('error');
 				schedule();
 			};
 		} catch {
-			opts.onStatus?.('error');
+			emitStatus('error');
 			schedule();
 		}
 	};
@@ -95,7 +123,7 @@ export function openNotificationStream(opts: {
 			timer = null;
 			es?.close();
 			es = null;
-			opts.onStatus?.('closed');
+			emitStatus('closed');
 		},
 	};
 }

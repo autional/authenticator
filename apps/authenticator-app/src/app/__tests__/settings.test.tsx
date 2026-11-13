@@ -177,17 +177,18 @@ describe('SettingsPage', () => {
 	});
 
 	describe('dark mode toggle', () => {
+		// 页面有两个 switch（深色模式 / 后台审批通知）→ 必须按可访问名定位
 		it('renders dark mode row with toggle switch', async () => {
 			renderSettings();
 			expect(screen.getByText('深色模式')).toBeInTheDocument();
-			const toggle = screen.getByRole('switch');
+			const toggle = screen.getByRole('switch', { name: '深色模式' });
 			expect(toggle).toBeInTheDocument();
 			expect(toggle.getAttribute('aria-checked')).toBe('false');
 		});
 
 		it('calls toggle function on click', async () => {
 			renderSettings();
-			const toggle = screen.getByRole('switch');
+			const toggle = screen.getByRole('switch', { name: '深色模式' });
 			await act(async () => {
 				fireEvent.click(toggle);
 			});
@@ -197,7 +198,7 @@ describe('SettingsPage', () => {
 		it('shows checked state when theme is dark', async () => {
 			themeState = { theme: 'dark', toggle: mockToggle };
 			renderSettings();
-			const toggle = screen.getByRole('switch');
+			const toggle = screen.getByRole('switch', { name: '深色模式' });
 			expect(toggle.getAttribute('aria-checked')).toBe('true');
 		});
 	});
@@ -221,9 +222,23 @@ describe('SettingsPage', () => {
 		});
 	});
 
-	describe('push UI removed (2026-11-10)', () => {
-		// 产品口径：不使用第三方推送（FCM）；通知改走应用内 SSE。
-		it('不再渲染 Push 开关', () => {
+	describe('background approval push (opt-in, 2026-11-13)', () => {
+		// 产品口径：前台提醒 = SSE（默认开启、无需设置）；Web Push 只是「锁屏/后台」的可选补充，
+		// 默认关闭，old FCM 时代的 Push MFA 开关不再渲染。
+		it('渲染「后台审批通知」开关，默认关闭', () => {
+			renderSettings();
+			expect(screen.getByText('后台审批通知')).toBeInTheDocument();
+			const toggle = screen.getByRole('switch', { name: '后台审批通知' });
+			expect(toggle.getAttribute('aria-checked')).toBe('false');
+		});
+
+		it('jsdom 无 Notification → 禁用态并解释「当前浏览器不支持」', async () => {
+			renderSettings();
+			expect(screen.getByRole('switch', { name: '后台审批通知' })).toBeDisabled();
+			expect(await screen.findByText('当前浏览器不支持')).toBeInTheDocument();
+		});
+
+		it('不再渲染旧 Push MFA 开关（不使用第三方推送）', () => {
 			renderSettings();
 			expect(screen.queryByText('启用 Push 通知')).toBeNull();
 			expect(screen.queryByText('Push 登录审批')).toBeNull();

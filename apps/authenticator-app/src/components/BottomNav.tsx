@@ -7,6 +7,7 @@ import { GeneratedApi } from '@autional/shared';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 import { listPendingApprovals } from '../lib/login-approval';
 import { useApprovalNotificationRefresh } from '../lib/approval-notification';
+import { useAdaptivePolling } from '../lib/adaptive-polling';
 
 const navItemKeys = [
 	'nav.accounts',
@@ -54,25 +55,19 @@ export default function BottomNav() {
 	}, [userId]);
 
 	useEffect(() => {
-		// 待审批计数：登录后才请求（未登录必 401）。15s 轮询且**仅前台**（切后台暂停，
-		// 回前台立即补拉一次）—— 审批体验的延迟主要取决于这里的粒度；通知未读数仍走 60s，
-		// 避免把其它接口的压力一起放大。失败静默，不打断导航。
+		// 待审批计数：登录后才请求（未登录必 401）。
+		// 粒度由 useAdaptivePolling 决定：通知流已连通（SSE 即时推送）→ 60s 兜底；
+		// 流不可用 → 15s（旧行为）。页面不可见时两个粒度都不发请求。
+		// 通知未读数仍走独立 60s（见上），不跟着审批粒度放大。
 		if (!isAuthenticated) return;
 		aliveRef.current = true;
 		fetchPending();
-		const interval = setInterval(() => {
-			if (document.visibilityState === 'visible') fetchPending();
-		}, 15000);
-		const onVisibilityChange = () => {
-			if (document.visibilityState === 'visible') fetchPending();
-		};
-		document.addEventListener('visibilitychange', onVisibilityChange);
 		return () => {
 			aliveRef.current = false;
-			clearInterval(interval);
-			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	}, [isAuthenticated, fetchPending]);
+
+	useAdaptivePolling({ enabled: isAuthenticated, tag: 'bottom-nav:pending', run: fetchPending });
 
 	// SSE 即时刷新：审批类通知一到就补拉一次计数，不等 15s 周期（15s 轮询保留作兜底）。
 	// 连接由 App.tsx 持有并广播 → 这里只订阅广播，不再自开 EventSource（否则同一用户多一条长连接）。

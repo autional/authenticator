@@ -8,6 +8,7 @@ import ApprovalCard from '../../components/ApprovalCard';
 import BottomNav from '../../components/BottomNav';
 import { listPendingApprovals, type PendingApproval } from '../../lib/login-approval';
 import { useApprovalNotificationRefresh } from '../../lib/approval-notification';
+import { useAdaptivePolling } from '../../lib/adaptive-polling';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
 /**
@@ -15,10 +16,11 @@ import { toSlugged, useTenantSlug } from '../../lib/slug';
  *
  * 进入即拉一次 + 手动刷新 + **前台自动刷新**：登录门户「用 App 确认」发起后，请求会
  * 出现在这里 —— 用户对延迟的感受几乎全取决于这一页多久能看见新请求。
- *   - 自动刷新：页面可见时 15s 一次，**静默**（不闪 loading、不重置滚动、不弹全局错误）；
- *   - 页面不可见时暂停（不空烧请求），回到前台立即补拉一次并恢复节奏；
+ *   - 自动刷新（自适应）：通知流已连通（SSE 即时推送）→ 60s 兜底；流不可用 → 15s；
+ *   - 流刚连通、或页面回到前台 → 立即静默补拉一次（空窗期可能漏推送）；
+ *   - 页面不可见时暂停（不空烧请求）；
  *   - 失败静默：不清空已有列表、不打断已渲染内容，手动刷新按钮始终可用。
- *   - SSE 即时刷新：审批类通知一到就静默刷新（见下），15s 轮询降级为兜底。
+ *   - SSE 即时刷新：审批类通知一到就静默刷新（见下），轮询只作兜底。
  * 过期项（服务端已判 TTL 到点）不展示 —— 留着只会让用户点一个注定失败的按钮。
  *
  * 页壳约束（与 notifications / devices 等一级页一致）：
@@ -70,21 +72,10 @@ export default function ApprovalsPage() {
 		}
 	}, []);
 
-	useEffect(() => {
-		const tick = () => {
-			if (document.visibilityState === 'visible') void silentRefresh();
-		};
-		const interval = setInterval(tick, 15000);
-		const onVisibilityChange = () => {
-			// 回前台立即补拉一次，不等下一个 15s 周期
-			if (document.visibilityState === 'visible') void silentRefresh();
-		};
-		document.addEventListener('visibilitychange', onVisibilityChange);
-		return () => {
-			clearInterval(interval);
-			document.removeEventListener('visibilitychange', onVisibilityChange);
-		};
-	}, [silentRefresh]);
+	// 自适应刷新：流 open → 60s 兜底；非 open → 15s；流刚连通/回前台立即补一次；
+	// 页面不可见则完全跳过（规则见 lib/adaptive-polling.ts）。
+	const pollRefresh = useCallback(() => void silentRefresh(), [silentRefresh]);
+	useAdaptivePolling({ enabled: true, tag: 'approvals', run: pollRefresh });
 
 	// SSE 即时刷新：审批类通知一到就拉一次，不等 15s 周期（15s 轮询保留作兜底）。
 	// 连接由 App.tsx 持有并广播 → 这里只订阅广播，不再自开 EventSource（避免多连接/多票据）。
