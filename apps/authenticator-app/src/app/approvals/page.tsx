@@ -7,6 +7,7 @@ import { extractApiError } from '@autional/shared';
 import ApprovalCard from '../../components/ApprovalCard';
 import BottomNav from '../../components/BottomNav';
 import { listPendingApprovals, type PendingApproval } from '../../lib/login-approval';
+import { useApprovalNotificationRefresh } from '../../lib/approval-notification';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
 /**
@@ -17,6 +18,7 @@ import { toSlugged, useTenantSlug } from '../../lib/slug';
  *   - 自动刷新：页面可见时 15s 一次，**静默**（不闪 loading、不重置滚动、不弹全局错误）；
  *   - 页面不可见时暂停（不空烧请求），回到前台立即补拉一次并恢复节奏；
  *   - 失败静默：不清空已有列表、不打断已渲染内容，手动刷新按钮始终可用。
+ *   - SSE 即时刷新：审批类通知一到就静默刷新（见下），15s 轮询降级为兜底。
  * 过期项（服务端已判 TTL 到点）不展示 —— 留着只会让用户点一个注定失败的按钮。
  *
  * 页壳约束（与 notifications / devices 等一级页一致）：
@@ -83,6 +85,11 @@ export default function ApprovalsPage() {
 			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
 	}, [silentRefresh]);
+
+	// SSE 即时刷新：审批类通知一到就拉一次，不等 15s 周期（15s 轮询保留作兜底）。
+	// 连接由 App.tsx 持有并广播 → 这里只订阅广播，不再自开 EventSource（避免多连接/多票据）。
+	// 本页在 ServerOnly 门禁内，登录态恒真；非审批类通知被过滤，不触发任何请求。
+	useApprovalNotificationRefresh(true, () => void silentRefresh());
 
 	const removeItem = (code: string) => {
 		setItems((prev) => prev.filter((item) => item.code !== code));

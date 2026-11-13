@@ -1,11 +1,12 @@
 import { Home, PlusCircle, Settings, Bell, ShieldCheck } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { useState, useEffect } from 'react';
+import { useCallback, useState, useEffect, useRef } from 'react';
 import { useAuth } from '@autional/shared';
 import { GeneratedApi } from '@autional/shared';
 import { toSlugged, useTenantSlug } from '../lib/slug';
 import { listPendingApprovals } from '../lib/login-approval';
+import { useApprovalNotificationRefresh } from '../lib/approval-notification';
 
 const navItemKeys = [
 	'nav.accounts',
@@ -25,6 +26,17 @@ export default function BottomNav() {
 	const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
 	const { user, isAuthenticated } = useAuth();
 	const userId = user?.id;
+
+	// 卸载后不再 setState：轮询与 SSE 两条触发路径共用一个存活标记。
+	const aliveRef = useRef(false);
+
+	const fetchPending = useCallback(() => {
+		listPendingApprovals()
+			.then((items) => {
+				if (aliveRef.current) setPendingApprovalCount(items.length);
+			})
+			.catch(() => {});
+	}, []);
 
 	useEffect(() => {
 		if (!userId) return;
@@ -46,14 +58,7 @@ export default function BottomNav() {
 		// 回前台立即补拉一次）—— 审批体验的延迟主要取决于这里的粒度；通知未读数仍走 60s，
 		// 避免把其它接口的压力一起放大。失败静默，不打断导航。
 		if (!isAuthenticated) return;
-		let alive = true;
-		const fetchPending = () => {
-			listPendingApprovals()
-				.then((items) => {
-					if (alive) setPendingApprovalCount(items.length);
-				})
-				.catch(() => {});
-		};
+		aliveRef.current = true;
 		fetchPending();
 		const interval = setInterval(() => {
 			if (document.visibilityState === 'visible') fetchPending();
@@ -63,11 +68,16 @@ export default function BottomNav() {
 		};
 		document.addEventListener('visibilitychange', onVisibilityChange);
 		return () => {
-			alive = false;
+			aliveRef.current = false;
 			clearInterval(interval);
 			document.removeEventListener('visibilitychange', onVisibilityChange);
 		};
-	}, [isAuthenticated]);
+	}, [isAuthenticated, fetchPending]);
+
+	// SSE 即时刷新：审批类通知一到就补拉一次计数，不等 15s 周期（15s 轮询保留作兜底）。
+	// 连接由 App.tsx 持有并广播 → 这里只订阅广播，不再自开 EventSource（否则同一用户多一条长连接）。
+	// 其它通知不动：通知未读数仍按原 60s 节奏，不因审批流放大。
+	useApprovalNotificationRefresh(isAuthenticated, fetchPending);
 
 	// 本地模式（未登录）隐藏通知/待审批：两者都是服务端数据，未登录必 401
 	const navItems: Array<{
