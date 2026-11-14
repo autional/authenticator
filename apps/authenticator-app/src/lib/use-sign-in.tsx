@@ -1,15 +1,22 @@
-import { useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router';
 import { buildLoginUrl, initiateOAuthLogin, isOAuthEnabled } from '@autional/shared';
 import { readLastTenantSlug, rememberTenantSlug } from './slug';
 import { APP_LOGIN_SCOPES } from './login-scope';
+import { useAuthenticatorStore } from './store';
+import { navigateToLoginPage, startMfaSsoLogin, usableMfaAccounts } from './mfa-sso';
 import TenantPickerDialog from '../components/TenantPickerDialog';
 
 /**
  * 统一登录入口（app 内）：
- * - URL 带租户段（`/<slug>/...`）→ 直接 OAuth，回跳地址保留租户段；
- * - 无租户段 → 弹「选择组织」，选定后再 OAuth（避免被固定送到平台租户登录）。
- * 平台管理员可在弹窗里选「平台管理」（platform）。
+ * - **默认优先走「本机票据」（MFA SSO）**：保险库里有带用户名的账户 + 已知租户时，
+ *   用本机 TOTP secret 向 identity 换一次性票据，直接跳 auth 登录页（只需输密码）；
+ * - 换票失败（网络 / 未开启 MFA / 租户不认这个身份 / 密钥损坏）→ **静默回落**原有
+ *   OAuth / 租户选择流程，用户不会看到两条路径的区别；
+ * - URL 带租户段（`/<slug>/...`）→ 直接用该租户；否则用最近一次登录的租户；
+ *   都没有 → 弹「选择组织」（避免被固定送到平台租户登录）。
+ *
+ * 这条路径是**加速器**，不能成为登录的必经环节：任何异常都必须能回到手动登录。
  */
 /**
  * 登录回跳地址：保留当前 path + query + hash。
@@ -41,29 +48,74 @@ export function startSignIn(slug: string): void {
 	window.location.href = buildLoginUrl(target);
 }
 
+/**
+ * 本次登录用哪个租户：URL 段优先，其次最近一次登录租户；都没有返回空串。
+ * 点击时才求值（不缓存到渲染期）——用户可能在别的标签页登录过别的租户。
+ */
+export function resolveSignInTenant(routeSlug?: string | null): string {
+	const fromRoute = (routeSlug ?? '').trim();
+	if (fromRoute) return fromRoute.toLowerCase();
+	return readLastTenantSlug().trim().toLowerCase();
+}
+
 export function useSignIn() {
 	const { tenantSlug } = useParams<{ tenantSlug?: string }>();
 	const [open, setOpen] = useState(false);
+	const accounts = useAuthenticatorStore((s) => s.accounts);
+	// 只有「有身份 + 有密钥」的账户才能换票；没有就整条路径不存在。
+	const usable = useMemo(() => usableMfaAccounts(accounts), [accounts]);
 	const recent = readLastTenantSlug();
+	// 一次登录只换一次票 / 只跳一次：换票是两次网络往返，连点会重复消耗挑战。
+	const exchanging = useRef(false);
 
-	const doSignIn = (slug: string) => startSignIn(slug);
-
-	const signIn = () => {
+	/** 原有流程（OAuth / 租户选择），也是换票失败后的回落目标。 */
+	const legacySignIn = () => {
 		if (tenantSlug) {
-			doSignIn(tenantSlug);
+			startSignIn(tenantSlug);
 			return;
 		}
 		setOpen(true);
+	};
+
+	const signIn = () => {
+		if (exchanging.current) return;
+
+		const tenant = resolveSignInTenant(tenantSlug);
+		// 多个可用账户时取第一个（登录页会预填该身份；用户改成别的身份则票据失效，
+		// 自然回落到手动登录）——不为「选哪个身份」再加一层弹窗。
+		const account = usable[0];
+
+		// 没账户或没租户：这条加速路径不存在，直接走原流程（行为与改造前一致）。
+		if (!tenant || !account) {
+			legacySignIn();
+			return;
+		}
+
+		exchanging.current = true;
+		rememberTenantSlug(tenant);
+
+		void (async () => {
+			let loginUrl: string;
+			try {
+				loginUrl = await startMfaSsoLogin(account, tenant);
+			} catch {
+				// 只回落、不提示细节：票据拿不到不算错误，用户只是需要多输一次密码。
+				exchanging.current = false;
+				legacySignIn();
+				return;
+			}
+			navigateToLoginPage(loginUrl);
+		})();
 	};
 
 	const dialog = (
 		<TenantPickerDialog
 			open={open}
 			recent={recent}
-			onPick={doSignIn}
+			onPick={(slug: string) => startSignIn(slug)}
 			onCancel={() => setOpen(false)}
 		/>
 	);
 
-	return { signIn, dialog };
+	return { signIn, legacySignIn, dialog };
 }

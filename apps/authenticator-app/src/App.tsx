@@ -118,11 +118,12 @@ export function LayoutWrapper() {
 function ServerOnly({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
 	const { isAuthenticated } = useAuth();
-	const { signIn, dialog } = useSignIn();
+	const { signIn, legacySignIn, dialog } = useSignIn();
 	const tenantSlug = useTenantSlug();
 
 	// 「用本机验证器登录」回跳后静默续跑一次（`?mfa_sso=1`，一次性）。
-	useMfaSsoAutoSignIn(signIn, isAuthenticated);
+	// 必须用 legacySignIn：此刻票据已消费、auth 域已有会话，再换一次票就成死循环。
+	useMfaSsoAutoSignIn(legacySignIn, isAuthenticated);
 
 	if (isAuthenticated) return <>{children}</>;
 
@@ -136,7 +137,7 @@ function ServerOnly({ children }: { children: ReactNode }) {
 			>
 				{t('signIn.action')}
 			</button>
-			<MfaSsoButton slug={tenantSlug} onFallback={signIn} />
+			<MfaSsoButton slug={tenantSlug} onFallback={legacySignIn} />
 			{dialog}
 		</div>
 	);
