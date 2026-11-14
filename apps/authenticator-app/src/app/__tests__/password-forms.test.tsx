@@ -48,15 +48,13 @@ beforeEach(() => {
 });
 
 describe('AU-17 密码表单语义', () => {
-	it('PIN 保护：走自绘数字键盘（无密码输入框、无表单提交语义）', () => {
+	it('设置页 PIN：只有「修改 PIN」入口 + 弹层，全程无密码输入框、无表单提交语义', () => {
 		const { container } = render(
 			<SettingsPinProtection
-				hasPin={false}
-				pinInput=""
-				onPinChange={vi.fn()}
-				pinSaving={false}
+				hasPin
 				pinMessage={null}
-				onSave={vi.fn()}
+				verifyCurrent={vi.fn().mockResolvedValue(true)}
+				onSubmitNew={vi.fn().mockResolvedValue(true)}
 			/>,
 		);
 		// 系统键盘 / 密码管理器的诱因（input + form）必须彻底消失
@@ -64,9 +62,9 @@ describe('AU-17 密码表单语义', () => {
 		expect(container.querySelector('#settings-pin-input')).toBeNull();
 		expect(container.querySelector('form')).toBeNull();
 
-		expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
-		// 6 位自动提交：不渲染确认键
-		expect(screen.queryByRole('button', { name: '确认' })).toBeNull();
+		// 键盘不再内嵌在设置列表里：入口是一个按钮，键盘只在弹层里出现
+		expect(screen.queryByRole('group', { name: '数字键盘' })).toBeNull();
+		expect(screen.getByRole('button', { name: '修改 PIN' })).toBeInTheDocument();
 	});
 
 	it('导出对话框：密码输入在 form 内 + hidden username + new-password；submit 触发导出回调；取消为 type=button', () => {

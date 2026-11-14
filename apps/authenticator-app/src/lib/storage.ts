@@ -235,6 +235,28 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 }
 
 /**
+ * 校验当前 PIN 是否正确（只解 PIN 包裹，不写缓存、不返回账户、不影响解锁状态）。
+ * 供「修改 PIN 前先验证旧 PIN」使用。
+ */
+export async function verifyPin(pin: string): Promise<boolean> {
+	const payload = readPayload();
+	if (!payload?.deviceKeyWrap) return false;
+	try {
+		const salt = base64ToArrayBuffer(payload.salt);
+		const iterations = payload.pinKdfIterations ?? LEGACY_PBKDF2_ITERATIONS;
+		const pinKey = await derivePinKey(pin, salt, iterations);
+		await decryptWithKey(
+			base64ToArrayBuffer(payload.deviceKeyWrap.ciphertext),
+			base64ToArrayBuffer(payload.deviceKeyWrap.iv),
+			pinKey,
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
  * 当前库的 PIN 位数（仅供解锁闸门判断「是不是需要重置的旧库」）。
  * 返回 null = 旧库未记录长度；开发期 PIN 统一 6 位，null / 非 6 一律走重置。
  */

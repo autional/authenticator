@@ -90,6 +90,7 @@ vi.mock('@/lib/api', () => ({
 
 vi.mock('@/lib/storage', () => ({
 	setPinProtection: vi.fn(() => Promise.resolve()),
+	verifyPin: vi.fn(() => Promise.resolve(false)),
 	clearDeviceKeyCache: vi.fn(),
 }));
 
@@ -320,50 +321,99 @@ describe('SettingsPage', () => {
 		});
 	});
 
-	describe('PIN protection (keypad, 2026-11-14)', () => {
-		it('未启用 PIN → 显示未保护警告', async () => {
+	describe('PIN protection (dialog, 2026-11-14)', () => {
+		const press = (digits: string) =>
+			digits.split('').forEach((d) => fireEvent.click(screen.getByRole('button', { name: d })));
+
+		it('未启用 PIN → 显示未保护警告，且没有「修改 PIN」入口', async () => {
 			renderSettings();
 			expect(screen.getByText(/^未设 PIN/)).toBeInTheDocument();
+			expect(screen.queryByRole('button', { name: '修改 PIN' })).toBeNull();
 		});
 
-		it('已启用 PIN → 自绘键盘；两遍 6 位输满自动提交 → 写入 PIN 一次', async () => {
+		it('已启用 PIN → 只显示「修改 PIN」按钮（键盘收进弹层，不内嵌在设置列表）', async () => {
 			storeState = { ...storeState, hasPin: true };
 			renderSettings();
 
-			// 设置页不再有 PIN 输入框（系统键盘 / 密码管理器诱因归零）
-			expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: '修改 PIN' })).toBeInTheDocument();
+			expect(screen.queryByRole('group', { name: '数字键盘' })).toBeNull();
+			expect(screen.queryByRole('dialog')).toBeNull();
+		});
 
-			const press = (digits: string) =>
-				digits.split('').forEach((d) => fireEvent.click(screen.getByRole('button', { name: d })));
+		it('点击「修改 PIN」→ 弹层出现，标题「修改应用锁 PIN」', async () => {
+			storeState = { ...storeState, hasPin: true };
+			renderSettings();
 
-			// 首遍：输满 6 位自动进入确认阶段（无需保存按钮 / 确认键）
-			press('123456');
-			await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '修改 PIN' }));
+			});
+
+			expect(screen.getByRole('dialog')).toBeInTheDocument();
+			expect(screen.getByText('修改应用锁 PIN')).toBeInTheDocument();
+			expect(screen.getByText('输入当前 PIN')).toBeInTheDocument();
+		});
+
+		it('当前 PIN 错误 → 报错并停在第一步，不进入新 PIN', async () => {
+			vi.mocked(storage.verifyPin).mockResolvedValue(false);
+			storeState = { ...storeState, hasPin: true };
+			renderSettings();
+
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '修改 PIN' }));
+			});
+			press('999999');
+
+			await waitFor(() => expect(screen.getByText('当前 PIN 不正确')).toBeInTheDocument());
+			expect(storage.verifyPin).toHaveBeenCalledWith('999999');
+			expect(screen.getByText('输入当前 PIN')).toBeInTheDocument();
+			expect(screen.queryByText('输入新 PIN（6 位数字）')).toBeNull();
 			expect(storage.setPinProtection).not.toHaveBeenCalled();
-
-			// 二遍一致 → 调用 setPinProtection 一次
-			press('123456');
-			await waitFor(() => expect(storage.setPinProtection).toHaveBeenCalledTimes(1));
-			expect(storage.setPinProtection).toHaveBeenCalledWith('123456');
-			expect(storeState.setHasPin).toHaveBeenCalledWith(true);
 		});
 
-		it('两遍不一致 → 报错 + 回到首遍并清空，不写入', async () => {
+		it('当前 PIN 正确 → 进入新 PIN 步；新 PIN 与当前相同 → 报错并停在第一步', async () => {
+			vi.mocked(storage.verifyPin).mockResolvedValue(true);
 			storeState = { ...storeState, hasPin: true };
 			renderSettings();
 
-			const press = (digits: string) =>
-				digits.split('').forEach((d) => fireEvent.click(screen.getByRole('button', { name: d })));
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '修改 PIN' }));
+			});
+			press('123456');
+			await waitFor(() => expect(screen.getByText('输入新 PIN（6 位数字）')).toBeInTheDocument());
 
 			press('123456');
-			await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
-			press('654321');
-			await waitFor(() => expect(screen.getByText('两次输入不一致')).toBeInTheDocument());
-
-			// 回到首遍且两值清空（键盘 autoSubmit 已复位，可重输）
+			await waitFor(() =>
+				expect(screen.getByText('新 PIN 不能与当前 PIN 相同')).toBeInTheDocument(),
+			);
 			expect(screen.getByText('输入新 PIN（6 位数字）')).toBeInTheDocument();
-			expect(screen.getByText('已输入 0 位')).toBeInTheDocument();
 			expect(storage.setPinProtection).not.toHaveBeenCalled();
+		});
+
+		it('三步完成 → setPinProtection 收到新 PIN 一次，弹层关闭', async () => {
+			vi.mocked(storage.verifyPin).mockResolvedValue(true);
+			storeState = { ...storeState, hasPin: true };
+			renderSettings();
+
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '修改 PIN' }));
+			});
+
+			// 第一步：当前 PIN
+			press('123456');
+			await waitFor(() => expect(screen.getByText('输入新 PIN（6 位数字）')).toBeInTheDocument());
+
+			// 第二步：新 PIN
+			press('654321');
+			await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
+			expect(storage.setPinProtection).not.toHaveBeenCalled();
+
+			// 第三步：确认一致 → 写入
+			press('654321');
+			await waitFor(() => expect(storage.setPinProtection).toHaveBeenCalledTimes(1));
+			expect(storage.setPinProtection).toHaveBeenCalledWith('654321');
+			expect(storeState.setHasPin).toHaveBeenCalledWith(true);
+
+			await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
 		});
 	});
 });

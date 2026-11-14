@@ -32,7 +32,12 @@ import {
 	verifyBiometric,
 } from '@/lib/webauthn';
 import { generateBackupCodes, getBackupCodesCount } from '@/lib/api';
-import { setPinProtection, setBiometricProtection, clearBiometricProtection } from '@/lib/storage';
+import {
+	setPinProtection,
+	verifyPin,
+	setBiometricProtection,
+	clearBiometricProtection,
+} from '@/lib/storage';
 import { clearSessionKeys } from '@/lib/session-keys';
 import {
 	derivePinKey,
@@ -42,7 +47,6 @@ import {
 	base64ToArrayBuffer,
 	PIN_KDF_ITERATIONS,
 	LEGACY_PBKDF2_ITERATIONS,
-	PIN_PATTERN,
 } from '@/lib/crypto';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
@@ -60,8 +64,6 @@ export default function SettingsPage() {
 	};
 	const { isAuthenticated } = useAuth();
 
-	const [pinInput, setPinInput] = useState('');
-	const [pinSaving, setPinSaving] = useState(false);
 	const [pinMessage, setPinMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(
 		null,
 	);
@@ -274,29 +276,6 @@ export default function SettingsPage() {
 		setTimeout(() => setImportSuccess(false), 3000);
 	}
 
-	// PIN 只能「设置 / 修改」，没有「留空禁用」分支：冷启动是硬强制设锁，
-	// 禁用后下次打开又会被强制设回，属自相矛盾的入口（2026-11-14 移除）。
-	const handlePinSave = async () => {
-		setPinMessage(null);
-
-		if (!PIN_PATTERN.test(pinInput)) {
-			setPinMessage({ type: 'error', text: t('settings.pinLengthError') });
-			return;
-		}
-
-		setPinSaving(true);
-		try {
-			await setPinProtection(pinInput);
-			setHasPin(true);
-			setPinMessage({ type: 'success', text: t('settings.pinEnabled_confirm') });
-			setPinInput('');
-		} catch {
-			setPinMessage({ type: 'error', text: t('settings.pinFailed') });
-		} finally {
-			setPinSaving(false);
-		}
-	};
-
 	const handleBiometricToggle = async () => {
 		// 生物识别叠加在 PIN 之上，不是替代：无 PIN 时开启等于没开（钥匙仍是明文）
 		if (!bioRegistered && !hasPin) {
@@ -391,13 +370,24 @@ export default function SettingsPage() {
 							onToggle={handleBiometricToggle}
 						/>
 
+						{/* PIN 只能「设置 / 修改」，没有「留空禁用」分支：冷启动是硬强制设锁，
+						    禁用后下次打开又会被强制设回，属自相矛盾的入口（2026-11-14 移除）。
+						    修改走弹层三步（验旧 PIN → 新 PIN → 确认），旧 PIN 由 storage.verifyPin 校验。 */}
 						<SettingsPinProtection
 							hasPin={hasPin}
-							pinInput={pinInput}
-							onPinChange={setPinInput}
-							pinSaving={pinSaving}
 							pinMessage={pinMessage}
-							onSave={handlePinSave}
+							verifyCurrent={verifyPin}
+							onSubmitNew={async (pin) => {
+								try {
+									await setPinProtection(pin);
+									setHasPin(true);
+									setPinMessage({ type: 'success', text: t('settings.pinEnabled_confirm') });
+									return true;
+								} catch {
+									setPinMessage({ type: 'error', text: t('settings.pinFailed') });
+									return false;
+								}
+							}}
 						/>
 
 						{/* 手动锁定：立即清掉内存密钥与账户缓存，回首页需要重新验证 */}

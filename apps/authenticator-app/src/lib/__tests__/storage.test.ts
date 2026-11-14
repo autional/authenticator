@@ -371,6 +371,50 @@ describe('hasPinProtection edge cases', () => {
 	});
 });
 
+describe('verifyPin（改 PIN 前校验旧 PIN）', () => {
+	const bindStorage = () => {
+		Object.defineProperty(globalThis, 'localStorage', {
+			value: {
+				getItem: mockStorageGetItem,
+				setItem: mockStorageSetItem,
+				removeItem: mockStorageRemoveItem,
+			},
+			writable: true,
+		});
+	};
+
+	it('正确 PIN → true；错误 PIN → false', async () => {
+		bindStorage();
+		const { initializeStorage, setPinProtection, verifyPin } = await import('../storage');
+
+		await initializeStorage();
+		await setPinProtection('123456');
+
+		await expect(verifyPin('123456')).resolves.toBe(true);
+		await expect(verifyPin('000000')).resolves.toBe(false);
+	});
+
+	it('空库（无 PIN）→ false，不抛错', async () => {
+		bindStorage();
+		const { verifyPin } = await import('../storage');
+
+		await expect(verifyPin('123456')).resolves.toBe(false);
+	});
+
+	it('校验不改变解锁状态：验证后 loadWithoutPin 仍要求 PIN', async () => {
+		bindStorage();
+		const { initializeStorage, setPinProtection, verifyPin, loadWithoutPin } = await import(
+			'../storage'
+		);
+
+		await initializeStorage();
+		await setPinProtection('123456');
+		await expect(verifyPin('123456')).resolves.toBe(true);
+
+		await expect(loadWithoutPin()).rejects.toThrow('PIN required');
+	});
+});
+
 describe('Biometric (PRF) protection', () => {
 	const bindStorage = () => {
 		Object.defineProperty(globalThis, 'localStorage', {
