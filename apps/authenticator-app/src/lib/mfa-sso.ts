@@ -5,11 +5,21 @@
  * 本机保险库里本来就有 TOTP secret，可以用它证明「这台设备 + 这个账户」。
  *
  * 协议（identity 已上线，契约见后端 auth/mfa proof 与 ticket）：
- *   POST /identity/api/v1/auth/mfa/proof/begin  { identity, tenant }
+ *   POST /identity/api/v1/auth/mfa/proof/begin  { identity, tenant, client_id }
  *        → { challenge, expires_in }
  *   proof = base64(HMAC-SHA256(key = base32Decode(secret), msg = utf8(challenge)))
- *   POST /identity/api/v1/auth/mfa/ticket       { identity, tenant, challenge, proof }
+ *   POST /identity/api/v1/auth/mfa/ticket       { identity, tenant, challenge, proof,
+ *                                                 client_id, redirect_host? }
  *        → { ticket: "<id>.<secret>", expires_in }
+ *   跳转 auth 登录页：`#mfa_ticket=<ticket>&identity=<identity>&client_id=<client_id>`
+ *
+ * client_id（受众绑定，identity 侧白名单校验）：
+ * - **唯一来源**是运行时 `window.__APP_CONFIG__.VITE_OAUTH_CLIENT_ID`（见 `app-config.ts`），
+ *   与 OAuth 登录会话同源；**没有**任何源码字面量兜底。
+ * - 取不到 ⇒ 本函数直接抛错（`mfa_sso_missing_client_id`），**不发起任何网络请求**；
+ *   调用方按既有语义静默回落手动登录（登录不受影响，用户多输一次码）。
+ * - `redirect_host` = 回跳目标的 host，供后端 audit-only 比对（不参与放行判定）。
+ * - client_id 是公开标识（就在跳转 URL 里），仍按票据同一条投递路径只放 fragment。
  *
  * 安全性取向：
  * - secret / proof / ticket **只在内存里过一遍**：不写日志、不写 localStorage /
@@ -23,6 +33,7 @@ import type { TotpAccount } from './store';
 import { base32Decode } from './totp';
 import { arrayBufferToBase64 } from './crypto';
 import { buildSignInTarget } from './use-sign-in';
+import { getAppClientId } from './app-config';
 
 /** 回跳地址上的「本机验证器登录」标记（`?mfa_sso=1`），用于回到 App 后静默续跑登录。 */
 export const MFA_SSO_PARAM = 'mfa_sso';
@@ -69,9 +80,18 @@ export async function computeMfaProof(secret: string, challenge: string): Promis
 	return arrayBufferToBase64(new Uint8Array(signature));
 }
 
-/** step 1：向 identity 申请一次挑战（匿名接口，不带任何 token 语义）。 */
-export async function beginMfaProof(identity: string, tenant: string): Promise<MfaProofChallenge> {
-	const res = await apiClient.post(PROOF_BEGIN_PATH, { identity, tenant });
+/**
+ * step 1：向 identity 申请一次挑战（匿名接口，不带任何 token 语义）。
+ *
+ * 请求体按仓内契约用 **camel 书面键**（`clientId`），由 `@autional/shared` 的
+ * apiClient 请求拦截器统一转 snake_case ⇒ wire 上是 `client_id`。
+ */
+export async function beginMfaProof(
+	identity: string,
+	tenant: string,
+	clientId: string,
+): Promise<MfaProofChallenge> {
+	const res = await apiClient.post(PROOF_BEGIN_PATH, { identity, tenant, clientId });
 	const data = extractItem<{ challenge?: unknown; expiresIn?: unknown }>(res);
 	const challenge = typeof data?.challenge === 'string' ? data.challenge : '';
 	if (!challenge) throw new Error('mfa_sso_begin_invalid_response');
@@ -84,8 +104,21 @@ export async function exchangeMfaTicket(input: {
 	tenant: string;
 	challenge: string;
 	proof: string;
+	/** 本 App 的 OAuth client_id（签票端白名单校验 + 绑定进票记录）。 */
+	clientId: string;
+	/** 回跳目标 host（可选）：落库后仅用于兑换端 audit-only 比对。 */
+	redirectHost?: string;
 }): Promise<MfaTicketResult> {
-	const res = await apiClient.post(TICKET_PATH, input);
+	const { identity, tenant, challenge, proof, clientId, redirectHost } = input;
+	const res = await apiClient.post(TICKET_PATH, {
+		identity,
+		tenant,
+		challenge,
+		proof,
+		clientId,
+		// 空值不送（后端 `omitempty`），避免把「不知道」写成空字符串。
+		...(redirectHost ? { redirectHost } : {}),
+	});
 	const data = extractItem<{ ticket?: unknown; expiresIn?: unknown }>(res);
 	const ticket = typeof data?.ticket === 'string' ? data.ticket : '';
 	if (!ticket) throw new Error('mfa_sso_ticket_invalid_response');
@@ -99,15 +132,19 @@ export async function exchangeMfaTicket(input: {
 export async function requestMfaTicket(
 	account: Pick<TotpAccount, 'username' | 'secret'>,
 	tenant: string,
+	clientId: string,
+	redirectHost?: string,
 ): Promise<MfaTicketResult> {
 	const identity = account.username.trim();
-	const begin = await beginMfaProof(identity, tenant);
+	const begin = await beginMfaProof(identity, tenant, clientId);
 	const proof = await computeMfaProof(account.secret, begin.challenge);
 	return exchangeMfaTicket({
 		identity,
 		tenant,
 		challenge: begin.challenge,
 		proof,
+		clientId,
+		redirectHost,
 	});
 }
 
@@ -122,35 +159,62 @@ export function withMfaSsoFlag(target: string): string {
 }
 
 /**
- * auth 登录页 URL：`buildLoginUrl(带标记的回跳地址)` + `#mfa_ticket=…&identity=…`。
+ * auth 登录页 URL：`buildLoginUrl(带标记的回跳地址)` + `#mfa_ticket=…&identity=…&client_id=…`。
  * ticket 只进 fragment —— 不随请求发往服务端，也不会出现在 Referer 里。
+ *
+ * `client_id` 与票据同一条投递路径（fragment）：公开标识，但仍**不**新增服务端可见通道，
+ * 也不进 Referer；auth 页读完同样 `history.replaceState` 一并清掉。
  */
 export function buildMfaLoginUrl(
 	target: string,
 	slug: string,
 	ticket: string,
 	identity: string,
+	clientId: string,
 ): string {
 	const base = buildLoginUrl(withMfaSsoFlag(target), false, slug) || '/';
-	const fragment = `mfa_ticket=${encodeURIComponent(ticket)}&identity=${encodeURIComponent(identity)}`;
+	const fragment = `mfa_ticket=${encodeURIComponent(ticket)}&identity=${encodeURIComponent(identity)}&client_id=${encodeURIComponent(clientId)}`;
 	return `${base}#${fragment}`;
 }
 
 /**
+ * 回跳目标的 host（供后端 `redirect_host` audit-only 比对）。
+ * URL 不可解析时返回空串 —— 宁可不送，也不送一个错的对外声明。
+ */
+export function redirectHostOf(target: string): string {
+	try {
+		return new URL(target, window.location.origin).host;
+	} catch {
+		return '';
+	}
+}
+
+/**
  * 整段流程的 app 侧唯一入口：返回「可以直接 location.assign 的登录页 URL」。
- * 抛错 = 本次「用本机验证器登录」不可用（网络 / 未开启 MFA / 挑战过期 / 密钥损坏），
- * 调用方据此回落现有手动登录。
+ * 抛错 = 本次「用本机验证器登录」不可用（client_id 缺失 / 网络 / 未开启 MFA /
+ * 挑战过期 / 密钥损坏），调用方据此回落现有手动登录。
+ *
+ * client_id 取不到 ⇒ **在发起任何网络请求之前**抛错：拿不到受众就换不出可兑换的票，
+ * 发了 begin 只是白消耗挑战并给 identity 添一条无效流量。
  */
 export async function startMfaSsoLogin(
 	account: Pick<TotpAccount, 'username' | 'secret'>,
 	tenant: string,
 ): Promise<string> {
+	const clientId = getAppClientId();
+	if (!clientId) throw new Error('mfa_sso_missing_client_id');
 	const normalized = tenant.trim().toLowerCase();
 	if (!normalized) throw new Error('mfa_sso_missing_tenant');
 	const identity = account.username.trim();
 	if (!identity) throw new Error('mfa_sso_missing_identity');
-	const { ticket } = await requestMfaTicket({ username: identity, secret: account.secret }, normalized);
-	return buildMfaLoginUrl(buildSignInTarget(normalized), normalized, ticket, identity);
+	const target = buildSignInTarget(normalized);
+	const { ticket } = await requestMfaTicket(
+		{ username: identity, secret: account.secret },
+		normalized,
+		clientId,
+		redirectHostOf(target),
+	);
+	return buildMfaLoginUrl(target, normalized, ticket, identity, clientId);
 }
 
 /**

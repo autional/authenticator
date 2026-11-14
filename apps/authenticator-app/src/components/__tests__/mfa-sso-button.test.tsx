@@ -1,3 +1,4 @@
+// client-id-literal: test-fixture（ULID 字面量仅作测试夹具；生产路径禁止出现）
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -55,6 +56,19 @@ import { PROOF_BEGIN_PATH, TICKET_PATH } from '@/lib/mfa-sso';
 
 const SECRET = 'JBSWY3DPEHPK3PXP';
 
+/** 运行时注入的 OAuth client_id（生产由 index.html 内联的 env.js 提供）。 */
+const CLIENT_ID = '01AR0000000000000000000005';
+
+type ConfigHost = { window: { __APP_CONFIG__?: unknown } };
+
+function setRuntimeConfig(config: unknown): void {
+	(globalThis as unknown as ConfigHost).window.__APP_CONFIG__ = config;
+}
+
+function clearRuntimeConfig(): void {
+	delete (globalThis as unknown as ConfigHost).window.__APP_CONFIG__;
+}
+
 const account = (id: string, username: string) => ({
 	id,
 	name: `svc-${id}`,
@@ -87,6 +101,9 @@ function stubAssign() {
 describe('MfaSsoButton（用本机验证器登录）', () => {
 	beforeEach(() => {
 		lastTenantSlug = '';
+		// 生产环境 index.html 必然内联 env.js（缺了 vite 插件直接 fail-closed 抛错），
+		// 所以「有 client_id」才是正常态；缺 client_id 的回落另有用例覆盖。
+		setRuntimeConfig({ VITE_OAUTH_CLIENT_ID: CLIENT_ID });
 		vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: false })));
 	});
 
@@ -95,6 +112,7 @@ describe('MfaSsoButton（用本机验证器登录）', () => {
 		mockPost.mockReset();
 		mockNavigate.mockReset();
 		vi.unstubAllGlobals();
+		clearRuntimeConfig();
 	});
 
 	it('只有一个带用户名的账户 → 自动选中，点击后跳到带票据的登录页', async () => {
@@ -115,6 +133,7 @@ describe('MfaSsoButton（用本机验证器登录）', () => {
 		const [head, fragment] = loginUrl.split('#');
 		expect(fragment).toContain(`mfa_ticket=${encodeURIComponent('tid.secret')}`);
 		expect(fragment).toContain(`identity=${encodeURIComponent('admin@autional.com')}`);
+		expect(fragment).toContain(`client_id=${encodeURIComponent(CLIENT_ID)}`);
 		const redirect = new URL(head).searchParams.get('redirect');
 		expect(new URL(redirect as string).searchParams.get('mfa_sso')).toBe('1');
 		expect(onFallback).not.toHaveBeenCalled();
@@ -163,6 +182,7 @@ describe('MfaSsoButton（用本机验证器登录）', () => {
 		expect(mockPost.mock.calls[0][1]).toEqual({
 			identity: 'second@autional.com',
 			tenant: 'acme',
+			clientId: CLIENT_ID,
 		});
 	});
 
@@ -181,6 +201,24 @@ describe('MfaSsoButton（用本机验证器登录）', () => {
 		await userEvent.click(within(dialog).getByRole('button', { name: 'signIn.continue' }));
 
 		await waitFor(() => expect(assign).toHaveBeenCalledTimes(1));
-		expect(mockPost.mock.calls[0][1]).toEqual({ identity: 'admin@autional.com', tenant: 'acme' });
+		expect(mockPost.mock.calls[0][1]).toEqual({
+			identity: 'admin@autional.com',
+			tenant: 'acme',
+			clientId: CLIENT_ID,
+		});
+	});
+
+	it('没有运行时 client_id → 不发换票请求，直接回落普通 signIn', async () => {
+		storeState = { accounts: [account('a1', 'admin@autional.com')] };
+		clearRuntimeConfig();
+		const assign = stubAssign();
+		const onFallback = vi.fn();
+
+		render(<MfaSsoButton slug="acme" onFallback={onFallback} />);
+		await userEvent.click(screen.getByRole('button', { name: 'signIn.mfaSso' }));
+
+		await waitFor(() => expect(onFallback).toHaveBeenCalledTimes(1));
+		expect(mockPost).not.toHaveBeenCalled();
+		expect(assign).not.toHaveBeenCalled();
 	});
 });

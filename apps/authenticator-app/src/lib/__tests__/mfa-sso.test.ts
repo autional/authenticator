@@ -1,3 +1,4 @@
+// client-id-literal: test-fixture（ULID 字面量仅作测试夹具；生产路径禁止出现）
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { createHmac } from 'node:crypto';
 
@@ -8,12 +9,14 @@ vi.mock('@autional/shared', async (importOriginal) => {
 	return { ...actual, apiClient: { post: mockPost } };
 });
 
+import { snakeCaseKeys } from '@autional/shared';
 import {
 	PROOF_BEGIN_PATH,
 	TICKET_PATH,
 	buildMfaLoginUrl,
 	computeMfaProof,
 	hasMfaSsoFlag,
+	redirectHostOf,
 	startMfaSsoLogin,
 	stripMfaSsoFlag,
 	usableMfaAccounts,
@@ -26,6 +29,25 @@ import type { TotpAccount } from '../store';
 // 测试里用它当**独立**基准：既不调用被测的 base32Decode，也不复用被测的 HMAC 封装。
 const SECRET = 'JBSWY3DPEHPK3PXP';
 const SECRET_BYTES = Buffer.from('Hello!\xde\xad\xbe\xef', 'latin1');
+
+/** runtime 配置里的 OAuth client_id（`public/env.js` 的 VITE_OAUTH_CLIENT_ID）。 */
+const CLIENT_ID = '01AR0000000000000000000005';
+
+type ConfigHost = { window: { __APP_CONFIG__?: unknown } };
+
+/** 注入运行时配置（等价于 index.html 内联的 env.js 已执行）。 */
+function setRuntimeConfig(config: unknown): void {
+	(globalThis as unknown as ConfigHost).window.__APP_CONFIG__ = config;
+}
+
+/**
+ * 拦截器把 body 的 camel 书面键转成 wire 上的 snake_case（`shared/api/client.ts`）。
+ * 测试 mock 掉的是 axios 之前的 `apiClient.post`，所以**必须**再跑一遍这个转换，
+ * 才能断言「真正的 wire 字段是 client_id / redirect_host」。
+ */
+function wireBody(callIndex: number): Record<string, unknown> {
+	return snakeCaseKeys(mockPost.mock.calls[callIndex][1]) as Record<string, unknown>;
+}
 
 function expectedProof(challenge: string): string {
 	return createHmac('sha256', SECRET_BYTES).update(challenge, 'utf8').digest('base64');
@@ -66,15 +88,18 @@ describe('computeMfaProof（challenge 签名）', () => {
 describe('startMfaSsoLogin（begin → proof → ticket → 登录页 URL）', () => {
 	beforeEach(() => {
 		window.history.pushState({}, '', '/devices?tab=all');
+		// client_id 只有运行时一个来源（env.js 已内联）；没有它整条桥路径不存在。
+		setRuntimeConfig({ VITE_OAUTH_CLIENT_ID: CLIENT_ID });
 	});
 
 	afterEach(() => {
 		vi.restoreAllMocks();
 		mockPost.mockReset();
+		delete (globalThis as unknown as ConfigHost).window.__APP_CONFIG__;
 		window.history.pushState({}, '', '/');
 	});
 
-	it('成功路径：fragment 带 ticket/identity，回跳地址带 mfa_sso=1', async () => {
+	it('成功路径：fragment 带 ticket/identity/client_id，回跳地址带 mfa_sso=1', async () => {
 		mockTicketFlow();
 
 		const loginUrl = await startMfaSsoLogin(
@@ -82,12 +107,13 @@ describe('startMfaSsoLogin（begin → proof → ticket → 登录页 URL）', (
 			'ACME',
 		);
 
-		// begin：身份/租户归一（trim + 小写），不带 secret
+		// begin：身份/租户归一（trim + 小写）+ 运行时 client_id，不带 secret
 		expect(mockPost).toHaveBeenNthCalledWith(1, PROOF_BEGIN_PATH, {
 			identity: 'admin@autional.com',
 			tenant: 'acme',
+			clientId: CLIENT_ID,
 		});
-		// ticket：challenge + 独立算出的 proof
+		// ticket：challenge + 独立算出的 proof + client_id + redirect_host
 		const ticketBody = mockPost.mock.calls[1][1];
 		expect(mockPost.mock.calls[1][0]).toBe(TICKET_PATH);
 		expect(ticketBody).toEqual({
@@ -95,11 +121,13 @@ describe('startMfaSsoLogin（begin → proof → ticket → 登录页 URL）', (
 			tenant: 'acme',
 			challenge: 'ch-1',
 			proof: expectedProof('ch-1'),
+			clientId: CLIENT_ID,
+			redirectHost: window.location.host,
 		});
 
 		const [head, fragment] = loginUrl.split('#');
 		expect(fragment).toBe(
-			`mfa_ticket=${encodeURIComponent('tid.secret')}&identity=${encodeURIComponent('admin@autional.com')}`,
+			`mfa_ticket=${encodeURIComponent('tid.secret')}&identity=${encodeURIComponent('admin@autional.com')}&client_id=${encodeURIComponent(CLIENT_ID)}`,
 		);
 
 		const login = new URL(head);
@@ -111,6 +139,54 @@ describe('startMfaSsoLogin（begin → proof → ticket → 登录页 URL）', (
 		expect(target.searchParams.get('mfa_sso')).toBe('1');
 		// 登录页落在租户段上（buildLoginUrl 的 slug 参数生效）
 		expect(login.pathname).toContain('/acme/login');
+	});
+
+	it('wire 字段是 client_id / redirect_host（camel 书面键经拦截器归一）', async () => {
+		mockTicketFlow();
+		await startMfaSsoLogin({ username: 'admin@autional.com', secret: SECRET }, 'acme');
+
+		expect(wireBody(0)).toEqual({
+			identity: 'admin@autional.com',
+			tenant: 'acme',
+			client_id: CLIENT_ID,
+		});
+		expect(wireBody(1)).toEqual({
+			identity: 'admin@autional.com',
+			tenant: 'acme',
+			challenge: 'ch-1',
+			proof: expectedProof('ch-1'),
+			client_id: CLIENT_ID,
+			redirect_host: window.location.host,
+		});
+	});
+
+	it('client_id 来自运行时 __APP_CONFIG__（而非 import.meta.env）', async () => {
+		vi.stubEnv('VITE_OAUTH_CLIENT_ID', 'from-import-meta-env');
+		setRuntimeConfig({ VITE_OAUTH_CLIENT_ID: CLIENT_ID });
+		mockTicketFlow();
+
+		await startMfaSsoLogin({ username: 'admin@autional.com', secret: SECRET }, 'acme');
+
+		expect(mockPost.mock.calls[0][1]).toMatchObject({ clientId: CLIENT_ID });
+		vi.unstubAllEnvs();
+	});
+
+	it('运行时没有 client_id → 抛错且**一次请求都不发**（fail-closed，调用方回落 legacy）', async () => {
+		delete (globalThis as unknown as ConfigHost).window.__APP_CONFIG__;
+
+		await expect(
+			startMfaSsoLogin({ username: 'admin@autional.com', secret: SECRET }, 'acme'),
+		).rejects.toThrow('mfa_sso_missing_client_id');
+		expect(mockPost).not.toHaveBeenCalled();
+	});
+
+	it('client_id 只有空白 → 同样不发请求', async () => {
+		setRuntimeConfig({ VITE_OAUTH_CLIENT_ID: '   ' });
+
+		await expect(
+			startMfaSsoLogin({ username: 'admin@autional.com', secret: SECRET }, 'acme'),
+		).rejects.toThrow('mfa_sso_missing_client_id');
+		expect(mockPost).not.toHaveBeenCalled();
 	});
 
 	it('begin 失败 → 抛错（调用方回落手动登录），不继续换票', async () => {
@@ -173,6 +249,9 @@ describe('startMfaSsoLogin（begin → proof → ticket → 登录页 URL）', (
 			expect(storageDump).not.toContain(secretish);
 			expect(consoleDump).not.toContain(secretish);
 		}
+		// client_id 是公开标识，但仍只走 fragment 一条投递路径：不落 storage、不进日志。
+		expect(storageDump).not.toContain(CLIENT_ID);
+		expect(consoleDump).not.toContain(CLIENT_ID);
 	});
 });
 
@@ -186,12 +265,30 @@ describe('回跳标记（mfa_sso）', () => {
 	});
 
 	it('buildMfaLoginUrl 把标记放在 redirect 里，ticket 只进 fragment', () => {
-		const url = buildMfaLoginUrl('https://app.example/acme/x', 'acme', 'tid.sec', 'u@x.io');
+		const url = buildMfaLoginUrl('https://app.example/acme/x', 'acme', 'tid.sec', 'u@x.io', CLIENT_ID);
 		const [head, fragment] = url.split('#');
-		expect(fragment).toBe(`mfa_ticket=${encodeURIComponent('tid.sec')}&identity=${encodeURIComponent('u@x.io')}`);
+		expect(fragment).toBe(
+			`mfa_ticket=${encodeURIComponent('tid.sec')}&identity=${encodeURIComponent('u@x.io')}&client_id=${encodeURIComponent(CLIENT_ID)}`,
+		);
 		expect(head).not.toContain('tid.sec');
+		// ticket / client_id 都只在 fragment：不出现在请求路径或 query 里
+		expect(head).not.toContain(CLIENT_ID);
 		const redirect = new URL(head).searchParams.get('redirect');
 		expect(new URL(redirect as string).searchParams.get('mfa_sso')).toBe('1');
+	});
+
+	it('buildMfaLoginUrl 对 client_id 做 URL 编码', () => {
+		const url = buildMfaLoginUrl('https://app.example/acme/x', 'acme', 't', 'u@x.io', 'a b&c=d');
+		expect(url.split('#')[1]).toBe(
+			`mfa_ticket=t&identity=${encodeURIComponent('u@x.io')}&client_id=${encodeURIComponent('a b&c=d')}`,
+		);
+	});
+
+	it('redirectHostOf 取回跳目标 host（供后端 redirect_host audit-only 比对）', () => {
+		expect(redirectHostOf('https://authenticator.autional.cn/acme/devices')).toBe(
+			'authenticator.autional.cn',
+		);
+		expect(redirectHostOf('http://localhost:13108/acme/')).toBe('localhost:13108');
 	});
 
 	it('hasMfaSsoFlag / stripMfaSsoFlag', () => {
