@@ -11,10 +11,14 @@ import PinKeypad from '@/components/PinKeypad';
 function Harness({
 	minLength = 4,
 	maxLength = 8,
+	autoSubmitAt,
+	showConfirm,
 	onSubmit = () => {},
 }: {
 	minLength?: number;
 	maxLength?: number;
+	autoSubmitAt?: number;
+	showConfirm?: boolean;
 	onSubmit?: () => void;
 }) {
 	const [value, setValue] = useState('');
@@ -25,6 +29,8 @@ function Harness({
 			onSubmit={onSubmit}
 			minLength={minLength}
 			maxLength={maxLength}
+			autoSubmitAt={autoSubmitAt}
+			showConfirm={showConfirm}
 		/>
 	);
 }
@@ -116,5 +122,35 @@ describe('PinKeypad', () => {
 		fireEvent.keyDown(window, { key: '1', ctrlKey: true });
 		fireEvent.keyDown(window, { key: '2', metaKey: true });
 		expect(entered(0)).toBeInTheDocument();
+	});
+
+	it('autoSubmitAt：输满目标位数自动提交一次（不重复）', () => {
+		const onSubmit = vi.fn();
+		render(<Harness minLength={6} maxLength={6} autoSubmitAt={6} onSubmit={onSubmit} />);
+
+		['1', '2', '3', '4', '5'].forEach((d) => fireEvent.click(key(d)));
+		expect(onSubmit).not.toHaveBeenCalled();
+
+		fireEvent.click(key('6'));
+		expect(onSubmit).toHaveBeenCalledTimes(1);
+
+		// 已满位（maxLength 6）再点不追加、也不重复提交
+		fireEvent.click(key('7'));
+		expect(entered(6)).toBeInTheDocument();
+		expect(onSubmit).toHaveBeenCalledTimes(1);
+	});
+
+	it('showConfirm=false：不渲染确认键，但 Enter 仍可提交（人工兜底）', () => {
+		const onSubmit = vi.fn();
+		render(<Harness minLength={6} maxLength={6} showConfirm={false} onSubmit={onSubmit} />);
+
+		expect(screen.queryByLabelText('确认')).toBeNull();
+		expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
+
+		['1', '2', '3', '4', '5', '6'].forEach((d) => fireEvent.click(key(d)));
+		expect(entered(6)).toBeInTheDocument();
+
+		fireEvent.keyDown(window, { key: 'Enter' });
+		expect(onSubmit).toHaveBeenCalledTimes(1);
 	});
 });

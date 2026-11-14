@@ -52,6 +52,8 @@ interface StoragePayload {
 	deviceKeyWrapBio?: DeviceKeyWrap | null;
 	/** PIN 包裹用的 PBKDF2 迭代次数；缺省 = 旧版 100k（存量库） */
 	pinKdfIterations?: number;
+	/** PIN 位数。仅用于让解锁键盘「输满即自动提交」；缺省 = 上个版本之前的旧库（长度未知）。 */
+	pinLength?: number;
 	data: {
 		iv: string;
 		ciphertext: string;
@@ -143,6 +145,7 @@ async function wrapDeviceKeyWithPin(
 		ciphertext: arrayBufferToBase64(ciphertext),
 	};
 	payload.pinKdfIterations = PIN_KDF_ITERATIONS;
+	payload.pinLength = pin.length;
 	writePayload(payload);
 }
 
@@ -217,9 +220,10 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 	const deviceKey = await importDeviceKey(base64ToArrayBuffer(deviceKeyRawB64));
 	cachedDeviceKey = deviceKey;
 
-	// 静默升级：旧库（100k）解锁成功后立刻按现行标准重包，下次解锁即用新迭代次数。
+	// 静默升级：旧库（100k 或无 pinLength）解锁成功后立刻按现行标准重包，下次解锁即用新元数据。
 	// 升级失败不影响本次解锁（下次解锁会再试）。
-	if (iterations < PIN_KDF_ITERATIONS) {
+	const needsUpgrade = iterations < PIN_KDF_ITERATIONS || payload.pinLength === undefined;
+	if (needsUpgrade) {
 		try {
 			await wrapDeviceKeyWithPin(payload, deviceKeyRawB64, pin);
 		} catch {
@@ -228,6 +232,15 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 	}
 
 	return decryptAccounts(payload.data, deviceKey);
+}
+
+/**
+ * 当前库的 PIN 位数（仅供解锁键盘决定「输满即提交」的目标长度）。
+ * 返回 null = 旧库未记录长度，键盘必须保留确认按钮并允许 4-8 位。
+ */
+export function getPinLength(): number | null {
+	const payload = readPayload();
+	return payload?.pinLength ?? null;
 }
 
 /**
@@ -375,6 +388,7 @@ export async function setPinProtection(pin: string | null): Promise<void> {
 		payload.deviceKey = exportedB64;
 		payload.deviceKeyWrap = null;
 		delete payload.pinKdfIterations;
+		delete payload.pinLength;
 		writePayload(payload);
 		return;
 	}

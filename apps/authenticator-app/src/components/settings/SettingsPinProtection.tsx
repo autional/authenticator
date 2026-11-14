@@ -1,5 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { Lock, Check, AlertCircle } from 'lucide-react';
+import { getPinLength } from '@/lib/storage';
+import { PIN_LENGTH } from '@/lib/crypto';
 
 export default function SettingsPinProtection({
 	hasPin,
@@ -17,6 +19,8 @@ export default function SettingsPinProtection({
 	onSave: (e?: React.FormEvent) => void;
 }) {
 	const { t } = useTranslation();
+	// 存量 7/8 位库：引导用户重设为 6 位（PIN_LENGTH）。同步读 localStorage，成本可忽略
+	const pinLength = getPinLength();
 	// 掩码文本（-webkit-text-security）优先：type=password 会被密码管理器误判为登录表单
 	const maskSupported =
 		typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
@@ -37,6 +41,11 @@ export default function SettingsPinProtection({
 			<p className="text-[11px] text-[var(--color-text-muted)] mb-2">
 				{hasPin ? t('settings.pinDescEnabled') : t('settings.pinDescDisabled')}
 			</p>
+			{hasPin && pinLength !== null && pinLength !== PIN_LENGTH && (
+				<p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
+					{t('settings.pinLegacyHint')}
+				</p>
+			)}
 			{!hasPin && (
 				<p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-[11px] text-[var(--color-danger-text)]">
 					{t('settings.pinUnprotectedWarning')}
@@ -83,7 +92,7 @@ export default function SettingsPinProtection({
 						}
 						inputMode="numeric"
 						pattern="[0-9]*"
-						maxLength={8}
+						maxLength={6}
 						value={pinInput}
 						onChange={(e) => onPinChange(e.target.value.replace(/\D/g, ''))}
 						placeholder={hasPin ? t('settings.pinPlaceholder') : t('settings.pinNewPlaceholder')}

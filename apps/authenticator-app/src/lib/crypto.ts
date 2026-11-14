@@ -8,7 +8,7 @@
  * 本地保险库 PIN 包裹的 PBKDF2 迭代次数（OWASP 对 PBKDF2-HMAC-SHA256 的现行建议下限）。
  *
  * 强度构成：迭代次数是次要项。100k → 600k 只把成本抬高约 2.6 bit；
- * PIN 从 4 位到 6 位是 100 倍（约 6.6 bit）。真正的防线是 PIN 位数，见 PIN_MIN_LENGTH。
+ * PIN 从 4 位到 6 位是 100 倍（约 6.6 bit）。真正的防线是 PIN 位数，见 PIN_LENGTH。
  */
 export const PIN_KDF_ITERATIONS = 600_000;
 /**
@@ -20,12 +20,13 @@ export const LEGACY_PBKDF2_ITERATIONS = 100_000;
  *  与 PIN_KDF_ITERATIONS 同口径，但两者独立演进（备份是用户口令，本地是 PIN）。 */
 export const BACKUP_KDF_ITERATIONS = 600_000;
 
-/** PIN 位数下限：4-5 位在消费级 GPU 上等同无保护，因此拒绝。 */
-export const PIN_MIN_LENGTH = 6;
-/** PIN 位数上限（与 UI 的 maxLength 一致）。 */
-export const PIN_MAX_LENGTH = 8;
-/** 合法 PIN 形态：6-8 位纯数字。 */
-export const PIN_PATTERN = /^\d{6,8}$/;
+/** 应用锁 PIN 固定长度（新建/修改只用这个长度）。 */
+export const PIN_LENGTH = 6;
+/** 合法新 PIN 形态：恰好 6 位数字。 */
+export const PIN_PATTERN = /^\d{6}$/;
+/** 存量库兼容：解锁路径允许 4-8 位（历史版本曾是 4-8 / 6-8 位）。 */
+export const LEGACY_PIN_MIN_LENGTH = 4;
+export const LEGACY_PIN_MAX_LENGTH = 8;
 
 export function arrayBufferToBase64(buffer: Uint8Array): string {
 	let binary = '';

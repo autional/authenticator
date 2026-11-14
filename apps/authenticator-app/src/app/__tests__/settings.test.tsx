@@ -91,6 +91,7 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/storage', () => ({
 	setPinProtection: vi.fn(() => Promise.resolve()),
 	clearDeviceKeyCache: vi.fn(),
+	getPinLength: vi.fn(() => null),
 }));
 
 vi.mock('@/lib/crypto', () => ({
@@ -101,7 +102,8 @@ vi.mock('@/lib/crypto', () => ({
 	base64ToArrayBuffer: vi.fn(),
 	PIN_KDF_ITERATIONS: 600_000,
 	LEGACY_PBKDF2_ITERATIONS: 100_000,
-	PIN_PATTERN: /^\d{6,8}$/,
+	PIN_PATTERN: /^\d{6}$/,
+	PIN_LENGTH: 6,
 }));
 
 import * as pushLib from '@/lib/push';
@@ -319,9 +321,9 @@ describe('SettingsPage', () => {
 	});
 
 	describe('PIN placeholder (AU-15)', () => {
-		it('未启用 PIN → 占位为新建引导「输入 6-8 位数字」', async () => {
+		it('未启用 PIN → 占位为新建引导「输入 6 位数字」', async () => {
 			renderSettings();
-			expect(screen.getByPlaceholderText('输入 6-8 位数字')).toBeInTheDocument();
+			expect(screen.getByPlaceholderText('输入 6 位数字')).toBeInTheDocument();
 		});
 
 		it('已启用 PIN → 占位为修改引导「输入新 PIN 或留空禁用」', async () => {

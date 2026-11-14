@@ -19,6 +19,10 @@ export interface PinKeypadProps {
 	/** 解锁传 4（兼容存量 4 位 PIN），设锁传 6 */
 	minLength: number;
 	maxLength?: number;
+	/** 达到该位数自动提交（与 minLength 同时满足才触发）。不传 = 不自动提交。 */
+	autoSubmitAt?: number;
+	/** 是否显示右下角确认键（默认 true）。自动提交场景传 false。 */
+	showConfirm?: boolean;
 	disabled?: boolean;
 	/** 错误态：圆点转危险色 */
 	error?: boolean;
@@ -55,6 +59,8 @@ export default function PinKeypad({
 	onSubmit,
 	minLength,
 	maxLength = 8,
+	autoSubmitAt,
+	showConfirm = true,
 	disabled = false,
 	error = false,
 	shakeKey = 0,
@@ -114,6 +120,19 @@ export default function PinKeypad({
 		if (disabled || value.length < minLength) return;
 		onSubmit();
 	}, [disabled, minLength, onSubmit, value.length]);
+
+	// 自动提交：输满目标位数即提交（ref 防同一值重复触发；退位后复位）
+	const autoFiredRef = useRef(false);
+	useEffect(() => {
+		if (autoSubmitAt === undefined) return;
+		if (disabled || value.length !== autoSubmitAt || autoSubmitAt < minLength) {
+			if (value.length < autoSubmitAt) autoFiredRef.current = false;
+			return;
+		}
+		if (autoFiredRef.current) return;
+		autoFiredRef.current = true;
+		onSubmit();
+	}, [autoSubmitAt, disabled, minLength, onSubmit, value.length]);
 
 	// 物理键盘（桌面）：数字追加 / Backspace 退位 / Enter 提交
 	useEffect(() => {
@@ -220,15 +239,20 @@ export default function PinKeypad({
 					0
 				</button>
 
-				<button
-					type="button"
-					onClick={submit}
-					disabled={disabled || !canSubmit}
-					aria-label={t('keypad.confirm')}
-					className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-primary-600 text-white transition-all duration-100 active:scale-95 disabled:opacity-30"
-				>
-					<Check className="h-6 w-6" aria-hidden="true" />
-				</button>
+				{showConfirm ? (
+					<button
+						type="button"
+						onClick={submit}
+						disabled={disabled || !canSubmit}
+						aria-label={t('keypad.confirm')}
+						className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-primary-600 text-white transition-all duration-100 active:scale-95 disabled:opacity-30"
+					>
+						<Check className="h-6 w-6" aria-hidden="true" />
+					</button>
+				) : (
+					/* 自动提交场景：占位保持 3 列网格对齐 */
+					<span className="h-[68px] w-[68px]" aria-hidden="true" />
+				)}
 			</div>
 
 			<p className="mt-4 text-[11px] text-[var(--color-text-muted)]">{t('keypad.clearHint')}</p>

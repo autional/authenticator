@@ -12,6 +12,7 @@ import {
 	hasBiometricProtection,
 	setPinProtection,
 	setBiometricProtection,
+	getPinLength,
 } from '@/lib/storage';
 import {
 	hasBiometricRegistered,
@@ -22,7 +23,12 @@ import {
 	registerBiometric,
 	clearBiometric,
 } from '@/lib/webauthn';
-import { PIN_PATTERN } from '@/lib/crypto';
+import {
+	PIN_PATTERN,
+	PIN_LENGTH,
+	LEGACY_PIN_MIN_LENGTH,
+	LEGACY_PIN_MAX_LENGTH,
+} from '@/lib/crypto';
 import { setCeremonyActive } from '@/lib/app-lock';
 
 type UnlockMode = 'bio' | 'pin';
@@ -38,6 +44,27 @@ function PinInputScreen() {
 	const loadAccounts = useAuthenticatorStore((s) => s.loadAccounts);
 	const setHasPin = useAuthenticatorStore((s) => s.setHasPin);
 	const autoTriedRef = useRef(false);
+
+	// 目标长度：本库记录的 PIN 位数（决定「输满即提交」）；null = 旧库未记录 → 保留确认键。
+	// 必须用惰性初始化同步取：放进 useEffect 会让首帧先按 null 渲染出确认键再消失（可见闪烁）。
+	// getPinLength() 只读 localStorage，本应用纯客户端渲染，首帧即可安全调用。
+	const [pinLength] = useState<number | null>(() => getPinLength());
+
+	// 失败后延迟清空输入（等抖动播完）：timer 存 ref 以免卸载后 setState
+	const clearPinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const schedulePinClear = useCallback(() => {
+		if (clearPinTimer.current) clearTimeout(clearPinTimer.current);
+		clearPinTimer.current = setTimeout(() => {
+			clearPinTimer.current = null;
+			setPin('');
+		}, 420);
+	}, []);
+	useEffect(
+		() => () => {
+			if (clearPinTimer.current) clearTimeout(clearPinTimer.current);
+		},
+		[],
+	);
 
 	// 探测生物识别能力：可用即把默认视图切到「生物识别优先」
 	useEffect(() => {
@@ -113,10 +140,11 @@ function PinInputScreen() {
 		} catch {
 			setError(t('unlock.pinWrong'));
 			setShakeKey((k) => k + 1);
+			schedulePinClear();
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [isSubmitting, loadAccounts, pin, setHasPin, t]);
+	}, [isSubmitting, loadAccounts, pin, schedulePinClear, setHasPin, t]);
 
 	if (mode === 'bio') {
 		return (
@@ -178,9 +206,11 @@ function PinInputScreen() {
 				value={pin}
 				onChange={setPin}
 				onSubmit={() => void handleUnlock()}
-				// 存量 4 位 PIN 必须仍能解锁，不能提高到 6
-				minLength={4}
-				maxLength={8}
+				// 存量 4-8 位 PIN 必须仍能解锁；长度已知（pinLength）时按该长度自动提交
+				minLength={pinLength ?? LEGACY_PIN_MIN_LENGTH}
+				maxLength={pinLength ?? LEGACY_PIN_MAX_LENGTH}
+				autoSubmitAt={pinLength ?? undefined}
+				showConfirm={pinLength === null}
 				disabled={isSubmitting}
 				error={!!error}
 				shakeKey={shakeKey}
@@ -222,6 +252,22 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 	const [bioAvailable, setBioAvailable] = useState(false);
 	const [enableBio, setEnableBio] = useState(false);
 
+	// 失败后延迟清空当前输入（等抖动播完）：timer 存 ref 以免卸载后 setState
+	const clearPinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+	const cancelPinClear = useCallback(() => {
+		if (clearPinTimer.current) clearTimeout(clearPinTimer.current);
+		clearPinTimer.current = null;
+	}, []);
+	const schedulePinClear = useCallback(() => {
+		cancelPinClear();
+		clearPinTimer.current = setTimeout(() => {
+			clearPinTimer.current = null;
+			if (phase === 'enter') setPin('');
+			else setConfirmPin('');
+		}, 420);
+	}, [cancelPinClear, phase]);
+	useEffect(() => cancelPinClear, [cancelPinClear]);
+
 	useEffect(() => {
 		let cancelled = false;
 		isBiometricAvailable().then((avail) => {
@@ -235,6 +281,8 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 	const value = phase === 'enter' ? pin : confirmPin;
 
 	const handleChange = (next: string) => {
+		// 用户已重新输入：取消挂起的清空，否则定时器会把刚敲的数字一起抹掉
+		cancelPinClear();
 		if (phase === 'enter') setPin(next);
 		else setConfirmPin(next);
 		// 重新输入即清错：提示与抖动只针对上一次提交
@@ -243,6 +291,7 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 
 	/** 确认阶段退回重输：首遍输错时不给出口，用户会被困在无法跳过的设锁屏里 */
 	const restart = () => {
+		cancelPinClear();
 		setPin('');
 		setConfirmPin('');
 		setError(null);
@@ -259,6 +308,8 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 			setError(t('setup.failed'));
 			setShakeKey((k) => k + 1);
 			setIsSubmitting(false);
+			// 输入仍是满 6 位且键盘已 autoFired：不手动清空的话用户只能先删一位才能重提
+			schedulePinClear();
 			return;
 		}
 
@@ -285,13 +336,15 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 		onDone();
 	};
 
-	const handleKeypadSubmit = () => {
+	const handleStageDone = () => {
 		if (isSubmitting) return;
 
 		if (phase === 'enter') {
+			// 自动提交只在满 6 位时触发，长度已由键盘保证；形态校验保留作防御
 			if (!PIN_PATTERN.test(pin)) {
 				setError(t('setup.weak'));
 				setShakeKey((k) => k + 1);
+				setPin('');
 				return;
 			}
 			setError(null);
@@ -302,8 +355,10 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 		if (confirmPin !== pin) {
 			setError(t('setup.mismatch'));
 			setShakeKey((k) => k + 1);
-			// 清空确认值并留在 confirm，让用户重新输入第二遍
+			// 回到首遍并清空两值：用户可能第一遍就输错了，停在 confirm 只会反复对不上
+			setPin('');
 			setConfirmPin('');
+			setPhase('enter');
 			return;
 		}
 
@@ -346,9 +401,11 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 			<PinKeypad
 				value={value}
 				onChange={handleChange}
-				onSubmit={handleKeypadSubmit}
-				minLength={6}
-				maxLength={8}
+				onSubmit={handleStageDone}
+				minLength={PIN_LENGTH}
+				maxLength={PIN_LENGTH}
+				autoSubmitAt={PIN_LENGTH}
+				showConfirm={false}
 				disabled={isSubmitting}
 				error={!!error}
 				shakeKey={shakeKey}
