@@ -7,18 +7,15 @@ import {
 	QrCode,
 	Check,
 	AlertCircle,
-	Link2,
 	Shield,
-	Copy,
 	Download,
 } from 'lucide-react';
-import { useAuth, extractApiErrorMessage } from '@autional/shared';
+import { useAuth } from '@autional/shared';
 import QrScanner, { type LoginScanResult } from '@/components/QrScanner';
 import { useAuthenticatorStore } from '@/lib/store';
-import { validateSecret, generateTOTP } from '@/lib/totp';
+import { validateSecret } from '@/lib/totp';
 import BottomNav from '@/components/BottomNav';
 import { showToast } from '@autional/ui';
-import { enableTotp, verifyTotpSetup } from '@/lib/api';
 import type { MigratedAccount } from '@/lib/otpauth-migration';
 import { useSignIn } from '@/lib/use-sign-in';
 import {
@@ -28,7 +25,7 @@ import {
 } from '@/lib/pending-approval';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
-type Tab = 'manual' | 'qr' | 'bind';
+type Tab = 'manual' | 'qr';
 
 export default function AddAccountPage() {
 	const navigate = useNavigate();
@@ -37,7 +34,7 @@ export default function AddAccountPage() {
 	const { t } = useTranslation();
 	const addAccount = useAuthenticatorStore((s) => s.addAccount);
 	const accounts = useAuthenticatorStore((s) => s.accounts);
-	const { user, isAuthenticated } = useAuth();
+	const { isAuthenticated } = useAuth();
 	const { signIn, dialog } = useSignIn();
 
 	const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'qr' ? 'qr' : 'manual');
@@ -83,17 +80,6 @@ export default function AddAccountPage() {
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState(false);
 
-	// Bind from Autional state
-	const [bindStep, setBindStep] = useState<'init' | 'qr' | 'verify'>('init');
-	const [bindLoading, setBindLoading] = useState(false);
-	const [bindError, setBindError] = useState<string | null>(null);
-	const [bindSecret, setBindSecret] = useState('');
-	const [bindQrCode, setBindQrCode] = useState('');
-	const [bindBackupCodes, setBindBackupCodes] = useState<string[]>([]);
-	const [verifyCode, setVerifyCode] = useState('');
-	const [bindName, setBindName] = useState('Autional');
-	const [bindUsername, setBindUsername] = useState(user?.email || user?.username || '');
-
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
 		setError(null);
@@ -134,84 +120,6 @@ export default function AddAccountPage() {
 		setTimeout(() => navigate(toSlugged('/', slug)), 1200);
 	};
 
-	const handleBindStart = async () => {
-		setBindLoading(true);
-		setBindError(null);
-		try {
-			// enableTotp() 经 @autional/shared interceptor 解包，返回即 data 对象（{secret, qrCode, backupCodes}）
-			const data = await enableTotp();
-			if (!data?.secret) {
-				setBindError(t('add.bindNoSecret'));
-				setBindLoading(false);
-				return;
-			}
-			setBindSecret(data.secret);
-			setBindQrCode(data.qrCode || '');
-			setBindBackupCodes(data.backupCodes || []);
-			setBindStep('qr');
-		} catch (err: unknown) {
-			setBindError(extractApiErrorMessage(err, t('add.bindFetchFailed')));
-		} finally {
-			setBindLoading(false);
-		}
-	};
-
-	const handleBindVerify = async () => {
-		if (!verifyCode.trim() || verifyCode.length !== 6) {
-			setBindError(t('add.bindVerifyWrong'));
-			return;
-		}
-		setBindLoading(true);
-		setBindError(null);
-		try {
-			const userId = user?.id;
-			if (!userId) {
-				// Fallback: try to verify locally
-				const result = await generateTOTP(bindSecret, 30, 6, 'SHA1');
-				if (result.code !== verifyCode.trim()) {
-					setBindError(t('add.bindVerifyWrong'));
-					setBindLoading(false);
-					return;
-				}
-			} else {
-				await verifyTotpSetup(verifyCode.trim(), userId);
-			}
-
-			// Add account
-			const exists = accounts.some(
-				(a) => a.secret === bindSecret && a.username === bindUsername.trim(),
-			);
-			if (exists) {
-				setBindError(t('add.bindDuplicate'));
-				setBindLoading(false);
-				return;
-			}
-
-			addAccount({
-				name: bindName.trim() || 'Autional',
-				username: bindUsername.trim() || 'default',
-				secret: bindSecret,
-				type: 'totp',
-				algorithm: 'SHA1',
-				digits: 6,
-				period: 30,
-			});
-
-			setBindStep('verify');
-			showToast(t('add.bindSuccess'), 'success');
-			setTimeout(() => navigate(toSlugged('/', slug)), 1500);
-		} catch (err: unknown) {
-			setBindError(extractApiErrorMessage(err, t('add.bindVerifyFailed')));
-		} finally {
-			setBindLoading(false);
-		}
-	};
-
-	const handleCopySecret = async () => {
-		await navigator.clipboard.writeText(bindSecret);
-		showToast(t('copied'), 'success');
-	};
-
 	return (
 		<div className="flex min-h-full flex-col">
 			<header className="sticky top-0 z-10 flex items-center gap-3 border-b border-auth-border bg-auth-bg/80 h-[var(--layout-header-height)] px-4 backdrop-blur-md">
@@ -230,10 +138,7 @@ export default function AddAccountPage() {
 				{[
 					{ key: 'manual' as Tab, label: t('add.manualTab'), icon: Keyboard },
 					{ key: 'qr' as Tab, label: t('add.qrTab'), icon: QrCode },
-					{ key: 'bind' as Tab, label: t('add.bindTab'), icon: Link2 },
 				]
-					// 本地模式（未登录）隐藏「Autional 绑定」：该页签要调 /mfa/totp/enable
-					.filter((item) => isAuthenticated || item.key !== 'bind')
 					.map((tabItem) => (
 					<button
 						key={tabItem.key}
@@ -474,168 +379,6 @@ export default function AddAccountPage() {
 					</div>
 				)}
 
-				{tab === 'bind' && (
-					<div>
-						{bindStep === 'init' && (
-							<form
-								onSubmit={(e) => {
-									e.preventDefault();
-									handleBindStart();
-								}}
-								className="space-y-4"
-							>
-								<div className="flex flex-col items-center rounded-xl border border-auth-border bg-auth-surface p-6 text-center">
-									<div className="flex h-14 w-14 items-center justify-center rounded-md bg-primary-500/10 mb-3">
-										<Shield className="h-7 w-7 text-primary-500" />
-									</div>
-									<h2 className="text-base font-semibold text-[var(--color-text-primary)]">{t('add.bindTitle')}</h2>
-									<p className="mt-1 text-xs text-[var(--color-text-secondary)] max-w-[240px]">{t('add.bindDesc')}</p>
-								</div>
-
-								<div>
-									<label
-										htmlFor="bind-name"
-										className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
-									>
-										{t('add.serviceName')}
-									</label>
-									<input
-										id="bind-name"
-										name="bind_service_name"
-										type="text"
-										value={bindName}
-										onChange={(e) => setBindName(e.target.value)}
-										placeholder="Autional"
-										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
-									/>
-								</div>
-								<div>
-									<label
-										htmlFor="bind-username"
-										className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
-									>
-										{t('add.username')}
-									</label>
-									<input
-										id="bind-username"
-										name="bind_username"
-										type="text"
-										value={bindUsername}
-										onChange={(e) => setBindUsername(e.target.value)}
-										placeholder={user?.email || user?.username || 'your@email.com'}
-										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
-									/>
-								</div>
-
-								{bindError && (
-									<div className="flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]">
-										<AlertCircle className="h-4 w-4 shrink-0" />
-										{bindError}
-									</div>
-								)}
-
-								<button
-									type="submit"
-									disabled={bindLoading}
-									className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] disabled:opacity-50 transition-all"
-								>
-									{bindLoading ? t('add.bindFetching') : t('add.bindGetSecret')}
-								</button>
-							</form>
-						)}
-
-						{bindStep === 'qr' && (
-							<form
-								onSubmit={(e) => {
-									e.preventDefault();
-									handleBindVerify();
-								}}
-								className="space-y-4"
-							>
-								<div className="flex flex-col items-center rounded-xl border border-auth-border bg-auth-surface p-6 text-center">
-									{bindQrCode ? (
-										<img src={bindQrCode} alt="TOTP QR Code" className="h-48 w-48 rounded-lg" />
-									) : (
-										<div className="flex h-48 w-48 items-center justify-center rounded-lg bg-auth-elevated">
-											<QrCode className="h-16 w-16 text-[var(--color-text-muted)]" />
-										</div>
-									)}
-									<p className="mt-3 text-sm font-medium text-[var(--color-text-primary)]">{t('add.bindScanQR')}</p>
-									<p className="text-xs text-[var(--color-text-secondary)]">{t('add.bindScanQRHint')}</p>
-								</div>
-
-								<div className="rounded-xl border border-auth-border bg-auth-surface p-4">
-									<div className="flex items-center justify-between">
-										<span className="text-xs text-[var(--color-text-secondary)]">{t('add.secret')}</span>
-										<button
-											onClick={handleCopySecret}
-											className="flex items-center gap-1 text-xs text-primary-400 hover:text-primary-300"
-										>
-											<Copy className="h-3 w-3" />
-											{t('copy')}
-										</button>
-									</div>
-									<code className="mt-1 block break-all text-sm font-mono text-[var(--color-text-secondary)]">
-										{bindSecret}
-									</code>
-								</div>
-
-								{bindBackupCodes.length > 0 && (
-									<div className="rounded-xl border border-warning/20 bg-warning/5 p-4">
-										<p className="text-xs font-medium text-[var(--color-warning-text)]">
-											{t('add.bindBackupCodesWarning')}
-										</p>
-										<div className="mt-2 grid grid-cols-2 gap-1.5">
-											{bindBackupCodes.map((code, i) => (
-												<code key={i} className="text-center text-xs font-mono text-[var(--color-text-secondary)]">
-													{code}
-												</code>
-											))}
-										</div>
-									</div>
-								)}
-
-								<div>
-									<label
-										htmlFor="bind-verify-code"
-										className="mb-1.5 block text-xs font-medium text-[var(--color-text-secondary)]"
-									>
-										{t('add.bindCodeLabel')}
-									</label>
-									<input
-										id="bind-verify-code"
-										name="bind_verify_code"
-										type="text"
-										inputMode="numeric"
-										pattern="[0-9]*"
-										maxLength={6}
-										value={verifyCode}
-										onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
-										placeholder="123456"
-										autoComplete="off"
-										data-form-type="other"
-										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-center text-lg font-mono tracking-[0.3em] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
-									/>
-								</div>
-
-								{bindError && (
-									<div className="flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]">
-										<AlertCircle className="h-4 w-4 shrink-0" />
-										{bindError}
-									</div>
-								)}
-
-								<button
-									type="submit"
-									disabled={bindLoading || verifyCode.length !== 6}
-									className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] disabled:opacity-50 transition-all"
-								>
-									{bindLoading ? t('add.bindVerifying') : t('add.bindVerify')}
-								</button>
-							</form>
-						)}
-					</div>
-				)}
 			</div>
 
 			<BottomNav />

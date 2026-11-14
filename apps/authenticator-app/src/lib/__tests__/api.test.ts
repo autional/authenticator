@@ -4,7 +4,6 @@ const { mockGeneratedApi } = vi.hoisted(() => ({
 	mockGeneratedApi: {
 		mfaTotpDisablePost: vi.fn(),
 		mfaBackupCodesGeneratePost: vi.fn(),
-		mfaTotpEnablePost: vi.fn(),
 		mfaBackupCodesCount: vi.fn(),
 	},
 }));
@@ -14,7 +13,7 @@ vi.mock('@autional/shared', async (importOriginal) => ({
 	GeneratedApi: mockGeneratedApi,
 }));
 
-import { disableTotp, generateBackupCodes, enableTotp, getBackupCodesCount } from '../api';
+import { disableTotp, generateBackupCodes, getBackupCodesCount } from '../api';
 
 describe('disableTotp', () => {
 	it('calls GeneratedApi with code', async () => {
@@ -29,14 +28,6 @@ describe('generateBackupCodes', () => {
 		mockGeneratedApi.mfaBackupCodesGeneratePost.mockResolvedValue(undefined);
 		await generateBackupCodes();
 		expect(mockGeneratedApi.mfaBackupCodesGeneratePost).toHaveBeenCalledWith({});
-	});
-});
-
-describe('enableTotp', () => {
-	it('calls GeneratedApi with empty body', async () => {
-		mockGeneratedApi.mfaTotpEnablePost.mockResolvedValue(undefined);
-		await enableTotp();
-		expect(mockGeneratedApi.mfaTotpEnablePost).toHaveBeenCalledWith({});
 	});
 });
 

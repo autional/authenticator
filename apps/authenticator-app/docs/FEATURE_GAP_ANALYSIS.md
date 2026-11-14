@@ -11,7 +11,7 @@
 - P0-2 账户分类/分组 ✅ (6 预设分组 + 自定义)
 - P0-3 账户详情与编辑 ✅
 - P0-4 账户图标/Logo 自动识别 ✅ (BrandIcon 组件)
-- P0-5 TOTP 一键同步后端 (Autional 绑定) ✅
+- P0-5 TOTP 一键同步后端 (Autional 绑定) ❌ wontfix（2026-11-15，ADR-027：认证器不提供服务端种子派发入口）
 - P0-6 深色/浅色主题切换 ✅
 - P0-7 网络状态指示 ✅ (NetworkStatus 组件)
 - P1-8 活动/安全日志页面 ✅
@@ -141,6 +141,7 @@ P7: 恢复场景用户 (Recovery User)
   - 根据 issuer/name 自动匹配图标
 
 #### 5. TOTP 一键同步后端（账户绑定）
+> 状态：已否决（ADR-027，2026-11-15）。保留原文仅供溯源。
 - **现状**: `add` 页面只能手动输入 secret，没有从后端获取 TOTP 的功能
 - **影响**: 用户必须手动从服务端复制 secret，容易出错
 - **后端能力**: `POST /mfa/totp/enable` 可生成 secret + QR 码
@@ -307,7 +308,7 @@ P7: 恢复场景用户 (Recovery User)
 
 ### Phase B: 后端 API 对接（1-2 周）
 1. 首页显示用户 MFA 状态（对接 `/auth/me` + `/mfa/status`）
-2. 新增「从 Autional 绑定」TOTP 流程（对接 `/mfa/totp/enable`）
+2. 新增「从 Autional 绑定」TOTP 流程（对接 `/mfa/totp/enable`）（已否决）
 3. Settings 备份码管理（对接 `/mfa/backup-codes`）
 4. 设备管理列表（对接 `/push/subscriptions`）
 

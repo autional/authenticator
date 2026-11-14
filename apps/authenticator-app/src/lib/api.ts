@@ -15,14 +15,6 @@ export async function getMfaStatus(userId: string): Promise<GeneratedTypes.MFASt
 	return await GeneratedApi.mfaStatusByStatus(userId);
 }
 
-export async function enableTotp(): Promise<GeneratedTypes.TOTPEnableResponse> {
-	return await GeneratedApi.mfaTotpEnablePost({});
-}
-
-export async function verifyTotpSetup(code: string, userId: string) {
-	return await GeneratedApi.mfaTotpVerifyPost({ code, user_id: userId });
-}
-
 export async function disableTotp(code: string) {
 	return await GeneratedApi.mfaTotpDisablePost({ code });
 }

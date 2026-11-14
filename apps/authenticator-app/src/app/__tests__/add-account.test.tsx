@@ -132,11 +132,10 @@ describe('AddAccountPage', () => {
 			expect(screen.getByRole('heading', { name: '添加账户' })).toBeInTheDocument();
 		});
 
-		it('renders all 3 tabs visible', () => {
+		it('renders both tabs visible', () => {
 			renderAddAccount();
 			expect(screen.getByText('手动输入')).toBeInTheDocument();
 			expect(screen.getByText('扫一扫')).toBeInTheDocument();
-			expect(screen.getByText('Autional 绑定')).toBeInTheDocument();
 		});
 
 		it('renders bottom nav', () => {
@@ -263,7 +262,7 @@ describe('AddAccountPage', () => {
 			expect(await screen.findByTestId('qr-scanner')).toBeInTheDocument();
 		});
 
-		it('本地模式：隐藏 Autional 绑定页签，扫码登录给出可操作出路（不留黑屏）', async () => {
+		it('本地模式：扫码登录给出可操作出路（不留黑屏）', async () => {
 			authState.isAuthenticated = false;
 			render(
 				<MemoryRouter initialEntries={['/local/add']}>
@@ -272,7 +271,6 @@ describe('AddAccountPage', () => {
 					</Routes>
 				</MemoryRouter>,
 			);
-			expect(screen.queryByText('Autional 绑定')).not.toBeInTheDocument();
 			await act(async () => {
 				fireEvent.click(screen.getByText('扫一扫'));
 			});
@@ -371,20 +369,11 @@ describe('AddAccountPage', () => {
 			);
 		});
 
-		it('switches to Autional bind tab and shows bind heading', async () => {
-			renderAddAccount();
-			const bindTab = screen.getByText('Autional 绑定');
-			await act(async () => {
-				fireEvent.click(bindTab);
-			});
-			expect(screen.getByText('从 Autional 绑定 TOTP')).toBeInTheDocument();
-		});
-
 		it('switching back to manual tab shows form again', async () => {
 			renderAddAccount();
-			const bindTab = screen.getByText('Autional 绑定');
+			const qrTab = screen.getByText('扫一扫');
 			await act(async () => {
-				fireEvent.click(bindTab);
+				fireEvent.click(qrTab);
 			});
 			const manualTab = screen.getByText('手动输入');
 			await act(async () => {
@@ -404,46 +393,6 @@ describe('AddAccountPage', () => {
 				fireEvent.click(screen.getByRole('button', { name: 'manual-fallback-stub' }));
 			});
 			expect(screen.getByLabelText(/服务名称/)).toBeInTheDocument();
-		});
-	});
-
-	describe('Autional bind tab', () => {
-		it('renders bind description text', async () => {
-			renderAddAccount();
-			const bindTab = screen.getByText('Autional 绑定');
-			await act(async () => {
-				fireEvent.click(bindTab);
-			});
-			expect(screen.getByText(/一键从 Autional 后端获取 TOTP 密钥/)).toBeInTheDocument();
-		});
-
-		it('renders pre-filled service name input', async () => {
-			renderAddAccount();
-			const bindTab = screen.getByText('Autional 绑定');
-			await act(async () => {
-				fireEvent.click(bindTab);
-			});
-			const serviceInput = screen.getByDisplayValue('Autional');
-			expect(serviceInput).toBeInTheDocument();
-		});
-
-		it('renders pre-filled username input from auth store', async () => {
-			renderAddAccount();
-			const bindTab = screen.getByText('Autional 绑定');
-			await act(async () => {
-				fireEvent.click(bindTab);
-			});
-			const usernameInput = screen.getByDisplayValue('dev@example.com');
-			expect(usernameInput).toBeInTheDocument();
-		});
-
-		it('renders "获取 TOTP 密钥" button', async () => {
-			renderAddAccount();
-			const bindTab = screen.getByText('Autional 绑定');
-			await act(async () => {
-				fireEvent.click(bindTab);
-			});
-			expect(screen.getByRole('button', { name: '获取 TOTP 密钥' })).toBeInTheDocument();
 		});
 	});
 
