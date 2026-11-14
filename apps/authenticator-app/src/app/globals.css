@@ -38,3 +38,20 @@
   letter-spacing: 0.15em;
   user-select: all;
 }
+
+/* PIN 键盘错误抖动（PinKeypad）：只在错误时抖一次，reduced-motion 下直接关掉 */
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
+}
+
+.pin-shake {
+  animation: pin-shake 420ms cubic-bezier(0.36, 0.07, 0.19, 0.97);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pin-shake { animation: none; }
+}

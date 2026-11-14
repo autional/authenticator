@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 
 /**
  * 硬强制设锁：无 PIN 的库冷启动必须先设置 PIN（无跳过入口），
@@ -64,6 +64,50 @@ describe('UnlockGate：强制设锁', () => {
 		expect(screen.queryByTestId('app-content')).toBeNull();
 		// 硬强制：没有跳过按钮
 		expect(screen.queryByRole('button', { name: /跳过|skip/i })).toBeNull();
-		expect(screen.getByRole('button', { name: '设置并进入' })).toBeInTheDocument();
+		// 设锁输入面是自绘数字键盘（无输入框 → 不会弹系统键盘/保存密码）
+		expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
+		expect(screen.getByText('输入 6-8 位数字')).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: '设置并进入' })).toBeNull();
+	});
+
+	it('设锁两阶段：确认不一致 → 提示并清空；一致 → 写入 PIN 后进入', async () => {
+		render(
+			<UnlockGate>
+				<div data-testid="app-content" />
+			</UnlockGate>,
+		);
+		await waitFor(() => expect(screen.getByText('先给应用加把锁')).toBeInTheDocument());
+
+		const press = (digits: string) =>
+			digits.split('').forEach((d) => fireEvent.click(screen.getByRole('button', { name: d })));
+		const confirm = () => fireEvent.click(screen.getByRole('button', { name: '确认' }));
+
+		// 第一阶段：6 位 → 进 confirm
+		press('123456');
+		confirm();
+		await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
+
+		// 首遍输错也有出口：重设 → 回到 enter 并清空
+		fireEvent.click(screen.getByRole('button', { name: '重设 PIN' }));
+		await waitFor(() => expect(screen.getByText('输入 6-8 位数字')).toBeInTheDocument());
+		expect(screen.getByText('已输入 0 位')).toBeInTheDocument();
+
+		press('123456');
+		confirm();
+		await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
+
+		// 第二阶段第一次：不一致 → 报错 + 清空确认值（确认键回到 disabled）
+		press('654321');
+		confirm();
+		await waitFor(() => expect(screen.getByText('两次输入不一致')).toBeInTheDocument());
+		expect(screen.getByRole('button', { name: '确认' })).toBeDisabled();
+		expect(storage.setPinProtection).not.toHaveBeenCalled();
+
+		// 第二阶段第二次：一致 → 落库并进入应用
+		press('123456');
+		confirm();
+		await waitFor(() => expect(storage.setPinProtection).toHaveBeenCalledWith('123456'));
+		expect(storeState.setHasPin).toHaveBeenCalledWith(true);
+		await waitFor(() => expect(screen.getByTestId('app-content')).toBeInTheDocument());
 	});
 });

@@ -125,7 +125,7 @@ describe('AU-17 密码表单语义', () => {
 		expect(onDecrypt).toHaveBeenCalledTimes(1);
 	});
 
-	it('解锁屏：pin 输入具 name/id 且在 form 内，form 含 hidden username', async () => {
+	it('解锁屏：PIN 走自绘数字键盘（无密码输入框、无表单提交语义）', async () => {
 		const { container } = render(
 			<UnlockScreen>
 				<div />
@@ -133,14 +133,13 @@ describe('AU-17 密码表单语义', () => {
 		);
 		await act(async () => {});
 
-		// 掩码文本（-webkit-text-security）在支持的浏览器上是 type=text；jsdom 不支持则回落 password。
-		// 断言不依赖 type —— 只锁「不是登录表单」的语义：autocomplete=off + 仍在 form 内。
-		const pin = container.querySelector('#unlock-pin-input')!;
-		expect(pin.getAttribute('name')).toBe('pin');
-		expect(pin.getAttribute('autocomplete')).toBe('off');
-		const form = pin.closest('form');
-		expect(form).not.toBeNull();
-		expect(form!.querySelector('input[autocomplete="username"]')).not.toBeNull();
-		expect(screen.getByRole('button', { name: /解锁/ })).toBeInTheDocument();
+		// 系统键盘/密码管理器的诱因（input + form）必须彻底消失
+		expect(container.querySelector('input[type="password"]')).toBeNull();
+		expect(container.querySelector('#unlock-pin-input')).toBeNull();
+		expect(container.querySelector('form')).toBeNull();
+
+		expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: '确认' })).toBeInTheDocument();
 	});
 });

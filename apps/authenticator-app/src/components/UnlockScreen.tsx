@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Lock, ShieldCheck, AlertCircle, Fingerprint } from 'lucide-react';
+import { ShieldCheck, AlertCircle, Fingerprint } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { showToast } from '@autional/ui';
 import { useAuthenticatorStore } from '@/lib/store';
+import PinKeypad from '@/components/PinKeypad';
 import {
 	unlockWithPin,
 	hasPinProtection,
@@ -26,25 +27,17 @@ import { setCeremonyActive } from '@/lib/app-lock';
 
 type UnlockMode = 'bio' | 'pin';
 
-/** 掩码文本能力探测：Chrome/Safari 支持 -webkit-text-security，可避开密码管理器误判登录表单。 */
-function supportsTextMask(): boolean {
-	return typeof CSS !== 'undefined' && typeof CSS.supports === 'function'
-		? CSS.supports('-webkit-text-security', 'disc')
-		: false;
-}
-
 function PinInputScreen() {
 	const [pin, setPin] = useState('');
 	const [error, setError] = useState<string | null>(null);
+	const [shakeKey, setShakeKey] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [bioUsable, setBioUsable] = useState(false);
 	const [mode, setMode] = useState<UnlockMode>('pin');
 	const { t } = useTranslation();
 	const loadAccounts = useAuthenticatorStore((s) => s.loadAccounts);
 	const setHasPin = useAuthenticatorStore((s) => s.setHasPin);
-	const pinRef = useRef<HTMLInputElement>(null);
 	const autoTriedRef = useRef(false);
-	const maskSupported = supportsTextMask();
 
 	// 探测生物识别能力：可用即把默认视图切到「生物识别优先」
 	useEffect(() => {
@@ -64,11 +57,6 @@ function PinInputScreen() {
 			cancelled = true;
 		};
 	}, []);
-
-	// 只有 PIN 视图需要聚焦输入框（生物识别视图不应抢焦点）
-	useEffect(() => {
-		if (mode === 'pin') pinRef.current?.focus();
-	}, [mode]);
 
 	/** fromUser=false 表示自动尝试：失败文案用中性提示，不吓人 */
 	const unlockWithPrf = useCallback(
@@ -106,13 +94,14 @@ function PinInputScreen() {
 		void unlockWithPrf(false);
 	}, [mode, bioUsable, unlockWithPrf]);
 
-	const handleUnlock = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const handleUnlock = useCallback(async () => {
+		if (isSubmitting) return;
 		setError(null);
 
 		// 存量库可能是 4 位 PIN，这里不能提高下限（读取兼容）
-		if (!pin || pin.length < 4) {
+		if (pin.length < 4) {
 			setError(t('unlock.pinTooShort'));
+			setShakeKey((k) => k + 1);
 			return;
 		}
 
@@ -123,10 +112,11 @@ function PinInputScreen() {
 			setHasPin(true);
 		} catch {
 			setError(t('unlock.pinWrong'));
+			setShakeKey((k) => k + 1);
 		} finally {
 			setIsSubmitting(false);
 		}
-	};
+	}, [isSubmitting, loadAccounts, pin, setHasPin, t]);
 
 	if (mode === 'bio') {
 		return (
@@ -170,100 +160,69 @@ function PinInputScreen() {
 				<ShieldCheck className="h-10 w-10 text-primary-500" />
 			</div>
 			<h1 className="mb-2 text-xl font-bold text-[var(--color-text-primary)]">{t('app.title')}</h1>
-			<p className="mb-8 text-sm text-[var(--color-text-secondary)]">
+			<p className="mb-6 text-sm text-[var(--color-text-secondary)]">
 				{bioUsable ? t('unlock.bioOrPin') : t('unlock.enterPin')}
 			</p>
 
-			<form
-				onSubmit={handleUnlock}
-				className="w-full max-w-xs space-y-4"
-				aria-label={t('unlock.pinUnlockAria')}
-			>
-				{/* AU-17：密码类输入需同表单 username 语义（Chromium 可访问性启发式） */}
-				<input
-					type="text"
-					name="username"
-					autoComplete="username"
-					tabIndex={-1}
-					aria-hidden="true"
-					className="hidden"
-					defaultValue=""
-				/>
-				{error && (
-					<div className="flex items-center gap-2 rounded-xl bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]">
-						<AlertCircle className="h-4 w-4 shrink-0" />
-						{error}
-					</div>
-				)}
-				<div className="relative">
-					<Lock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
-					<input
-						id="unlock-pin-input"
-						ref={pinRef}
-						name="pin"
-						type={maskSupported ? 'text' : 'password'}
-						style={
-							maskSupported
-								? ({ WebkitTextSecurity: 'disc' } as React.CSSProperties)
-								: undefined
-						}
-						inputMode="numeric"
-						pattern="[0-9]*"
-						maxLength={8}
-						value={pin}
-						onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-						placeholder={t('unlock.pinPlaceholder')}
-						autoComplete="off"
-						data-form-type="other"
-						data-lpignore="true"
-						data-1p-ignore="true"
-						data-bwignore="true"
-						aria-label={t('unlock.pinAria')}
-						className="w-full rounded-xl border border-auth-border bg-auth-elevated py-3 pl-10 pr-4 text-center text-lg font-mono tracking-widest text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
-					/>
-				</div>
-				<button
-					type="submit"
-					disabled={isSubmitting}
-					className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] disabled:opacity-50 transition-all"
+			{error && (
+				<div
+					role="alert"
+					className="mb-4 flex w-full max-w-xs items-center gap-2 rounded-xl bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]"
 				>
-					{isSubmitting ? t('unlock.unlocking') : t('unlock.unlock')}
-				</button>
+					<AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+					{error}
+				</div>
+			)}
 
-				{bioUsable && (
-					<button
-						type="button"
-						onClick={() => void unlockWithPrf(true)}
-						disabled={isSubmitting}
-						className="flex w-full items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-surface py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-auth-elevated transition-all disabled:opacity-50"
-					>
-						<Fingerprint className="h-4 w-4" />
-						{t('unlock.useBiometric')}
-					</button>
-				)}
-			</form>
+			<PinKeypad
+				value={pin}
+				onChange={setPin}
+				onSubmit={() => void handleUnlock()}
+				// 存量 4 位 PIN 必须仍能解锁，不能提高到 6
+				minLength={4}
+				maxLength={8}
+				disabled={isSubmitting}
+				error={!!error}
+				shakeKey={shakeKey}
+				footer={
+					isSubmitting ? (
+						<p className="mt-6 text-xs text-[var(--color-text-secondary)]">{t('unlock.unlocking')}</p>
+					) : bioUsable ? (
+						<button
+							type="button"
+							onClick={() => void unlockWithPrf(true)}
+							className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-surface py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-auth-elevated transition-all"
+						>
+							<Fingerprint className="h-4 w-4" aria-hidden="true" />
+							{t('unlock.useBiometric')}
+						</button>
+					) : undefined
+				}
+			/>
 		</main>
 	);
 }
 
+type SetupPhase = 'enter' | 'confirm';
+
 /**
  * 强制设锁：无 PIN 的库（新装 / 老版本升级）冷启动时必须先设置 PIN 才能使用。
  * 没有跳过入口 —— PIN 是生物识别凭据丢失后唯一的恢复通道。
+ * 两阶段（enter → confirm）用同一个自绘键盘，避免两个输入框 + 系统键盘。
  */
 function SetupLockScreen({ onDone }: { onDone: () => void }) {
 	const { t } = useTranslation();
 	const setHasPin = useAuthenticatorStore((s) => s.setHasPin);
+	const [phase, setPhase] = useState<SetupPhase>('enter');
 	const [pin, setPin] = useState('');
 	const [confirmPin, setConfirmPin] = useState('');
 	const [error, setError] = useState<string | null>(null);
+	const [shakeKey, setShakeKey] = useState(0);
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [bioAvailable, setBioAvailable] = useState(false);
 	const [enableBio, setEnableBio] = useState(false);
-	const pinRef = useRef<HTMLInputElement>(null);
-	const maskSupported = supportsTextMask();
 
 	useEffect(() => {
-		pinRef.current?.focus();
 		let cancelled = false;
 		isBiometricAvailable().then((avail) => {
 			if (!cancelled) setBioAvailable(avail);
@@ -273,25 +232,32 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 		};
 	}, []);
 
-	const handleSubmit = async (e: React.FormEvent) => {
-		e.preventDefault();
+	const value = phase === 'enter' ? pin : confirmPin;
+
+	const handleChange = (next: string) => {
+		if (phase === 'enter') setPin(next);
+		else setConfirmPin(next);
+		// 重新输入即清错：提示与抖动只针对上一次提交
+		if (error) setError(null);
+	};
+
+	/** 确认阶段退回重输：首遍输错时不给出口，用户会被困在无法跳过的设锁屏里 */
+	const restart = () => {
+		setPin('');
+		setConfirmPin('');
 		setError(null);
+		setPhase('enter');
+	};
 
-		if (!PIN_PATTERN.test(pin)) {
-			setError(t('setup.weak'));
-			return;
-		}
-		if (pin !== confirmPin) {
-			setError(t('setup.mismatch'));
-			return;
-		}
-
+	const finish = async (finalPin: string) => {
+		setError(null);
 		setIsSubmitting(true);
 		try {
-			await setPinProtection(pin);
+			await setPinProtection(finalPin);
 			setHasPin(true);
 		} catch {
 			setError(t('setup.failed'));
+			setShakeKey((k) => k + 1);
 			setIsSubmitting(false);
 			return;
 		}
@@ -319,9 +285,30 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 		onDone();
 	};
 
-	const maskStyle = maskSupported
-		? ({ WebkitTextSecurity: 'disc' } as React.CSSProperties)
-		: undefined;
+	const handleKeypadSubmit = () => {
+		if (isSubmitting) return;
+
+		if (phase === 'enter') {
+			if (!PIN_PATTERN.test(pin)) {
+				setError(t('setup.weak'));
+				setShakeKey((k) => k + 1);
+				return;
+			}
+			setError(null);
+			setPhase('confirm');
+			return;
+		}
+
+		if (confirmPin !== pin) {
+			setError(t('setup.mismatch'));
+			setShakeKey((k) => k + 1);
+			// 清空确认值并留在 confirm，让用户重新输入第二遍
+			setConfirmPin('');
+			return;
+		}
+
+		void finish(pin);
+	};
 
 	return (
 		<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6">
@@ -331,97 +318,58 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 			<h1 className="mb-2 text-center text-xl font-bold text-[var(--color-text-primary)]">
 				{t('setup.title')}
 			</h1>
-			<p className="mb-8 text-center text-sm text-[var(--color-text-secondary)]">
-				{t('setup.desc')}
+			<p className="mb-2 text-center text-sm text-[var(--color-text-secondary)]">{t('setup.desc')}</p>
+			<p className="mb-4 flex items-center gap-2 text-center text-xs text-[var(--color-text-muted)]">
+				{phase === 'enter' ? t('setup.hintEnter') : t('setup.hintConfirm')}
+				{phase === 'confirm' && (
+					<button
+						type="button"
+						onClick={restart}
+						disabled={isSubmitting}
+						className="underline underline-offset-2 hover:text-[var(--color-text-secondary)] disabled:opacity-50"
+					>
+						{t('setup.hintRestart')}
+					</button>
+				)}
 			</p>
 
-			<form
-				onSubmit={handleSubmit}
-				className="w-full max-w-xs space-y-4"
-				aria-label={t('setup.title')}
-			>
-				{error && (
-					<div className="flex items-center gap-2 rounded-xl bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]">
-						<AlertCircle className="h-4 w-4 shrink-0" />
-						{error}
-					</div>
-				)}
-
-				<div>
-					<label
-						htmlFor="setup-pin-input"
-						className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]"
-					>
-						{t('setup.pinLabel')}
-					</label>
-					<input
-						id="setup-pin-input"
-						ref={pinRef}
-						name="pin"
-						type={maskSupported ? 'text' : 'password'}
-						style={maskStyle}
-						inputMode="numeric"
-						pattern="[0-9]*"
-						maxLength={8}
-						value={pin}
-						onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-						placeholder={t('setup.pinLabel')}
-						autoComplete="off"
-						data-form-type="other"
-						data-lpignore="true"
-						data-1p-ignore="true"
-						data-bwignore="true"
-						className="w-full rounded-xl border border-auth-border bg-auth-elevated px-4 py-3 text-center text-lg font-mono tracking-widest text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
-					/>
-				</div>
-
-				<div>
-					<label
-						htmlFor="setup-pin-confirm"
-						className="mb-1 block text-xs font-medium text-[var(--color-text-secondary)]"
-					>
-						{t('setup.confirmLabel')}
-					</label>
-					<input
-						id="setup-pin-confirm"
-						name="pin_confirm"
-						type={maskSupported ? 'text' : 'password'}
-						style={maskStyle}
-						inputMode="numeric"
-						pattern="[0-9]*"
-						maxLength={8}
-						value={confirmPin}
-						onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))}
-						placeholder={t('setup.confirmLabel')}
-						autoComplete="off"
-						data-form-type="other"
-						data-lpignore="true"
-						data-1p-ignore="true"
-						data-bwignore="true"
-						className="w-full rounded-xl border border-auth-border bg-auth-elevated px-4 py-3 text-center text-lg font-mono tracking-widest text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
-					/>
-				</div>
-
-				{bioAvailable && (
-					<label className="flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
-						<input
-							type="checkbox"
-							checked={enableBio}
-							onChange={(e) => setEnableBio(e.target.checked)}
-							className="h-4 w-4 rounded border-auth-border"
-						/>
-						{t('setup.bioOption')}
-					</label>
-				)}
-
-				<button
-					type="submit"
-					disabled={isSubmitting}
-					className="w-full rounded-xl bg-primary-600 py-3 text-sm font-semibold text-white hover:bg-primary-500 active:scale-[0.98] disabled:opacity-50 transition-all"
+			{error && (
+				<div
+					role="alert"
+					className="mb-4 flex w-full max-w-xs items-center gap-2 rounded-xl bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]"
 				>
-					{isSubmitting ? t('settings.pinSaving') : t('setup.submit')}
-				</button>
-			</form>
+					<AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+					{error}
+				</div>
+			)}
+
+			<PinKeypad
+				value={value}
+				onChange={handleChange}
+				onSubmit={handleKeypadSubmit}
+				minLength={6}
+				maxLength={8}
+				disabled={isSubmitting}
+				error={!!error}
+				shakeKey={shakeKey}
+				footer={
+					bioAvailable ? (
+						<label className="mt-6 flex items-center gap-2 text-xs text-[var(--color-text-secondary)]">
+							<input
+								type="checkbox"
+								checked={enableBio}
+								onChange={(e) => setEnableBio(e.target.checked)}
+								className="h-4 w-4 rounded border-auth-border"
+							/>
+							{t('setup.bioOption')}
+						</label>
+					) : undefined
+				}
+			/>
+
+			{isSubmitting && (
+				<p className="mt-4 text-xs text-[var(--color-text-secondary)]">{t('settings.pinSaving')}</p>
+			)}
 		</main>
 	);
 }
