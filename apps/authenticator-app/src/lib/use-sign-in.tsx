@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useParams } from 'react-router';
 import { buildLoginUrl, initiateOAuthLogin, isOAuthEnabled } from '@autional/shared';
 import { readLastTenantSlug, rememberTenantSlug } from './slug';
+import { APP_LOGIN_SCOPES } from './login-scope';
 import TenantPickerDialog from '../components/TenantPickerDialog';
 
 /**
@@ -33,7 +34,7 @@ export function useSignIn() {
 		rememberTenantSlug(normalized);
 		const target = buildSignInTarget(normalized);
 		if (isOAuthEnabled()) {
-			void initiateOAuthLogin(undefined, target);
+			void initiateOAuthLogin(undefined, target, { scope: APP_LOGIN_SCOPES });
 			return;
 		}
 		window.location.href = buildLoginUrl(target);

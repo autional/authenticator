@@ -35,6 +35,8 @@ function errorMessageKey(error: unknown): string {
 				return 'settings.pushSubscribeFailed';
 			case 'register-failed':
 				return 'settings.pushRegisterFailed';
+			case 'register-forbidden':
+				return 'settings.pushRegisterForbidden';
 			case 'register-rejected':
 				return 'settings.pushRegisterRejected';
 			case 'register-offline':
@@ -48,6 +50,11 @@ function errorMessageKey(error: unknown): string {
 	return 'settings.pushFailed';
 }
 
+/** 只有「令牌 scope 不足」这一种失败能靠重新登录修好（refresh 继承旧 scope）。 */
+function needsRelogin(error: unknown): boolean {
+	return error instanceof PushNotificationError && error.code === 'register-forbidden';
+}
+
 function hintMessageKey(state: PushNotificationState): string | null {
 	if (state === 'unsupported') return 'settings.pushUnsupportedHint';
 	if (state === 'ios-not-installed') return 'settings.pushIosHint';
@@ -55,12 +62,13 @@ function hintMessageKey(state: PushNotificationState): string | null {
 	return null;
 }
 
-export default function SettingsBackgroundPush() {
+export default function SettingsBackgroundPush({ onRelogin }: { onRelogin?: () => void } = {}) {
 	const { t } = useTranslation();
 	const hintId = useId();
 	const [state, setState] = useState<PushNotificationState | null>(null);
 	const [busy, setBusy] = useState(false);
 	const [error, setError] = useState('');
+	const [errorNeedsRelogin, setErrorNeedsRelogin] = useState(false);
 
 	// 卸载后不再 setState（进页面时的状态探测是异步的）
 	const aliveRef = useRef(true);
@@ -88,6 +96,7 @@ export default function SettingsBackgroundPush() {
 		if (busy || state === null || isPushBlocked(state)) return;
 		setBusy(true);
 		setError('');
+		setErrorNeedsRelogin(false);
 		try {
 			if (state === 'subscribed') {
 				await disablePush();
@@ -98,7 +107,10 @@ export default function SettingsBackgroundPush() {
 			}
 		} catch (err) {
 			// 失败保持原状态：开关不回弹成"成功"，也不假装已关闭
-			if (aliveRef.current) setError(t(errorMessageKey(err)));
+			if (aliveRef.current) {
+				setError(t(errorMessageKey(err)));
+				setErrorNeedsRelogin(needsRelogin(err));
+			}
 		} finally {
 			if (aliveRef.current) setBusy(false);
 		}
@@ -166,7 +178,16 @@ export default function SettingsBackgroundPush() {
 						role="alert"
 						className="mx-4 mb-3 rounded-lg bg-danger-soft px-3 py-2 text-xs text-danger-text"
 					>
-						{error}
+						<p>{error}</p>
+						{errorNeedsRelogin && onRelogin && (
+							<button
+								type="button"
+								onClick={onRelogin}
+								className="mt-2 rounded-lg border border-danger-text/40 px-3 py-1 text-xs font-medium text-danger-text transition-colors hover:bg-danger-text/10"
+							>
+								{t('settings.pushRelogin')}
+							</button>
+						)}
 					</div>
 				)}
 			</div>

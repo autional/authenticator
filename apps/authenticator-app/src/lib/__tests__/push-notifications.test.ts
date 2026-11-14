@@ -227,17 +227,45 @@ describe('enablePush · 调用顺序与失败语义', () => {
 	});
 
 	// P0-2026-11-14 回归：登记失败必须回滚本次新建的浏览器订阅（不留半订阅态）
-	it('登记被 4xx 明确拒绝 → register-rejected，并退订本次新建的浏览器订阅', async () => {
+	it('登记被 403 拒绝（令牌缺 write scope）→ register-forbidden，并退订本次新建的浏览器订阅', async () => {
 		mockRegister.mockRejectedValue(
 			Object.assign(new Error('Request failed with status code 403'), {
 				isAxiosError: true,
-				response: { status: 403, data: { code: 40300001 } },
+				response: {
+					status: 403,
+					data: { code: 40300001, required_missing: 'write' },
+				},
+			}),
+		);
+
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-forbidden' });
+		expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+		expect(window.localStorage.getItem(PUSH_ENDPOINT_STORAGE_KEY)).toBeNull();
+	});
+
+	it('登记被非 403 的 4xx 拒绝 → register-rejected，并按同样语义回滚', async () => {
+		mockRegister.mockRejectedValue(
+			Object.assign(new Error('Request failed with status code 400'), {
+				isAxiosError: true,
+				response: { status: 400, data: { code: 40000001 } },
 			}),
 		);
 
 		await expect(enablePush()).rejects.toMatchObject({ code: 'register-rejected' });
 		expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
 		expect(window.localStorage.getItem(PUSH_ENDPOINT_STORAGE_KEY)).toBeNull();
+	});
+
+	it('403 与其它 4xx 必须区分：前者只能靠重新登录修（refresh 继承旧 scope）', async () => {
+		mockRegister.mockRejectedValueOnce(
+			Object.assign(new Error('403'), { isAxiosError: true, response: { status: 403 } }),
+		);
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-forbidden' });
+
+		mockRegister.mockRejectedValueOnce(
+			Object.assign(new Error('409'), { isAxiosError: true, response: { status: 409 } }),
+		);
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-rejected' });
 	});
 
 	it('登记请求没到服务端（离线/无 response）→ register-offline，并按同样语义回滚', async () => {

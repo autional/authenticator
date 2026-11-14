@@ -173,3 +173,55 @@ describe('SettingsBackgroundPush · 开关行为', () => {
 		expect(toggle()).not.toBeDisabled();
 	});
 });
+
+describe('SettingsBackgroundPush · 403 登录权限不足', () => {
+	/**
+	 * 令牌缺 `write` scope 时服务端返回 403（required_missing:"write"）。
+	 * 旧 refresh 继承旧 scope ⇒ 重试同一个令牌永远是 403，只能重新登录。
+	 * 因此该分支必须：① 说清是权限问题；② 给「重新登录」入口。
+	 */
+	it('403 → 文案「登录权限不足，请退出后重新登录」+ 出现「重新登录」按钮', async () => {
+		mockEnable.mockRejectedValue(new PushNotificationError('register-forbidden'));
+		const onRelogin = vi.fn();
+		render(<SettingsBackgroundPush onRelogin={onRelogin} />);
+		await flushInitialState();
+
+		await act(async () => {
+			fireEvent.click(toggle());
+		});
+
+		expect(screen.getByRole('alert')).toHaveTextContent('登录权限不足，请退出后重新登录');
+		const relogin = screen.getByRole('button', { name: '重新登录' });
+		fireEvent.click(relogin);
+		expect(onRelogin).toHaveBeenCalledTimes(1);
+		// 开关仍是关闭：不假装登记成功
+		expect(toggle().getAttribute('aria-checked')).toBe('false');
+	});
+
+	it('没有 onRelogin 时只报错、不渲染按钮（组件可独立使用）', async () => {
+		mockEnable.mockRejectedValue(new PushNotificationError('register-forbidden'));
+		render(<SettingsBackgroundPush />);
+		await flushInitialState();
+
+		await act(async () => {
+			fireEvent.click(toggle());
+		});
+
+		expect(screen.getByRole('alert')).toHaveTextContent('登录权限不足');
+		expect(screen.queryByRole('button', { name: '重新登录' })).toBeNull();
+	});
+
+	it('非 403 的失败不提供「重新登录」（避免误导用户重登无关问题）', async () => {
+		mockEnable.mockRejectedValue(new PushNotificationError('register-rejected'));
+		const onRelogin = vi.fn();
+		render(<SettingsBackgroundPush onRelogin={onRelogin} />);
+		await flushInitialState();
+
+		await act(async () => {
+			fireEvent.click(toggle());
+		});
+
+		expect(screen.queryByRole('button', { name: '重新登录' })).toBeNull();
+		expect(onRelogin).not.toHaveBeenCalled();
+	});
+});

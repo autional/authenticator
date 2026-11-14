@@ -382,8 +382,9 @@ export default function SettingsPage() {
 				<SettingsAppearance theme={theme} onToggle={toggleTheme} />
 
 				{/* 后台审批通知：SSE 已覆盖前台，这里只补「锁屏/切后台」；默认关闭，登录态才有意义
-				    （订阅登记需要服务端账号；本地模式下开关会一直注册失败）。 */}
-				{isAuthenticated && <SettingsBackgroundPush />}
+				    （订阅登记需要服务端账号；本地模式下开关会一直注册失败）。
+				    403（令牌缺 write scope）时给「重新登录」入口：旧 refresh 继承旧 scope，只有重登能修。 */}
+				{isAuthenticated && <SettingsBackgroundPush onRelogin={signIn} />}
 
 				<section>
 					<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">

@@ -45,8 +45,10 @@ export type PushNotificationErrorCode =
 	| 'permission-denied'
 	| 'vapid-failed'
 	| 'subscribe-failed'
-	/** 服务端登记被**明确拒绝**（4xx）：重试无用，需重新登录/排查账号或设备绑定 */
+	/** 服务端登记被**明确拒绝**（非 403 的 4xx）：重试无用，需排查账号或设备绑定 */
 	| 'register-rejected'
+	/** 403：登录令牌 scope 不足（缺 `write`）。旧令牌的 refresh 继承旧 scope，**必须重新登录** */
+	| 'register-forbidden'
 	/** 登记请求没到服务端（离线/超时/CORS）：网络类，可重试 */
 	| 'register-offline'
 	/** 服务端 5xx/429 等可重试失败 */
@@ -220,6 +222,9 @@ function classifyRegisterFailure(error: unknown): PushNotificationErrorCode {
 	if (typeof status === 'number') {
 		// 408/429 = 限流/超时，属"稍后重试"；其余 4xx = 请求本身不被接受
 		if (status === 408 || status === 429) return 'register-failed';
+		// 403 = 令牌 scope 不足（notification 写方法强制 RequireScopes("write")）。
+		// 刷新令牌继承签发时的 scope，所以只有「重新登录」能修，重试同一个令牌永远 403。
+		if (status === 403) return 'register-forbidden';
 		if (status >= 400 && status < 500) return 'register-rejected';
 		return 'register-failed';
 	}
