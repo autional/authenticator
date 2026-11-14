@@ -2,8 +2,10 @@ import { lazy, Suspense, useEffect } from 'react';
 import type { ReactNode } from 'react';
 import { Routes, Route, Outlet, useParams, Navigate, useLocation } from 'react-router';
 import { useTranslation } from 'react-i18next';
-import { rememberTenantSlug, useSessionTenantSlug } from './lib/slug';
+import { rememberTenantSlug, useSessionTenantSlug, useTenantSlug } from './lib/slug';
 import { useSignIn } from './lib/use-sign-in';
+import { useMfaSsoAutoSignIn } from './lib/use-mfa-sso';
+import MfaSsoButton from './components/MfaSsoButton';
 import {
 	OAuthCallbackPage,
 	TenantSlugProvider,
@@ -117,6 +119,10 @@ function ServerOnly({ children }: { children: ReactNode }) {
 	const { t } = useTranslation();
 	const { isAuthenticated } = useAuth();
 	const { signIn, dialog } = useSignIn();
+	const tenantSlug = useTenantSlug();
+
+	// 「用本机验证器登录」回跳后静默续跑一次（`?mfa_sso=1`，一次性）。
+	useMfaSsoAutoSignIn(signIn, isAuthenticated);
 
 	if (isAuthenticated) return <>{children}</>;
 
@@ -130,6 +136,7 @@ function ServerOnly({ children }: { children: ReactNode }) {
 			>
 				{t('signIn.action')}
 			</button>
+			<MfaSsoButton slug={tenantSlug} onFallback={signIn} />
 			{dialog}
 		</div>
 	);
