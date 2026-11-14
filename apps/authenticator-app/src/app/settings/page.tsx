@@ -23,6 +23,7 @@ import SettingsSecurityScore from '@/components/settings/SettingsSecurityScore';
 import SettingsBiometric from '@/components/settings/SettingsBiometric';
 import SettingsBackupCodes from '@/components/settings/SettingsBackupCodes';
 import SettingsPinProtection from '@/components/settings/SettingsPinProtection';
+import { lockVault } from '@/lib/app-lock';
 import {
 	registerBiometric,
 	hasBiometricRegistered,
@@ -411,6 +412,20 @@ export default function SettingsPage() {
 							pinMessage={pinMessage}
 							onSave={handlePinSave}
 						/>
+
+						{/* 手动锁定：立即清掉内存密钥与账户缓存，回首页需要重新验证 */}
+						<div className="px-4 py-3">
+							<button
+								type="button"
+								onClick={() => {
+									lockVault('manual');
+									navigate(toSlugged('/', slug));
+								}}
+								className="w-full rounded-lg border border-auth-border bg-auth-surface py-2 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-auth-elevated"
+							>
+								{t('settings.lockNow')}
+							</button>
+						</div>
 
 						{isAuthenticated && (
 							<>

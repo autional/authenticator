@@ -612,6 +612,8 @@ export default function AddAccountPage() {
 										value={verifyCode}
 										onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
 										placeholder="123456"
+										autoComplete="off"
+										data-form-type="other"
 										className="w-full rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-center text-lg font-mono tracking-[0.3em] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 									/>
 								</div>

@@ -133,10 +133,12 @@ describe('AU-17 密码表单语义', () => {
 		);
 		await act(async () => {});
 
-		const password = container.querySelector('input[type="password"]')!;
-		expect(password.getAttribute('name')).toBe('pin');
-		expect(password.getAttribute('id')).toBe('unlock-pin-input');
-		const form = password.closest('form');
+		// 掩码文本（-webkit-text-security）在支持的浏览器上是 type=text；jsdom 不支持则回落 password。
+		// 断言不依赖 type —— 只锁「不是登录表单」的语义：autocomplete=off + 仍在 form 内。
+		const pin = container.querySelector('#unlock-pin-input')!;
+		expect(pin.getAttribute('name')).toBe('pin');
+		expect(pin.getAttribute('autocomplete')).toBe('off');
+		const form = pin.closest('form');
 		expect(form).not.toBeNull();
 		expect(form!.querySelector('input[autocomplete="username"]')).not.toBeNull();
 		expect(screen.getByRole('button', { name: /解锁/ })).toBeInTheDocument();

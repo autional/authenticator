@@ -136,7 +136,9 @@ useAuthenticatorStore.subscribe((state, prevState) => {
 	if (state.accounts !== prevState.accounts && state.isUnlocked) {
 		if (saveTimeout) clearTimeout(saveTimeout);
 		saveTimeout = setTimeout(() => {
-			import('./storage').then(({ saveAccounts }) => {
+			import('./storage').then(({ saveAccounts, getDeviceKey }) => {
+				// 已锁定（内存设备钥已清）时静默跳过：本次改动会在下次解锁后的状态里重新落盘
+				if (!getDeviceKey()) return;
 				saveAccounts(state.accounts).catch((err) => {
 					console.error('Failed to save accounts:', err);
 				});

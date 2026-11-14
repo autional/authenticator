@@ -11,8 +11,8 @@ import App from './App';
 import './non-tenant-segments';
 import './app/globals.css';
 import { initializeStorage } from './lib/storage';
-import { clearSessionKeys } from './lib/session-keys';
 import { setupPwaLifecycle } from './lib/pwa-lifecycle';
+import { initAppLock } from './lib/app-lock';
 import ErrorBoundary from './components/ErrorBoundary';
 
 const queryClient = new QueryClient({
@@ -73,7 +73,9 @@ async function bootstrap() {
 	}
 }
 
+// 应用锁：切后台超时/绝对超时的自动重新验证（一次挂载，全局生效）
+initAppLock();
 setupPwaLifecycle();
-// 页面卸载/刷新时清掉内存密钥（不删密文）
-window.addEventListener('pagehide', clearSessionKeys);
+// 内存密钥的清理不再挂在 pagehide：pagehide 在切后台/进 bfcache 时也触发，
+// 会造成「界面已解锁但密钥已清」的矛盾态（此时落盘会失败）。改由 app-lock 在锁定时清理。
 bootstrap();
