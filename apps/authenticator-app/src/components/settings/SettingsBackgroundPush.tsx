@@ -35,6 +35,10 @@ function errorMessageKey(error: unknown): string {
 				return 'settings.pushSubscribeFailed';
 			case 'register-failed':
 				return 'settings.pushRegisterFailed';
+			case 'register-rejected':
+				return 'settings.pushRegisterRejected';
+			case 'register-offline':
+				return 'settings.pushRegisterOffline';
 			case 'unbind-failed':
 				return 'settings.pushUnbindFailed';
 			default:

@@ -225,6 +225,55 @@ describe('enablePush · 调用顺序与失败语义', () => {
 		await expect(pending).rejects.toMatchObject({ code: 'register-failed' });
 		expect(window.localStorage.getItem(PUSH_ENDPOINT_STORAGE_KEY)).toBeNull();
 	});
+
+	// P0-2026-11-14 回归：登记失败必须回滚本次新建的浏览器订阅（不留半订阅态）
+	it('登记被 4xx 明确拒绝 → register-rejected，并退订本次新建的浏览器订阅', async () => {
+		mockRegister.mockRejectedValue(
+			Object.assign(new Error('Request failed with status code 403'), {
+				isAxiosError: true,
+				response: { status: 403, data: { code: 40300001 } },
+			}),
+		);
+
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-rejected' });
+		expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+		expect(window.localStorage.getItem(PUSH_ENDPOINT_STORAGE_KEY)).toBeNull();
+	});
+
+	it('登记请求没到服务端（离线/无 response）→ register-offline，并按同样语义回滚', async () => {
+		mockRegister.mockRejectedValue(
+			Object.assign(new Error('Network Error'), { isAxiosError: true, code: 'ERR_NETWORK' }),
+		);
+
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-offline' });
+		expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+	});
+
+	it('服务端 5xx → register-failed（可重试），仍回滚本次新建订阅', async () => {
+		mockRegister.mockRejectedValue(
+			Object.assign(new Error('internal'), { isAxiosError: true, response: { status: 502 } }),
+		);
+
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-failed' });
+		expect(mockUnsubscribe).toHaveBeenCalledTimes(1);
+	});
+
+	it('本次之前就存在的浏览器订阅 → 登记失败时**不**退订（可能对应更早的成功登记）', async () => {
+		Object.defineProperty(navigator, 'serviceWorker', {
+			configurable: true,
+			value: {
+				getRegistration: async () => ({
+					pushManager: { getSubscription: async () => subscription },
+				}),
+			},
+		});
+		mockRegister.mockRejectedValue(
+			Object.assign(new Error('internal'), { isAxiosError: true, response: { status: 500 } }),
+		);
+
+		await expect(enablePush()).rejects.toMatchObject({ code: 'register-failed' });
+		expect(mockUnsubscribe).not.toHaveBeenCalled();
+	});
 });
 
 describe('disablePush · 解绑与本地记录', () => {

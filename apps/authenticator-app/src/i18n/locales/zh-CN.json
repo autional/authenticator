@@ -91,6 +91,8 @@
   "settings.pushDeniedHint": "通知权限已被拒绝，请在系统设置中允许",
   "settings.pushPermissionDenied": "未获得通知权限，已保持关闭",
   "settings.pushRegisterFailed": "设备登记失败，请稍后重试",
+  "settings.pushRegisterRejected": "服务端拒绝了本次设备登记，重试无效。请重新登录后再开启；仍失败请联系管理员",
+  "settings.pushRegisterOffline": "网络不可达，未能完成设备登记。请检查网络后重试",
   "settings.pushUnbindFailed": "解绑失败，本机记录已保留，请稍后重试",
   "settings.activityRecord": "活动记录",
   "settings.registeredDevices": "已注册设备",

@@ -19,6 +19,8 @@
  *
  * 失败语义：enable/disable 失败一律抛 PushNotificationError（带 code），调用方据此给出
  * 可读错误并**保持开关状态不变** —— 不假装成功，也不擅自清本地记录。
+ * 登记失败的 code 分三类（rejected / offline / failed），供调用方给出可行动文案；
+ * 且**本次新建**的浏览器订阅会被回滚（不在「浏览器已订阅、服务端无登记」的半订阅态停留）。
  */
 
 import {
@@ -43,6 +45,11 @@ export type PushNotificationErrorCode =
 	| 'permission-denied'
 	| 'vapid-failed'
 	| 'subscribe-failed'
+	/** 服务端登记被**明确拒绝**（4xx）：重试无用，需重新登录/排查账号或设备绑定 */
+	| 'register-rejected'
+	/** 登记请求没到服务端（离线/超时/CORS）：网络类，可重试 */
+	| 'register-offline'
+	/** 服务端 5xx/429 等可重试失败 */
 	| 'register-failed'
 	| 'unbind-failed';
 
@@ -203,9 +210,33 @@ function subscriptionKeys(subscription: PushSubscription | null): {
 }
 
 /**
+ * 登记失败分类：把「服务端明确拒绝 / 网络不可达 / 可重试的 5xx」分开，
+ * 好让调用方给出**可行动**的文案 —— 4xx 一律说「稍后重试」会让用户永远重试同一个不可修复状态。
+ * 结构判定（isAxiosError + response.status），不引入 axios 运行时依赖。
+ */
+function classifyRegisterFailure(error: unknown): PushNotificationErrorCode {
+	const err = error as { isAxiosError?: boolean; response?: { status?: number } } | null;
+	const status = err?.response?.status;
+	if (typeof status === 'number') {
+		// 408/429 = 限流/超时，属"稍后重试"；其余 4xx = 请求本身不被接受
+		if (status === 408 || status === 429) return 'register-failed';
+		if (status >= 400 && status < 500) return 'register-rejected';
+		return 'register-failed';
+	}
+	// 无 response 的 axios 错误 = 请求没拿到应答（离线/DNS/超时/CORS）
+	if (err?.isAxiosError) return 'register-offline';
+	return 'register-failed';
+}
+
+/**
  * 开启：请求权限 → 取 VAPID 公钥 → 浏览器订阅 → 服务端登记 → 写本地记录。
  * 顺序不可换：权限没拿到就不要去订阅（iOS 上会留下永远沉默的订阅），
  * 服务端没登记成功就不要写本地记录（否则关闭时会去解绑一个不存在的 endpoint）。
+ *
+ * 回滚语义（P0-2026-11-14）：登记失败时，若浏览器订阅是**本次新建**的，立刻退订 ——
+ * 否则会留在「浏览器已订阅、服务端无登记」的半订阅态：推送永远送不到，用户以为已开启；
+ * 下次点开关又会拿同一个 endpoint 走重复登记。本次之前就存在的订阅**不动**（它可能对应
+ * 一次更早的成功登记，退订会误伤）。服务端已按 (user, tenant, endpoint) 幂等，重试安全。
  */
 export async function enablePush(): Promise<string> {
 	if (!isPushSupported()) throw new PushNotificationError('unsupported');
@@ -222,6 +253,7 @@ export async function enablePush(): Promise<string> {
 	}
 	if (!vapidPublicKey) throw new PushNotificationError('vapid-failed');
 
+	const endpointBefore = await currentBrowserEndpoint();
 	const subscription = await subscribeBrowserPush(vapidPublicKey);
 	const { endpoint, p256dh, auth } = subscriptionKeys(subscription);
 	if (!endpoint || !p256dh || !auth) throw new PushNotificationError('subscribe-failed');
@@ -234,8 +266,15 @@ export async function enablePush(): Promise<string> {
 			device_type: pushDeviceType(),
 			user_agent: typeof navigator !== 'undefined' ? navigator.userAgent : '',
 		});
-	} catch {
-		throw new PushNotificationError('register-failed');
+	} catch (error) {
+		if (endpoint !== endpointBefore) {
+			try {
+				await unsubscribeBrowserPush();
+			} catch {
+				/* 回滚失败不掩盖原始登记错误：下次开启会重新走同一路径 */
+			}
+		}
+		throw new PushNotificationError(classifyRegisterFailure(error), String(error));
 	}
 
 	writeStoredPushEndpoint(endpoint);

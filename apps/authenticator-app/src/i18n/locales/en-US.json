@@ -91,6 +91,8 @@
   "settings.pushDeniedHint": "Notification permission is blocked — allow it in system settings",
   "settings.pushPermissionDenied": "Notification permission not granted — stays off",
   "settings.pushRegisterFailed": "Could not register this device, please retry later",
+  "settings.pushRegisterRejected": "The server rejected this device registration — retrying won't help. Sign in again; if it still fails, contact your administrator",
+  "settings.pushRegisterOffline": "Network unreachable — this device was not registered. Check your connection and retry",
   "settings.pushUnbindFailed": "Unbind failed — this device record is kept, please retry later",
   "settings.activityRecord": "Activity Log",
   "settings.registeredDevices": "Registered Devices",
