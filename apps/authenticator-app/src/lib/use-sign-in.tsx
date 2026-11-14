@@ -23,22 +23,30 @@ export function buildSignInTarget(slug: string): string {
 	return `${origin}/${slug}${suffix}`;
 }
 
+/**
+ * 用指定租户发起登录（OAuth 或跳登录页），保留当前页作为回跳地址。
+ *
+ * 独立导出：全局 banner（`ReloginNotice`）挂在路由树之外，拿不到 `:tenantSlug`，
+ * 但重新登录的语义必须与页面内登录**完全一致**（同一回跳、同一 scope）。
+ */
+export function startSignIn(slug: string): void {
+	const normalized = slug.trim().toLowerCase();
+	if (!normalized) return;
+	rememberTenantSlug(normalized);
+	const target = buildSignInTarget(normalized);
+	if (isOAuthEnabled()) {
+		void initiateOAuthLogin(undefined, target, { scope: APP_LOGIN_SCOPES });
+		return;
+	}
+	window.location.href = buildLoginUrl(target);
+}
+
 export function useSignIn() {
 	const { tenantSlug } = useParams<{ tenantSlug?: string }>();
 	const [open, setOpen] = useState(false);
 	const recent = readLastTenantSlug();
 
-	const doSignIn = (slug: string) => {
-		const normalized = slug.trim().toLowerCase();
-		if (!normalized) return;
-		rememberTenantSlug(normalized);
-		const target = buildSignInTarget(normalized);
-		if (isOAuthEnabled()) {
-			void initiateOAuthLogin(undefined, target, { scope: APP_LOGIN_SCOPES });
-			return;
-		}
-		window.location.href = buildLoginUrl(target);
-	};
+	const doSignIn = (slug: string) => startSignIn(slug);
 
 	const signIn = () => {
 		if (tenantSlug) {

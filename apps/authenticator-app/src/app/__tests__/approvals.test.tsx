@@ -36,6 +36,7 @@ import ApprovalsPage from '../approvals/page';
 import ApprovalLinkPage from '../a/page';
 import ApprovalCard from '../../components/ApprovalCard';
 import type { PendingApproval } from '../../lib/login-approval';
+import { showToast } from '@autional/ui';
 
 const PENDING_PATH = '/identity/api/v1/auth/login-approval/pending';
 
@@ -361,5 +362,99 @@ describe('/a/:code 短链落地', () => {
 			expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
 		});
 		expect(screen.getByRole('button', { name: '是我' })).toBeInTheDocument();
+	});
+});
+
+/**
+ * 防 MFA 疲劳（push bombing）：
+ *   ① 待审批 ≥ 3 → 顶部警示条；< 3 不出现（不误报偶发的 1~2 条）；
+ *   ② 「全部拒绝」→ 二次确认后逐条 deny，成功项移除并汇总提示；
+ *   ③ 部分失败：成功的移除、失败的**保留在列表上**（用户看得见也还能再点）；
+ *   ④ 取消确认 → 一条请求都不发。
+ */
+describe('/approvals 防 MFA 疲劳', () => {
+	const threeItems = ['100001', '100002', '100003'].map((code) => ({ ...pendingItem, code }));
+
+	it('待审批 ≥ 3 显示警示条；< 3 不显示', async () => {
+		mockGet.mockResolvedValue({ data: { items: threeItems } });
+		const first = renderApprovalsPage();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('mfa-fatigue-warning')).toBeInTheDocument();
+		});
+		expect(screen.getByTestId('mfa-fatigue-warning').textContent).toContain('多次登录请求');
+		first.unmount();
+
+		mockGet.mockResolvedValue({ data: { items: threeItems.slice(0, 2) } });
+		renderApprovalsPage();
+
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-100002')).toBeInTheDocument();
+		});
+		expect(screen.queryByTestId('mfa-fatigue-warning')).toBeNull();
+	});
+
+	it('「全部拒绝」→ 逐条 deny，全部成功后清空列表', async () => {
+		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+		mockGet.mockResolvedValue({ data: { items: threeItems } });
+
+		renderApprovalsPage();
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-100001')).toBeInTheDocument();
+		});
+		expect(screen.queryByTestId('deny-all')).toBeInTheDocument();
+
+		fireEvent.click(screen.getByTestId('deny-all'));
+
+		await waitFor(() => {
+			expect(screen.getByText('暂无待审批的登录请求')).toBeInTheDocument();
+		});
+		for (const item of threeItems) {
+			expect(mockPost).toHaveBeenCalledWith(
+				`/identity/api/v1/auth/login-approval/by-code/${item.code}/deny`,
+			);
+		}
+		expect(showToast).toHaveBeenCalledWith('已拒绝 3 条登录请求', 'success');
+		confirmSpy.mockRestore();
+	});
+
+	it('部分失败：成功的移除、失败的保留，并给出汇总提示', async () => {
+		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
+		mockGet.mockResolvedValue({ data: { items: threeItems } });
+		mockPost.mockImplementation((path: string) =>
+			path.includes('/100002/') ? Promise.reject({ response: { status: 410 } }) : Promise.resolve({ data: {} }),
+		);
+
+		renderApprovalsPage();
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-100001')).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByTestId('deny-all'));
+
+		await waitFor(() => {
+			expect(screen.queryByTestId('approval-card-100001')).toBeNull();
+		});
+		expect(screen.queryByTestId('approval-card-100003')).toBeNull();
+		// 失败的那条仍可见（不假装成功）
+		expect(screen.getByTestId('approval-card-100002')).toBeInTheDocument();
+		expect(showToast).toHaveBeenCalledWith('已拒绝 2 条，仍有 1 条未成功', 'warning');
+		confirmSpy.mockRestore();
+	});
+
+	it('取消二次确认 → 一条 deny 都不发，列表原样保留', async () => {
+		const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
+		mockGet.mockResolvedValue({ data: { items: threeItems } });
+
+		renderApprovalsPage();
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-100001')).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByTestId('deny-all'));
+
+		expect(mockPost).not.toHaveBeenCalled();
+		expect(screen.getByTestId('approval-card-100001')).toBeInTheDocument();
+		confirmSpy.mockRestore();
 	});
 });

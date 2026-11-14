@@ -8,8 +8,15 @@
  * 安全约束（2026-11-10）：订阅身份**只**来自票据（服务端由票据 claims 解出 tenant/user），
  * 前端**不传** user_id —— 避免"持自己的令牌订阅别人的消息"这类横向风险。
  * 登出/卸载即关闭连接；断线重连会重新申请票据，指数退避上限 30s。
+ *
+ * 令牌能力不足（票据 403）：`write` scope 只在登录时申请，老令牌**重试永远 403**。
+ * 此时不再指数退避（1s→2s→…→30s 只会刷屏日志），而是
+ *   ① 广播 `autional:needs-relogin` 全局信号（banner 提示重新登录）；
+ *   ② 状态置 `auth-required`；
+ *   ③ 降为 5 分钟一次的低频重试（换个标签页重新登录后仍能自愈，不靠刷新页面）。
  */
 import { API_BASE_URL, apiClient } from '@autional/shared';
+import { notifyNeedsRelogin } from './relogin';
 
 export interface StreamNotification {
 	id?: string;
@@ -20,7 +27,7 @@ export interface StreamNotification {
 	[key: string]: unknown;
 }
 
-export type StreamStatus = 'open' | 'error' | 'closed';
+export type StreamStatus = 'open' | 'error' | 'closed' | 'auth-required';
 
 export interface StreamHandle {
 	close(): void;
@@ -28,6 +35,12 @@ export interface StreamHandle {
 
 const TICKET_PATH = '/notification/api/v1/notifications/stream-ticket';
 const STREAM_PATH = '/notification/api/v1/notifications/stream';
+
+/**
+ * 票据 403 后的重试间隔：5 分钟一次（低频，只为「另一标签页重新登录」后自愈）。
+ * 常规断线仍走 1s→2s→…→30s 的指数退避。
+ */
+const AUTH_REQUIRED_RETRY_MS = 5 * 60_000;
 
 /** 流状态广播事件（detail = StreamStatus）。轮询侧据此决定兜底粒度。 */
 export const STREAM_STATUS_EVENT = 'autional:stream-status';
@@ -62,6 +75,15 @@ export async function createStreamTicket(): Promise<string> {
 	return ticket;
 }
 
+/**
+ * 是不是「令牌能力不足」类 403。
+ * 结构判定（axios 错误的 `response.status` / 归一错误自带的 `status`），不引入 axios 运行时依赖。
+ */
+export function isForbiddenError(error: unknown): boolean {
+	const err = error as { status?: number; response?: { status?: number } } | null;
+	return (err?.response?.status ?? err?.status) === 403;
+}
+
 export function openNotificationStream(opts: {
 	onNotification: (n: StreamNotification) => void;
 	onStatus?: (s: StreamStatus) => void;
@@ -81,6 +103,13 @@ export function openNotificationStream(opts: {
 		const delay = Math.min(30_000, 1_000 * 2 ** retry);
 		retry += 1;
 		timer = setTimeout(() => void connect(), delay);
+	};
+
+	/** 令牌能力不足：不刷屏重试，只留 5 分钟一次的低频自愈尝试。 */
+	const scheduleAuthRequired = () => {
+		if (closed) return;
+		retry = 0;
+		timer = setTimeout(() => void connect(), AUTH_REQUIRED_RETRY_MS);
 	};
 
 	const connect = async () => {
@@ -108,7 +137,14 @@ export function openNotificationStream(opts: {
 				emitStatus('error');
 				schedule();
 			};
-		} catch {
+		} catch (err) {
+			// 403 = 令牌缺 write scope：重新登录才能修，重试只会刷屏
+			if (isForbiddenError(err)) {
+				notifyNeedsRelogin('stream-ticket-403');
+				emitStatus('auth-required');
+				scheduleAuthRequired();
+				return;
+			}
 			emitStatus('error');
 			schedule();
 		}

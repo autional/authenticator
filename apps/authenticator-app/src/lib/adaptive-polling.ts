@@ -3,7 +3,9 @@
  *
  * 口径（2026-11-13 产品决定：SSE 优先、推送为可选后台补充）：
  *   - 通知流 `open` → 推送即时到达，轮询降级为 **60s 兜底**（防漏帧/重连窗口）；
- *   - 流非 `open`（`error`/`closed`/尚未建连）→ **15s**，与旧行为一致，不让体验变差；
+ *   - 流非 `open`（`error`/`closed`/`auth-required`/尚未建连）→ **15s**，与旧行为一致，不让体验变差；
+ *     `auth-required`（票据 403，令牌缺 write scope）同样落到 15s：SSE 修不好之前
+ *     轮询是**唯一**的数据来源，此时反而更不能降频；
  *   - 「非 open → open」或「页面由不可见变可见」→ **立即补拉一次**（这段空窗可能漏掉推送）；
  *   - 页面不可见时暂停（不空烧请求，也不因后台标签页放大服务端压力）。
  *
@@ -36,7 +38,9 @@ export function refreshModeFor(status: StreamStatus): RefreshMode {
 }
 
 function normalizeStatus(value: unknown): StreamStatus | null {
-	return value === 'open' || value === 'error' || value === 'closed' ? value : null;
+	return value === 'open' || value === 'error' || value === 'closed' || value === 'auth-required'
+		? value
+		: null;
 }
 
 /** 订阅流状态：初值取模块内当前状态（后挂载的页面不会错过已发生的 open）。 */
