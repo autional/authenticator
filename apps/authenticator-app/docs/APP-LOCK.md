@@ -1,7 +1,7 @@
 # 应用锁设计说明与注意事项
 
 > 适用范围：`apps/authenticator-app`（authenticator.autional.com / .cn）
-> 最近更新：2026-11-14（提交 `601c932` 之后）
+> 最近更新：2026-11-14（提交 `d8caba5` 之后）
 
 ## 1. 一句话结论
 
@@ -48,6 +48,15 @@ WebAuthn PRF 输出 (32B) ──PBKDF2×1──────┘                  
 
 注意：`main.tsx` 里**不要**再挂 `pagehide → clearSessionKeys`（切后台/进 bfcache 也触发，会造成「界面已解锁但密钥已清」，此时落盘必失败）。密钥只在锁定路径清理。
 
+### 4.1 失败尝试节流
+
+| 项 | 取值 |
+|---|---|
+| 阈值 | 连续失败 5 次 → 冷却 30 秒 |
+| 解锁屏 | 冷却中键盘禁用并显示倒计时；成功一次即清零；生物识别不受影响 |
+| 设置页改 PIN | `verifyPin` 同样受冷却约束，弹层区分「冷却中（剩 N 秒）」与「PIN 不正确」 |
+| 局限 | 计数存 localStorage，清站点数据/换浏览器即清零 —— 它挡的是「借来手机慢慢试」，不是离线爆破（离线爆破由 PIN 熵 + KDF 承担） |
+
 ## 5. 生物识别（WebAuthn PRF）
 
 - **必须以 PIN 为前提**：`setBiometricProtection()` 在无 PIN（明文 deviceKey）时会抛 `PIN_REQUIRED_FOR_BIOMETRIC` —— 否则只是「多挂一把锁，钥匙仍在门上」。
@@ -63,16 +72,17 @@ WebAuthn PRF 输出 (32B) ──PBKDF2×1──────┘                  
 - 交互：按压缩放、圆点填充、错误抖动 420ms、Android 震动 8ms（iOS 无 vibrate 静默降级）、长按删除键清空、`prefers-reduced-motion` 关闭动画。
 - 桌面保留物理键盘（数字/退格/回车），`Ctrl/Cmd/Alt+数字` 与焦点在可交互元素时的回车一律放行。
 - a11y：数字键是真实 `<button>` + `aria-label`，圆点区 `role="status"`，另有 `aria-live` 播报「已输入 N 位」。
+- 长按不会选中数字：键盘容器 `select-none` + `user-select/touch-callout: none` + `touch-action: manipulation`，并在容器级拦截 `contextmenu`（删除键的长按清空逻辑不受影响）。
 
-## 7. 开发期临时决策（上线前必须处理）
+## 7. 开发期临时决策
 
-| # | 事项 | 现状 | 上线前应改为 |
-|---|---|---|---|
-| 1 | 旧长度库处理 | 启动时检测 `pinLength !== 6` → 显示一次性重置页，一键清空本机数据 | 改为「能解锁就静默迁移」（保留用户数据） |
-| 2 | 重置页确认 | 一次点击即清空 | 增加二次确认 |
-| 3 | `verifyPin` 防爆破 | 无尝试计数/冷却 | 复用解锁路径的 5 次/30s 冷却 |
-| 4 | PIN 长度 | 固定 6 位 | 视产品再定；若放宽需同步 `PIN_PATTERN`、键盘 `minLength/maxLength`、`pinLength` |
-| 5 | 无 PIN 时的设置页入口 | `hasPin === false` 时设置页不显示「设 PIN」按钮（首设只在冷启动闸门） | 若允许在设置页补设，需给弹层加「跳过 verify」分支 |
+| # | 事项 | 状态 |
+|---|---|---|
+| 1 | 旧长度库处理 | ✅ 已闭环（`d8caba5`）：解锁键盘按库中 `pinLength` 放开 4-8 位，解锁成功后静默补写，**不再清空数据** |
+| 2 | 清空保险库的确认 | ✅ 已闭环：改为「忘记 PIN？」入口 + 弹层，危险按钮需点两次（5 秒无操作自动复位） |
+| 3 | `verifyPin` 防爆破 | ✅ 已闭环：接入 5 次/30s 冷却 |
+| 4 | PIN 长度 | ⏳ 固定 6 位；若放宽需同步 `PIN_PATTERN`、键盘 `minLength/maxLength`、`pinLength` 迁移 |
+| 5 | 无 PIN 时的设置页入口 | ⏳ `hasPin === false` 时设置页不显示「设 PIN」按钮（首设只在冷启动闸门）；若允许在设置页补设，需给弹层加「跳过 verify」分支 |
 
 ## 8. 已知限制与坑
 
@@ -82,6 +92,8 @@ WebAuthn PRF 输出 (32B) ──PBKDF2×1──────┘                  
 4. **前端锁不是安全边界**：`lockVault()` 只清内存，localStorage 密文仍在；真正的机密性来自 PIN/PRF 不在内存里。
 5. **`pagehide` 清理密钥是坑**（见 §4）。任何新增的「页面离开时清钥」逻辑，都必须同时把 `isUnlocked` 置 false。
 6. **iOS/Android 行为差异**：某些 OEM 的后台冻结会延迟 `visibilitychange`，表现为「该锁没锁」（漏判），不会误锁。
+7. **尝试计数是客户端状态**：存在 localStorage，可被清除；不要把它当防爆破手段。
+8. **旧长度库首次解锁仍有一次性成本**：`pinLength` 未知（更早的库）时会显示确认键，手敲 4 位就点确认会计一次失败；设置页会提示「当前 PIN 不是 6 位，建议重设」。
 
 ## 9. 线上验收指纹（本主题）
 
@@ -92,8 +104,9 @@ WebAuthn PRF 输出 (32B) ──PBKDF2×1──────┘                  
 | PIN 固定 6 位 | `当前 PIN 不是 6 位`（该键已删，仅旧版有）、`输入 6 位数字` |
 | 设置页弹层三步 | `修改应用锁 PIN`、`当前 PIN 不正确`、`新 PIN 不能与当前 PIN 相同` |
 | 旧库重置页 | `本地保险库需要重置`、`清空并重设`（仅开发期版本） |
+| 旧库迁移 + 忘记 PIN + 冷却 | `再点一次确认`、`忘记 PIN？`、`尝试次数过多` |
 
 ## 10. 测试基线
 
-- `pnpm --filter @autional/authenticator-app test` → 62 files / 566 tests（截至 `601c932`）
-- 覆盖要点：弱 PIN 拒绝、`pinKdfIterations` 写入、`verifyPin` 三态、自动提交一次、无确认键、弹层三步（错误的当前 PIN / 与当前相同 / 两次不一致 / 成功）、自动锁定（30s / 12h / ceremony 抑制 / bfcache 无钥）、强制设锁闸门、旧库重置闸门
+- `pnpm --filter @autional/authenticator-app test` → 63 files / 574 tests（截至 `d8caba5`）
+- 覆盖要点：弱 PIN 拒绝、`pinKdfIterations` 写入、`verifyPin` 三态、自动提交一次、无确认键、弹层三步（错误的当前 PIN / 与当前相同 / 两次不一致 / 成功）、自动锁定（30s / 12h / ceremony 抑制 / bfcache 无钥）、强制设锁闸门、旧库重置闸门、旧长度解锁 4 例、忘记 PIN 二次确认、解锁冷却 3 例、`verifyPin` 冷却
