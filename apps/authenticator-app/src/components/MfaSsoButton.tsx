@@ -4,6 +4,7 @@ import { KeyRound } from 'lucide-react';
 import { useAuthenticatorStore } from '@/lib/store';
 import { readLastTenantSlug } from '@/lib/slug';
 import { startMfaSsoLogin, navigateToLoginPage, usableMfaAccounts } from '@/lib/mfa-sso';
+import { reportMfaSsoFailure } from '@/lib/mfa-sso-report';
 import TenantPickerDialog from './TenantPickerDialog';
 
 /**
@@ -39,7 +40,10 @@ export default function MfaSsoButton({
 		try {
 			const loginUrl = await startMfaSsoLogin(selected, tenant);
 			navigateToLoginPage(loginUrl);
-		} catch {
+		} catch (error) {
+			// 与 useSignIn 同口径：静默回落但留痕（已脱敏，不含 secret / proof / ticket），
+			// 否则「点了没反应」在生产上没有任何可查线索。
+			reportMfaSsoFailure('ticket-exchange', error);
 			setBusy(false);
 			onFallback();
 		}

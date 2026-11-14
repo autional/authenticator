@@ -5,6 +5,7 @@ import { readLastTenantSlug, rememberTenantSlug } from './slug';
 import { APP_LOGIN_SCOPES } from './login-scope';
 import { useAuthenticatorStore } from './store';
 import { navigateToLoginPage, startMfaSsoLogin, usableMfaAccounts } from './mfa-sso';
+import { reportMfaSsoFailure } from './mfa-sso-report';
 import TenantPickerDialog from '../components/TenantPickerDialog';
 
 /**
@@ -117,8 +118,11 @@ export function useSignIn() {
 			let loginUrl: string;
 			try {
 				loginUrl = await startMfaSsoLogin(account, tenant);
-			} catch {
+			} catch (error) {
 				// 只回落、不提示细节：票据拿不到不算错误，用户只是需要多输一次密码。
+				// 但**必须**留痕（控制台 + 埋点，已脱敏）：全静默会让「一直登录不进去」
+				// 在生产上无从排查；这里也绝不输出 secret / proof / ticket。
+				reportMfaSsoFailure('ticket-exchange', error);
 				exchanging.current = false;
 				legacySignIn();
 				return;

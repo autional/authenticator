@@ -20,9 +20,12 @@ import { APP_LOGIN_SCOPES } from '@/lib/login-scope';
 export default function MfaSsoAutoSignIn() {
 	const { isAuthenticated } = useAuth();
 	// 稳定引用：hook 的 effect 依赖 signIn，内联箭头会让 effect 每次渲染都重跑。
-	const continueWithOAuth = useCallback(() => {
-		void initiateOAuthLogin(undefined, window.location.href, { scope: APP_LOGIN_SCOPES });
-	}, []);
+	// 返回 Promise（不 void 掉）：hook 需要感知发起失败并留痕，否则「自动续跑没跑起来」
+	// 在控制台里毫无痕迹，只能靠用户描述现象猜。
+	const continueWithOAuth = useCallback(
+		() => initiateOAuthLogin(undefined, window.location.href, { scope: APP_LOGIN_SCOPES }),
+		[],
+	);
 	useMfaSsoAutoSignIn(continueWithOAuth, isAuthenticated);
 	return null;
 }

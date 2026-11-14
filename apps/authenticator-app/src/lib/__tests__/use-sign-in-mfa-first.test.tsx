@@ -168,6 +168,31 @@ describe('useSignIn（默认优先本机票据）', () => {
 		expect(new URL(target).pathname).toBe('/acme/devices');
 	});
 
+	it('换票失败 → 静默回落但留下可诊断日志，且不含 secret / proof / ticket', async () => {
+		storeState = { accounts: [account('a1', 'admin@autional.com')] };
+		const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+		// 故意把敏感值拼进错误消息：日志端必须先脱敏再输出
+		mockStartMfaSsoLogin.mockRejectedValue(
+			new Error(`ticket=tid.secret secret=${SECRET} proof=cHJvb2Y denied`),
+		);
+
+		renderApp('/acme/devices', '/:tenantSlug/*');
+		await clickLogin();
+
+		await waitFor(() => expect(mockInitiateOAuthLogin).toHaveBeenCalledTimes(1));
+		expect(warn).toHaveBeenCalledTimes(1);
+		expect(String(warn.mock.calls[0][0])).toBe('[mfa-sso] ticket exchange failed');
+
+		const logged = warn.mock.calls
+			.map((args) => args.map((arg) => String(arg)).join(' '))
+			.join(' ');
+		expect(logged).not.toContain(SECRET);
+		expect(logged).not.toContain('tid.secret');
+		expect(logged).not.toContain('cHJvb2Y');
+
+		warn.mockRestore();
+	});
+
 	it('失败后可重试：guard 释放，再点仍会换票', async () => {
 		storeState = { accounts: [account('a1', 'admin@autional.com')] };
 		mockStartMfaSsoLogin.mockRejectedValueOnce(new Error('identity down'));
