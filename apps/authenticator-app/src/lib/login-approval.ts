@@ -15,6 +15,7 @@
  */
 
 import { apiClient, extractList } from '@autional/shared';
+import { semanticsOfError } from '@/lib/error-semantics';
 
 const PENDING_PATH = '/identity/api/v1/auth/login-approval/pending';
 
@@ -63,6 +64,32 @@ export async function approveByCode(code: string): Promise<void> {
 /** 拒绝（同上）。 */
 export async function denyByCode(code: string): Promise<void> {
 	await apiClient.post(byCodePath(code, 'deny'));
+}
+
+/**
+ * 审批动作失败的**语义归类**（409 / 404 与其它错误必须分开处理）。
+ *
+ * 用词无关码字面量：判定走 error-semantics 契约（`uiObservation`），
+ * 只在契约未收录该码（旧后端 / 新码先发前端）时按 HTTP 状态兜底：
+ *   - 409 conflict   → `61000903`「该请求已被处理或替代」（并发败者 / 已被别处处理 / 被新请求替代）
+ *   - 404 not_found  → `61000901`「已失效或不属于当前账号」
+ *   - other          → 走既有 extractApiError 文案，行为不变
+ */
+export type ApprovalFailure = 'conflict' | 'not_found' | 'other';
+
+export function classifyApprovalFailure(err: unknown): ApprovalFailure {
+	const http = (err as { response?: { status?: number } } | null | undefined)?.response?.status;
+	const observation = semanticsOfError(err)?.uiObservation;
+	if (observation === 'conflict') return 'conflict';
+	if (observation === 'not_found_page') {
+		// 契约把 404（不存在）与 410（已过期）同归 not_found_page。
+		// 这里只把 404 归为 not_found：410 保持既有「按接口原文提示 + 卡片留存」的表现，不改过期分支。
+		return http === 410 ? 'other' : 'not_found';
+	}
+	// 兜底：契约未命中时只认 HTTP 状态（与页面既有 429 判定同口径，不猜业务码）
+	if (http === 409) return 'conflict';
+	if (http === 404) return 'not_found';
+	return 'other';
 }
 
 /**

@@ -4,6 +4,7 @@ import { Button } from '@autional/ui';
 import { extractApiError } from '@autional/shared';
 import {
 	approveByCode,
+	classifyApprovalFailure,
 	denyByCode,
 	formatRemaining,
 	maskIp,
@@ -31,6 +32,11 @@ export interface ApprovalCardProps {
 	onResolved: (code: string, result: 'approved' | 'denied') => void;
 	/** 本地倒计时归零（父级移除该项） */
 	onExpired: (code: string) => void;
+	/**
+	 * 动作失败但该条已**不再是本账号的有效待审批**（409 已被处理/替代、404 已失效）→ 父级移除该条并刷新列表。
+	 * 不传时退回卡片内联提示（行为与旧版一致）。
+	 */
+	onStale?: (code: string, failure: 'conflict' | 'not_found') => void;
 }
 
 /** 上下文信号徽标的两档语义色（沿用 token，色不单独表意 —— 徽标始终带文字）。 */
@@ -69,7 +75,12 @@ function toContextSignals(
 	return signals;
 }
 
-export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCardProps) {
+export default function ApprovalCard({
+	item,
+	onResolved,
+	onExpired,
+	onStale,
+}: ApprovalCardProps) {
 	const { t } = useTranslation();
 	const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor(item.expiresIn)));
 	const [busy, setBusy] = useState<'' | 'approve' | 'deny'>('');
@@ -107,16 +118,27 @@ export default function ApprovalCard({ item, onResolved, onExpired }: ApprovalCa
 				else await denyByCode(item.code);
 				onResolved(item.code, result);
 			} catch (err) {
-				const fallback =
-					result === 'approved'
-						? t('approvals.approveFailed')
-						: t('approvals.denyFailed');
-				setError(extractApiError(err, fallback).message || fallback);
+				// 409（已被处理/替代）与 404（已失效/不属于当前账号）不是「系统错误」：
+				// 给事实性文案，并让父级把这条从待审批里清掉（否则用户对着死卡片反复点）。
+				const failure = classifyApprovalFailure(err);
+				if (failure === 'conflict') {
+					setError(t('approvals.conflictResolved'));
+					onStale?.(item.code, 'conflict');
+				} else if (failure === 'not_found') {
+					setError(t('approvals.notFoundDesc'));
+					onStale?.(item.code, 'not_found');
+				} else {
+					const fallback =
+						result === 'approved'
+							? t('approvals.approveFailed')
+							: t('approvals.denyFailed');
+					setError(extractApiError(err, fallback).message || fallback);
+				}
 			} finally {
 				setBusy('');
 			}
 		},
-		[busy, item.code, onResolved, t],
+		[busy, item.code, onResolved, onStale, t],
 	);
 
 	const originParts = [truncateUa(item.originUa), maskIp(item.originIp)].filter(Boolean);

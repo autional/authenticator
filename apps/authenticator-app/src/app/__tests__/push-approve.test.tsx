@@ -235,4 +235,56 @@ describe('PushApprovePage (AU-26)', () => {
 		expect(screen.queryByText('已拒绝登录')).toBeNull();
 		expect(screen.queryByText('已批准登录')).toBeNull();
 	});
+
+	it('T10 批准遇 409（61000903）→「已被处理或替代」+ 静默复核服务端状态（不落系统错误）', async () => {
+		mockGetPushChallengeStatus.mockResolvedValue({
+			status: 'pending',
+			numberMatching: '482913',
+		});
+		vi.mocked(approvePushChallenge).mockRejectedValue({
+			response: { status: 409, data: { code: 61000903 } },
+		});
+
+		renderPage('/push-approve?challengeId=c1');
+		await waitFor(() => {
+			expect(screen.getByText('批准')).toBeInTheDocument();
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByText('批准'));
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('该请求已被处理或替代。')).toBeInTheDocument();
+		});
+		// 自动复核：mount 一次 + 409 后静默一次
+		expect(mockGetPushChallengeStatus).toHaveBeenCalledTimes(2);
+		expect(screen.queryByText(/系统错误/)).toBeNull();
+		// 不得退化成「批准失败，请重试」这类引导反复重试的文案
+		expect(screen.queryByText(/批准失败/)).toBeNull();
+	});
+
+	it('T11 批准遇 404（61000901）→「已失效或不属于当前账号」+ 静默复核', async () => {
+		mockGetPushChallengeStatus.mockResolvedValue({
+			status: 'pending',
+			numberMatching: '482913',
+		});
+		vi.mocked(approvePushChallenge).mockRejectedValue({
+			response: { status: 404, data: { code: 61000901 } },
+		});
+
+		renderPage('/push-approve?challengeId=c1');
+		await waitFor(() => {
+			expect(screen.getByText('批准')).toBeInTheDocument();
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByText('批准'));
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('该审批请求已失效或不属于当前账号')).toBeInTheDocument();
+		});
+		expect(mockGetPushChallengeStatus).toHaveBeenCalledTimes(2);
+	});
 });

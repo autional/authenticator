@@ -148,6 +148,57 @@ describe('/approvals', () => {
 		expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
 	});
 
+	it('批准遇 409（61000903）→「已被处理或替代」提示 + 自动刷新列表（不是系统错误）', async () => {
+		mockPost.mockRejectedValue({
+			response: { status: 409, data: { code: 61000903, message: 'already resolved' } },
+		});
+
+		renderApprovalsPage();
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+		});
+		// 并发败者语义：服务端列表里该条已不存在
+		mockGet.mockResolvedValue({ data: { items: [] } });
+
+		fireEvent.click(screen.getByRole('button', { name: '是我' }));
+
+		await waitFor(() => {
+			expect(vi.mocked(showToast)).toHaveBeenCalledWith('该请求已被处理或替代。', 'warning');
+		});
+		// 自动刷新待审批列表（第二次 GET）且死卡片被移除
+		await waitFor(() => {
+			expect(mockGet).toHaveBeenCalledTimes(2);
+		});
+		await waitFor(() => {
+			expect(screen.queryByTestId('approval-card-482913')).toBeNull();
+		});
+		expect(screen.queryByText(/系统错误/)).toBeNull();
+	});
+
+	it('批准遇 404（61000901）→「已失效或不属于当前账号」+ 自动刷新', async () => {
+		mockPost.mockRejectedValue({
+			response: { status: 404, data: { code: 61000901 } },
+		});
+
+		renderApprovalsPage();
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+		});
+		mockGet.mockResolvedValue({ data: { items: [] } });
+
+		fireEvent.click(screen.getByRole('button', { name: '是我' }));
+
+		await waitFor(() => {
+			expect(vi.mocked(showToast)).toHaveBeenCalledWith(
+				'该审批请求已失效或不属于当前账号',
+				'warning',
+			);
+		});
+		await waitFor(() => {
+			expect(mockGet).toHaveBeenCalledTimes(2);
+		});
+	});
+
 	it('过期项不展示（expires_in ≤ 0 直接过滤）', async () => {
 		mockGet.mockResolvedValue({
 			data: { items: [{ ...pendingItem, code: '111111', expiresIn: 0 }] },
@@ -363,6 +414,26 @@ describe('/a/:code 短链落地', () => {
 		});
 		expect(screen.getByRole('button', { name: '是我' })).toBeInTheDocument();
 	});
+
+	it('动作遇 409（61000903）→ 终态「该请求已被处理」，不再给可点批准的卡片', async () => {
+		mockPost.mockRejectedValue({ response: { status: 409, data: { code: 61000903 } } });
+		renderLink('/a/482913');
+
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-482913')).toBeInTheDocument();
+		});
+
+		fireEvent.click(screen.getByRole('button', { name: '是我' }));
+
+		await waitFor(() => {
+			expect(screen.getByText('该请求已被处理')).toBeInTheDocument();
+		});
+		expect(
+			screen.getByText('该登录请求已被处理或替代，请返回查看最新的待审批列表。'),
+		).toBeInTheDocument();
+		expect(screen.queryByRole('button', { name: '是我' })).toBeNull();
+		expect(screen.queryByText(/系统错误/)).toBeNull();
+	});
 });
 
 /**
@@ -456,5 +527,59 @@ describe('/approvals 防 MFA 疲劳', () => {
 		expect(mockPost).not.toHaveBeenCalled();
 		expect(screen.getByTestId('approval-card-100001')).toBeInTheDocument();
 		confirmSpy.mockRestore();
+	});
+});
+
+describe('ApprovalCard 409/404 分支（无 onStale 时内联提示兜底）', () => {
+	const item = pendingItem as PendingApproval;
+
+	it('409（61000903）→ 卡内「已被处理或替代。」，不出现系统错误措辞', async () => {
+		mockPost.mockRejectedValue({ response: { status: 409, data: { code: 61000903 } } });
+		const onResolved = vi.fn();
+		const onStale = vi.fn();
+
+		render(
+			<ApprovalCard item={item} onResolved={onResolved} onExpired={vi.fn()} onStale={onStale} />,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: '是我' }));
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toHaveTextContent('该请求已被处理或替代。');
+		});
+		expect(onStale).toHaveBeenCalledWith('482913', 'conflict');
+		expect(onResolved).not.toHaveBeenCalled();
+		expect(screen.getByRole('alert').textContent).not.toContain('系统错误');
+		// 409 不得退化成「批准失败，请重试」这类引导用户反复重试的文案
+		expect(screen.getByRole('alert').textContent).not.toContain('批准失败');
+	});
+
+	it('404（61000901）→ 卡内「已失效或不属于当前账号」', async () => {
+		mockPost.mockRejectedValue({ response: { status: 404, data: { code: 61000901 } } });
+		const onStale = vi.fn();
+
+		render(
+			<ApprovalCard item={item} onResolved={vi.fn()} onExpired={vi.fn()} onStale={onStale} />,
+		);
+
+		fireEvent.click(screen.getByRole('button', { name: '不是我' }));
+
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toHaveTextContent(
+				'该审批请求已失效或不属于当前账号',
+			);
+		});
+		expect(onStale).toHaveBeenCalledWith('482913', 'not_found');
+	});
+
+	it('无 onStale（向后兼容）→ 仍只做内联提示，不抛错', async () => {
+		mockPost.mockRejectedValue({ response: { status: 409, data: { code: 61000903 } } });
+
+		render(<ApprovalCard item={item} onResolved={vi.fn()} onExpired={vi.fn()} />);
+
+		expect(() => fireEvent.click(screen.getByRole('button', { name: '是我' }))).not.toThrow();
+		await waitFor(() => {
+			expect(screen.getByRole('alert')).toHaveTextContent('该请求已被处理或替代。');
+		});
 	});
 });

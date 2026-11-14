@@ -23,6 +23,8 @@ type Phase =
 	| { status: 'ready'; item: PendingApproval }
 	| { status: 'invalid' }
 	| { status: 'notfound' }
+	/** 动作时被判 409/404：该条已不是本账号的有效待审批（已被处理/替代/失效） */
+	| { status: 'stale'; failure: 'conflict' | 'not_found' }
 	| { status: 'approved' }
 	| { status: 'denied' }
 	| { status: 'error'; message: string };
@@ -94,6 +96,13 @@ export default function ApprovalLinkPage() {
 		return terminal(t('approvals.notFoundTitle'), t('approvals.notFoundDesc'));
 	}
 
+	// 409 已被处理/替代 与 404 已失效 是两种事实，文案不同；都不退化成可点批准的卡片
+	if (phase.status === 'stale') {
+		return phase.failure === 'conflict'
+			? terminal(t('approvals.conflictTitle'), t('approvals.conflictDesc'))
+			: terminal(t('approvals.notFoundTitle'), t('approvals.notFoundDesc'));
+	}
+
 	if (phase.status === 'error') {
 		return (
 			<div className="flex min-h-screen items-center justify-center px-4">
@@ -152,6 +161,7 @@ export default function ApprovalLinkPage() {
 						setPhase({ status: result === 'approved' ? 'approved' : 'denied' })
 					}
 					onExpired={() => setPhase({ status: 'notfound' })}
+					onStale={(_code, failure) => setPhase({ status: 'stale', failure })}
 				/>
 			</div>
 		</div>

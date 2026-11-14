@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next';
 import { Button } from '@autional/ui';
 import { ERROR_CODES, GeneratedApi, GeneratedTypes, extractApiError, extractItem } from '@autional/shared';
 import { errorCodeOf, semanticsOfError } from '@/lib/error-semantics';
+import { classifyApprovalFailure } from '@/lib/login-approval';
 
 // Autional QR login approval page（AU-27/28 W2：七态状态机 + 零信任预校验）
 // Entry: /login-approve?token=xxx&nm=123456
@@ -143,10 +144,14 @@ export default function LoginApprovePage() {
 			setState({ status: 'approved' });
 		} catch (err: unknown) {
 			const { message } = extractApiError(err, t('loginApprove.approveFailed'));
+			const failure = classifyApprovalFailure(err);
 			// 契约驱动：61000903 = ui_observation='conflict'
-			if (semanticsOfError(err)?.uiObservation === 'conflict') {
+			if (failure === 'conflict') {
 				// 已被处理/并发 → 以服务端真实状态收敛（非假态）
 				await precheck();
+			} else if (failure === 'not_found') {
+				// 61000901：请求不存在或不属于当前账号 → 终态（重试必然失败）
+				setState({ status: 'invalid', message: t('loginApprove.notFoundDesc') });
 			} else if (semanticsOfError(err)?.uiObservation === 'expired') {
 				// 会话在审批期间过期：重试必然失败，直接给终态出路
 				setState({ status: 'invalid', message: t('loginApprove.expiredDesc') });
@@ -174,8 +179,11 @@ export default function LoginApprovePage() {
 			setState({ status: 'denied' });
 		} catch (err: unknown) {
 			const { message } = extractApiError(err, t('loginApprove.operationFailed'));
-			if (semanticsOfError(err)?.uiObservation === 'conflict') {
+			const failure = classifyApprovalFailure(err);
+			if (failure === 'conflict') {
 				await precheck();
+			} else if (failure === 'not_found') {
+				setState({ status: 'invalid', message: t('loginApprove.notFoundDesc') });
 			} else {
 				setState({ status: 'error', message });
 			}

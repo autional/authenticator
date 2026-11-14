@@ -24,6 +24,7 @@ import {
 	type PushChallengeStatus,
 } from '../../lib/push';
 import { extractApiError } from '@autional/shared';
+import { classifyApprovalFailure } from '../../lib/login-approval';
 
 export default function PushApprovePage() {
 	const { t } = useTranslation();
@@ -47,29 +48,36 @@ export default function PushApprovePage() {
 	);
 
 	// AU-26：抽为可重取回调 —— 错误态「重试」= 真实 GET（非假转态）
-	const loadChallenge = useCallback(async () => {
-		setLoading(true);
-		setError(null);
-
-		if (!challengeId) {
-			setError(t('pushApprove.missingParams'));
-			setLoading(false);
-			return;
-		}
-
-		try {
-			const data = await getPushChallengeStatus(challengeId);
-			setChallenge(data);
-			// 只认三种终态；未知状态不伪造「已拒绝」（留在审批面等真实状态）
-			if (data.status === 'approved' || data.status === 'denied' || data.status === 'expired') {
-				setResult(data.status);
+	// silent：动作判死（409/404）后的后台复核 —— 不闪 loading、不清掉刚给的事实性提示
+	const loadChallenge = useCallback(
+		async (opts?: { silent?: boolean }) => {
+			const silent = opts?.silent === true;
+			if (!silent) {
+				setLoading(true);
+				setError(null);
 			}
-		} catch (err) {
-			setError(localizeApiError(err, t('pushApprove.loadFailed')));
-		} finally {
-			setLoading(false);
-		}
-	}, [challengeId, t, localizeApiError]);
+
+			if (!challengeId) {
+				setError(t('pushApprove.missingParams'));
+				if (!silent) setLoading(false);
+				return;
+			}
+
+			try {
+				const data = await getPushChallengeStatus(challengeId);
+				setChallenge(data);
+				// 只认三种终态；未知状态不伪造「已拒绝」（留在审批面等真实状态）
+				if (data.status === 'approved' || data.status === 'denied' || data.status === 'expired') {
+					setResult(data.status);
+				}
+			} catch (err) {
+				if (!silent) setError(localizeApiError(err, t('pushApprove.loadFailed')));
+			} finally {
+				if (!silent) setLoading(false);
+			}
+		},
+		[challengeId, t, localizeApiError],
+	);
 
 	useEffect(() => {
 		void loadChallenge();
@@ -80,6 +88,25 @@ export default function PushApprovePage() {
 	// fail-closed：加载中 / 服务端未给码 → 无法完成双向比对，批准与拒绝都禁用
 	const canDecide = Boolean(challengeId) && serverNumberMatching.length > 0 && !actionLoading;
 
+	/**
+	 * 动作失败分流：409（已被处理/替代）与 404（已失效/不属于当前账号）**不是系统错误** ——
+	 * 给事实性文案，并静默复核服务端真实状态（若已是终态直接落终态屏）。
+	 */
+	const handleDecisionFailure = (err: unknown, fallback: string) => {
+		const failure = classifyApprovalFailure(err);
+		if (failure === 'conflict') {
+			setError(t('approvals.conflictResolved'));
+			void loadChallenge({ silent: true });
+			return;
+		}
+		if (failure === 'not_found') {
+			setError(t('approvals.notFoundDesc'));
+			void loadChallenge({ silent: true });
+			return;
+		}
+		setError(localizeApiError(err, fallback));
+	};
+
 	const handleApprove = async () => {
 		if (!challengeId || !serverNumberMatching) return;
 		setActionLoading(true);
@@ -87,7 +114,7 @@ export default function PushApprovePage() {
 			await approvePushChallenge(challengeId, serverNumberMatching);
 			setResult('approved');
 		} catch (err: unknown) {
-			setError(localizeApiError(err, t('pushApprove.approveFailed')));
+			handleDecisionFailure(err, t('pushApprove.approveFailed'));
 		} finally {
 			setActionLoading(false);
 		}
@@ -100,7 +127,7 @@ export default function PushApprovePage() {
 			await denyPushChallenge(challengeId, serverNumberMatching);
 			setResult('denied');
 		} catch (err: unknown) {
-			setError(localizeApiError(err, t('pushApprove.denyFailed')));
+			handleDecisionFailure(err, t('pushApprove.denyFailed'));
 		} finally {
 			setActionLoading(false);
 		}

@@ -311,6 +311,28 @@ describe('LoginApprovePage (AU-27/28)', () => {
 		expect(screen.queryByRole('button', { name: '批准登录' })).toBeNull();
 	});
 
+	it('T7b 提交遇 404（61000901）→ 终态 invalid：notFoundDesc（不落 error 重试面）', async () => {
+		mockAuthQrLoginStatus.mockResolvedValueOnce({ code: 0, data: { status: 'pending' } });
+		mockAuthQrLoginScanPost.mockResolvedValue({ code: 0, data: {} });
+		mockAuthQrLoginConfirmPost.mockRejectedValue(apiError(404, '61000901'));
+
+		renderPage('/login-approve?token=t1');
+		await waitFor(() => {
+			expect(screen.getByRole('button', { name: '批准登录' })).toBeInTheDocument();
+		});
+
+		await act(async () => {
+			fireEvent.click(screen.getByRole('button', { name: '批准登录' }));
+		});
+
+		await waitFor(() => {
+			expect(screen.getByText('请求不存在或已失效，请在电脑端重新发起')).toBeInTheDocument();
+		});
+		// 终态：不给假重试
+		expect(screen.queryByText('重试')).toBeNull();
+		expect(screen.queryByRole('button', { name: '批准登录' })).toBeNull();
+	});
+
 	it('T8 invalid 终态有页面级 h1（AU2-03）', async () => {
 		renderPage('/login-approve');
 

@@ -107,6 +107,19 @@ export default function ApprovalsPage() {
 	};
 
 	/**
+	 * 陈旧项（409 已被处理/替代、404 已失效）：不是系统故障，也不该留一张点了必失败的卡片。
+	 * 移除该条 + 事实性提示 + 静默重拉（以服务端列表为准，避免竞态下显示错状态）。
+	 */
+	const handleStale = (code: string, failure: 'conflict' | 'not_found') => {
+		removeItem(code);
+		showToast(
+			t(failure === 'conflict' ? 'approvals.conflictResolved' : 'approvals.notFoundDesc'),
+			'warning',
+		);
+		void silentRefresh();
+	};
+
+	/**
 	 * 全部拒绝：逐条 deny（**串行**，避免瞬间打出一串写请求），单条失败不中断。
 	 * 结束后只移除已成功的那几条，并汇总提示 —— 失败项留在列表上，用户看得见也还能再点。
 	 */
@@ -232,6 +245,7 @@ export default function ApprovalsPage() {
 							item={item}
 							onResolved={handleResolved}
 							onExpired={removeItem}
+							onStale={handleStale}
 						/>
 					))}
 			</div>
