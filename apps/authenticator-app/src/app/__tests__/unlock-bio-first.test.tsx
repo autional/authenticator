@@ -22,6 +22,9 @@ vi.mock('@/lib/storage', () => ({
 	unlockWithBiometric: vi.fn().mockResolvedValue([]),
 	hasBiometricProtection: vi.fn(() => true),
 	getPinLength: vi.fn(() => 6),
+	checkPinCooldown: vi.fn(() => ({ isLocked: false, remainingSeconds: 0 })),
+	recordFailedPinAttempt: vi.fn(() => ({ attempts: 1, lockedUntil: null })),
+	resetFailedPinAttempts: vi.fn(),
 }));
 
 vi.mock('@/lib/webauthn', () => ({

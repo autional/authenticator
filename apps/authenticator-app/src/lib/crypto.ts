@@ -24,6 +24,9 @@ export const BACKUP_KDF_ITERATIONS = 600_000;
 export const PIN_LENGTH = 6;
 /** 合法新 PIN 形态：恰好 6 位数字。 */
 export const PIN_PATTERN = /^\d{6}$/;
+/** 存量库兼容：解锁路径允许 4-8 位（新建/修改仍是 6 位）。 */
+export const LEGACY_PIN_MIN_LENGTH = 4;
+export const LEGACY_PIN_MAX_LENGTH = 8;
 
 export function arrayBufferToBase64(buffer: Uint8Array): string {
 	let binary = '';

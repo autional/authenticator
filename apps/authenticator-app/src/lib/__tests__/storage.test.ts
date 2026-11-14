@@ -413,6 +413,28 @@ describe('verifyPin（改 PIN 前校验旧 PIN）', () => {
 
 		await expect(loadWithoutPin()).rejects.toThrow('PIN required');
 	});
+
+	it('连续错 5 次进入冷却：冷却期内即使输对也返回 false', async () => {
+		bindStorage();
+		const { initializeStorage, setPinProtection, verifyPin, checkPinCooldown } = await import(
+			'../storage'
+		);
+
+		await initializeStorage();
+		await setPinProtection('123456');
+
+		for (let i = 0; i < 5; i++) {
+			await expect(verifyPin('000000')).resolves.toBe(false);
+		}
+
+		const cooldown = checkPinCooldown();
+		expect(cooldown.isLocked).toBe(true);
+		expect(cooldown.remainingSeconds).toBeGreaterThan(0);
+
+		// 冷却不是「再试一次就好」：正确 PIN 也一律拒绝，且不能借此清掉计数
+		await expect(verifyPin('123456')).resolves.toBe(false);
+		expect(checkPinCooldown().isLocked).toBe(true);
+	});
 });
 
 describe('Biometric (PRF) protection', () => {

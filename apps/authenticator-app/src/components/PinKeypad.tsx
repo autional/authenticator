@@ -16,8 +16,9 @@ export interface PinKeypadProps {
 	value: string;
 	onChange: (next: string) => void;
 	onSubmit: () => void;
-	/** 目标位数下限（当前所有调用方都传 6） */
+	/** 目标位数下限（新建/修改 6 位；解锁屏按存量库实际长度，缺省 4） */
 	minLength: number;
+	/** 目标位数上限（缺省 6；解锁存量库时按实际长度最多 8） */
 	maxLength?: number;
 	/** 达到该位数自动提交（与 minLength 同时满足才触发）。不传 = 不自动提交。 */
 	autoSubmitAt?: number;
@@ -58,7 +59,7 @@ export default function PinKeypad({
 	onChange,
 	onSubmit,
 	minLength,
-	maxLength = 8,
+	maxLength = 6,
 	autoSubmitAt,
 	showConfirm = true,
 	disabled = false,
@@ -179,7 +180,18 @@ export default function PinKeypad({
 	const dotFilled = error ? 'bg-danger' : 'bg-primary-500';
 
 	return (
-		<div className="flex w-full max-w-xs flex-col items-center">
+		<div
+			// 长按不选中：真机（Android/iOS）长按按钮会把数字当文本选中并弹原生菜单，观感极差。
+			// select-none + 内联 userSelect 覆盖子元素；touchCallout/touchAction 压掉原生长按菜单与双击缩放延迟。
+			className="flex w-full max-w-xs select-none flex-col items-center"
+			style={{
+				WebkitUserSelect: 'none',
+				userSelect: 'none',
+				WebkitTouchCallout: 'none',
+				touchAction: 'manipulation',
+			}}
+			onContextMenu={(e) => e.preventDefault()}
+		>
 			{/* 圆点：起步显示 minLength 个，超过则跟着增长 */}
 			<div
 				role="status"
@@ -208,7 +220,7 @@ export default function PinKeypad({
 						onClick={() => append(d)}
 						disabled={disabled}
 						aria-label={d}
-						className="h-[68px] w-[68px] rounded-full border border-auth-border bg-auth-elevated text-2xl font-medium text-[var(--color-text-primary)] transition-transform duration-100 active:scale-95 disabled:opacity-40"
+						className="h-[68px] w-[68px] select-none rounded-full border border-auth-border bg-auth-elevated text-2xl font-medium text-[var(--color-text-primary)] transition-transform duration-100 active:scale-95 disabled:opacity-40"
 					>
 						{d}
 					</button>
@@ -224,7 +236,7 @@ export default function PinKeypad({
 					onContextMenu={(e) => e.preventDefault()}
 					disabled={disabled || value.length === 0}
 					aria-label={t('keypad.delete')}
-					className="flex h-[68px] w-[68px] items-center justify-center rounded-full border border-auth-border bg-auth-surface text-[var(--color-text-secondary)] transition-transform duration-100 active:scale-95 disabled:opacity-30"
+					className="flex h-[68px] w-[68px] select-none items-center justify-center rounded-full border border-auth-border bg-auth-surface text-[var(--color-text-secondary)] transition-transform duration-100 active:scale-95 disabled:opacity-30"
 				>
 					<Delete className="h-5 w-5" aria-hidden="true" />
 				</button>
@@ -234,7 +246,7 @@ export default function PinKeypad({
 					onClick={() => append('0')}
 					disabled={disabled}
 					aria-label="0"
-					className="h-[68px] w-[68px] rounded-full border border-auth-border bg-auth-elevated text-2xl font-medium text-[var(--color-text-primary)] transition-transform duration-100 active:scale-95 disabled:opacity-40"
+					className="h-[68px] w-[68px] select-none rounded-full border border-auth-border bg-auth-elevated text-2xl font-medium text-[var(--color-text-primary)] transition-transform duration-100 active:scale-95 disabled:opacity-40"
 				>
 					0
 				</button>
@@ -245,7 +257,7 @@ export default function PinKeypad({
 						onClick={submit}
 						disabled={disabled || !canSubmit}
 						aria-label={t('keypad.confirm')}
-						className="flex h-[68px] w-[68px] items-center justify-center rounded-full bg-primary-600 text-white transition-all duration-100 active:scale-95 disabled:opacity-30"
+						className="flex h-[68px] w-[68px] select-none items-center justify-center rounded-full bg-primary-600 text-white transition-all duration-100 active:scale-95 disabled:opacity-30"
 					>
 						<Check className="h-6 w-6" aria-hidden="true" />
 					</button>

@@ -92,6 +92,9 @@ vi.mock('@/lib/storage', () => ({
 	setPinProtection: vi.fn(() => Promise.resolve()),
 	verifyPin: vi.fn(() => Promise.resolve(false)),
 	clearDeviceKeyCache: vi.fn(),
+	// 修改 PIN 弹层的冷却提示 & 旧长度提示都读这两个
+	checkPinCooldown: vi.fn(() => ({ isLocked: false, remainingSeconds: 0 })),
+	getPinLength: vi.fn(() => 6),
 }));
 
 vi.mock('@/lib/crypto', () => ({
@@ -125,6 +128,9 @@ beforeEach(() => {
 	mockLogout.mockClear();
 	themeState = { theme: 'light', toggle: mockToggle };
 	authState = { isAuthenticated: true };
+	// clearAllMocks 不清实现：显式复位这俩（有用例会改返回值，避免串用例）
+	vi.mocked(storage.checkPinCooldown).mockReturnValue({ isLocked: false, remainingSeconds: 0 });
+	vi.mocked(storage.getPinLength).mockReturnValue(6);
 	storeState = {
 		accounts: [],
 		hasPin: false,
@@ -387,6 +393,32 @@ describe('SettingsPage', () => {
 			);
 			expect(screen.getByText('输入新 PIN（6 位数字）')).toBeInTheDocument();
 			expect(storage.setPinProtection).not.toHaveBeenCalled();
+		});
+
+		it('当前 PIN 错误且处于冷却 → 显示冷却提示（含剩余秒数），不误报「PIN 不正确」', async () => {
+			vi.mocked(storage.verifyPin).mockResolvedValue(false);
+			vi.mocked(storage.checkPinCooldown).mockReturnValue({ isLocked: true, remainingSeconds: 25 });
+			storeState = { ...storeState, hasPin: true };
+			renderSettings();
+
+			await act(async () => {
+				fireEvent.click(screen.getByRole('button', { name: '修改 PIN' }));
+			});
+			press('999999');
+
+			await waitFor(() =>
+				expect(screen.getByText('尝试次数过多，请 25 秒后再试')).toBeInTheDocument(),
+			);
+			expect(screen.queryByText('当前 PIN 不正确')).toBeNull();
+		});
+
+		it('存量库 PIN 非 6 位 → 显示旧长度提示（只提示，不拦解锁/修改）', async () => {
+			vi.mocked(storage.getPinLength).mockReturnValue(4);
+			storeState = { ...storeState, hasPin: true };
+			renderSettings();
+
+			expect(screen.getByText('当前 PIN 不是 6 位，建议重设为 6 位')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: '修改 PIN' })).toBeInTheDocument();
 		});
 
 		it('三步完成 → setPinProtection 收到新 PIN 一次，弹层关闭', async () => {

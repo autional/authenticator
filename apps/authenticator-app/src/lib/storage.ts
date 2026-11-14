@@ -52,7 +52,7 @@ interface StoragePayload {
 	deviceKeyWrapBio?: DeviceKeyWrap | null;
 	/** PIN 包裹用的 PBKDF2 迭代次数；缺省 = 旧版 100k（存量库） */
 	pinKdfIterations?: number;
-	/** PIN 位数。开发期统一 6 位：非 6 的旧库冷启动时走一次性重置闸门；缺省 = 无记录（同样视为旧库）。 */
+	/** PIN 位数。新建/修改恒为 6 位；存量库可能是 4-8 位，解锁成功后按输入值补写（静默迁移）。 */
 	pinLength?: number;
 	data: {
 		iv: string;
@@ -237,8 +237,13 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 /**
  * 校验当前 PIN 是否正确（只解 PIN 包裹，不写缓存、不返回账户、不影响解锁状态）。
  * 供「修改 PIN 前先验证旧 PIN」使用。
+ *
+ * 与解锁路径共用同一套尝试计数：连续错 MAX_PIN_ATTEMPTS 次进入冷却，
+ * 冷却期内一律返回 false（连正确 PIN 也不放行），且不再消耗一次 KDF。
  */
 export async function verifyPin(pin: string): Promise<boolean> {
+	const cooldown = checkPinCooldown();
+	if (cooldown.isLocked) return false;
 	const payload = readPayload();
 	if (!payload?.deviceKeyWrap) return false;
 	try {
@@ -250,15 +255,18 @@ export async function verifyPin(pin: string): Promise<boolean> {
 			base64ToArrayBuffer(payload.deviceKeyWrap.iv),
 			pinKey,
 		);
+		resetFailedPinAttempts();
 		return true;
 	} catch {
+		recordFailedPinAttempt();
 		return false;
 	}
 }
 
 /**
- * 当前库的 PIN 位数（仅供解锁闸门判断「是不是需要重置的旧库」）。
- * 返回 null = 旧库未记录长度；开发期 PIN 统一 6 位，null / 非 6 一律走重置。
+ * 当前库的 PIN 位数（解锁键盘据此决定位数上限与是否自动提交）。
+ * 返回 null = 旧库未记录长度：按 4-8 位的宽松区间解锁并显示确认键；
+ * 解锁成功后 unlockWithPin 会补写 pinLength（静默迁移）。
  */
 export function getPinLength(): number | null {
 	const payload = readPayload();
@@ -266,7 +274,7 @@ export function getPinLength(): number | null {
 }
 
 /**
- * 清空本机保险库（开发期重置用）：删除密文、PIN 尝试计数与内存密钥。
+ * 清空本机保险库（忘记 PIN 时的逃生口）：删除密文、PIN 尝试计数与内存密钥。
  * 不触碰云备份（在服务端）与其它 localStorage 键。
  */
 export function resetLocalVault(): void {

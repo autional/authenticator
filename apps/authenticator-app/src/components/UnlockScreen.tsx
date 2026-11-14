@@ -14,6 +14,9 @@ import {
 	setBiometricProtection,
 	getPinLength,
 	resetLocalVault,
+	checkPinCooldown,
+	recordFailedPinAttempt,
+	resetFailedPinAttempts,
 } from '@/lib/storage';
 import {
 	hasBiometricRegistered,
@@ -24,10 +27,12 @@ import {
 	registerBiometric,
 	clearBiometric,
 } from '@/lib/webauthn';
-import { PIN_PATTERN, PIN_LENGTH } from '@/lib/crypto';
+import { PIN_PATTERN, PIN_LENGTH, LEGACY_PIN_MIN_LENGTH, LEGACY_PIN_MAX_LENGTH } from '@/lib/crypto';
 import { setCeremonyActive } from '@/lib/app-lock';
 
 type UnlockMode = 'bio' | 'pin';
+/** 「再点一次确认」的待触发窗口：超时自动复位，避免危险按钮长期挂在可执行态 */
+const RESET_CONFIRM_TIMEOUT_MS = 5000;
 
 function PinInputScreen() {
 	const [pin, setPin] = useState('');
@@ -36,6 +41,12 @@ function PinInputScreen() {
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [bioUsable, setBioUsable] = useState(false);
 	const [mode, setMode] = useState<UnlockMode>('pin');
+	const [resetOpen, setResetOpen] = useState(false);
+	// 存量库可能是 4-8 位：按库里记录的实际长度放开键盘。
+	// null = 旧库未记录长度 → 走宽松区间（4-8）+ 确认键，解锁成功后 storage 会补写 pinLength。
+	const [pinLength] = useState<number | null>(() => getPinLength());
+	// 连续错满 MAX_PIN_ATTEMPTS 次后的冷却剩余秒数；> 0 时键盘不可用（生物识别不受影响）
+	const [cooldownLeft, setCooldownLeft] = useState(0);
 	const { t } = useTranslation();
 	const loadAccounts = useAuthenticatorStore((s) => s.loadAccounts);
 	const setHasPin = useAuthenticatorStore((s) => s.setHasPin);
@@ -56,6 +67,18 @@ function PinInputScreen() {
 		},
 		[],
 	);
+
+	// 冷却倒计时：挂载先同步一次（上一轮失败后刷新页面仍受节流），之后每秒刷新，
+	// 归零即自动恢复键盘。与 storage.verifyPin 共用同一份尝试计数。
+	useEffect(() => {
+		const tick = () => {
+			const { isLocked, remainingSeconds } = checkPinCooldown();
+			setCooldownLeft(isLocked ? remainingSeconds : 0);
+		};
+		tick();
+		const id = setInterval(tick, 1000);
+		return () => clearInterval(id);
+	}, []);
 
 	// 探测生物识别能力：可用即把默认视图切到「生物识别优先」
 	useEffect(() => {
@@ -116,8 +139,15 @@ function PinInputScreen() {
 		if (isSubmitting) return;
 		setError(null);
 
-		// 键盘固定 6 位；下限校验保留作防御（物理键盘回车等边缘入口）
-		if (pin.length < PIN_LENGTH) {
+		// 冷却期直接拒绝：与 storage.verifyPin 同口径，不白跑一次 KDF
+		const cooldown = checkPinCooldown();
+		if (cooldown.isLocked) {
+			setCooldownLeft(cooldown.remainingSeconds);
+			return;
+		}
+
+		// 解锁按存量库的实际长度校验下限（新建/修改仍是 6 位；物理键盘回车等边缘入口靠这一层兜底）
+		if (pin.length < (pinLength ?? LEGACY_PIN_MIN_LENGTH)) {
 			setError(t('unlock.pinTooShort'));
 			setShakeKey((k) => k + 1);
 			return;
@@ -126,16 +156,32 @@ function PinInputScreen() {
 		setIsSubmitting(true);
 		try {
 			const accounts = await unlockWithPin(pin);
+			resetFailedPinAttempts();
+			setCooldownLeft(0);
 			loadAccounts(accounts);
 			setHasPin(true);
 		} catch {
-			setError(t('unlock.pinWrong'));
+			// 失败计入节流：第 MAX_PIN_ATTEMPTS 次失败进入冷却，冷却期显示倒计时而不是「PIN 错误」
+			const state = recordFailedPinAttempt();
+			if (state.lockedUntil !== null && state.lockedUntil > Date.now()) {
+				setCooldownLeft(Math.ceil((state.lockedUntil - Date.now()) / 1000));
+			} else {
+				setError(t('unlock.pinWrong'));
+			}
 			setShakeKey((k) => k + 1);
 			schedulePinClear();
 		} finally {
 			setIsSubmitting(false);
 		}
-	}, [isSubmitting, loadAccounts, pin, schedulePinClear, setHasPin, t]);
+	}, [
+		isSubmitting,
+		loadAccounts,
+		pin,
+		pinLength,
+		schedulePinClear,
+		setHasPin,
+		t,
+	]);
 
 	if (mode === 'bio') {
 		return (
@@ -193,33 +239,57 @@ function PinInputScreen() {
 				</div>
 			)}
 
+			{cooldownLeft > 0 && (
+				<div
+					role="status"
+					className="mb-4 flex w-full max-w-xs items-center gap-2 rounded-xl bg-danger/10 px-3 py-2.5 text-sm text-[var(--color-danger-text)]"
+				>
+					<AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+					{t('unlock.pinLocked', { seconds: cooldownLeft })}
+				</div>
+			)}
+
 			<PinKeypad
 				value={pin}
 				onChange={setPin}
 				onSubmit={() => void handleUnlock()}
-				// 开发期统一 6 位：输满即自动提交，永远没有确认键
-				minLength={PIN_LENGTH}
-				maxLength={PIN_LENGTH}
-				autoSubmitAt={PIN_LENGTH}
-				showConfirm={false}
-				disabled={isSubmitting}
+				// 存量库按实际长度放开；新库仍是 6 位输满即自动提交（无确认键）
+				minLength={pinLength ?? LEGACY_PIN_MIN_LENGTH}
+				maxLength={pinLength ?? LEGACY_PIN_MAX_LENGTH}
+				autoSubmitAt={pinLength ?? undefined}
+				showConfirm={pinLength === null}
+				disabled={isSubmitting || cooldownLeft > 0}
 				error={!!error}
 				shakeKey={shakeKey}
 				footer={
-					isSubmitting ? (
-						<p className="mt-6 text-xs text-[var(--color-text-secondary)]">{t('unlock.unlocking')}</p>
-					) : bioUsable ? (
+					<>
+						{isSubmitting ? (
+							<p className="mt-6 text-xs text-[var(--color-text-secondary)]">
+								{t('unlock.unlocking')}
+							</p>
+						) : bioUsable ? (
+							<button
+								type="button"
+								onClick={() => void unlockWithPrf(true)}
+								className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-surface py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-auth-elevated transition-all"
+							>
+								<Fingerprint className="h-4 w-4" aria-hidden="true" />
+								{t('unlock.useBiometric')}
+							</button>
+						) : null}
+						{/* 逃生口：旧长度库现在能直接解锁，只有真的忘记 PIN 才需要清空重来 */}
 						<button
 							type="button"
-							onClick={() => void unlockWithPrf(true)}
-							className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-surface py-3 text-sm font-medium text-[var(--color-text-primary)] hover:bg-auth-elevated transition-all"
+							onClick={() => setResetOpen(true)}
+							className="mt-4 text-xs text-[var(--color-text-muted)] underline-offset-2 hover:text-[var(--color-text-secondary)] hover:underline"
 						>
-							<Fingerprint className="h-4 w-4" aria-hidden="true" />
-							{t('unlock.useBiometric')}
+							{t('settings.pinForgot')}
 						</button>
-					) : undefined
+					</>
 				}
 			/>
+
+			<VaultResetDialog open={resetOpen} onClose={() => setResetOpen(false)} />
 		</main>
 	);
 }
@@ -423,32 +493,76 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 }
 
 /**
- * 旧库重置（开发期一次性闸门）：PIN 已统一为 6 位，长度不是 6 的存量库不再兼容。
- * 唯一出路是清空本机保险库（云备份在服务端，不受影响）后重走强制设锁 —— 没有跳过入口。
+ * 忘记 PIN 的逃生口（手动入口，不再自动出现）：清空本机保险库后重走强制设锁。
+ *
+ * 为什么不再做「冷启动自上而下」的重置闸门：那等于替用户丢掉全部验证码；
+ * 旧长度库其实能直接解锁（见 PinInputScreen 的 pinLength 放开），只有真的忘记 PIN 才需要清空。
+ * 危险动作要两步确认（第二次点击才执行），并在 5 秒无操作后复位，防误触。
  */
-function VaultResetScreen() {
+function VaultResetDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
 	const { t } = useTranslation();
+	const [confirming, setConfirming] = useState(false);
+
+	// 每次关闭都复位：下次打开从「首次点击」态开始，不继承上次点半截的状态
+	useEffect(() => {
+		if (!open) setConfirming(false);
+	}, [open]);
+
+	// 待确认态超时复位：危险按钮不会一直挂在「再点就执行」上
+	useEffect(() => {
+		if (!open || !confirming) return;
+		const id = setTimeout(() => setConfirming(false), RESET_CONFIRM_TIMEOUT_MS);
+		return () => clearTimeout(id);
+	}, [confirming, open]);
+
+	if (!open) return null;
 
 	const handleReset = () => {
+		if (!confirming) {
+			setConfirming(true);
+			return;
+		}
 		resetLocalVault();
 		window.location.reload();
 	};
 
 	return (
-		<main className="flex app-shell flex-col items-center justify-center bg-auth-bg px-6 text-center">
-			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-danger-soft">
-				<ShieldAlert className="h-10 w-10 text-[var(--color-danger-text)]" aria-hidden="true" />
+		<div
+			role="dialog"
+			aria-modal="true"
+			aria-labelledby="vault-reset-title"
+			className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/50 backdrop-blur-sm p-4"
+		>
+			<div className="w-full max-w-xs rounded-xl border border-auth-border bg-auth-surface p-5">
+				<h3
+					id="vault-reset-title"
+					className="mb-1 flex items-center gap-2 text-base font-semibold text-[var(--color-text-primary)]"
+				>
+					<ShieldAlert
+						className="h-4 w-4 shrink-0 text-[var(--color-danger-text)]"
+						aria-hidden="true"
+					/>
+					{t('reset.title')}
+				</h3>
+				<p className="mb-4 text-xs text-[var(--color-text-secondary)]">{t('reset.desc')}</p>
+				<div className="flex flex-col gap-2">
+					<button
+						type="button"
+						onClick={onClose}
+						className="w-full rounded-lg bg-auth-elevated py-2 text-sm font-medium text-[var(--color-text-secondary)] hover:bg-auth-border transition-colors"
+					>
+						{t('common.cancel')}
+					</button>
+					<button
+						type="button"
+						onClick={handleReset}
+						className="w-full rounded-lg bg-danger-soft py-2 text-sm font-semibold text-[var(--color-danger-text)] hover:bg-danger/10 transition-colors"
+					>
+						{confirming ? t('reset.confirmAgain') : t('reset.action')}
+					</button>
+				</div>
 			</div>
-			<h1 className="mb-2 text-xl font-bold text-[var(--color-text-primary)]">{t('reset.title')}</h1>
-			<p className="mb-8 max-w-xs text-sm text-[var(--color-text-secondary)]">{t('reset.desc')}</p>
-			<button
-				type="button"
-				onClick={handleReset}
-				className="w-full max-w-xs rounded-xl bg-danger-soft py-3 text-sm font-semibold text-[var(--color-danger-text)] transition-all hover:bg-danger/10 active:scale-[0.98]"
-			>
-				{t('reset.action')}
-			</button>
-		</main>
+		</div>
 	);
 }
 
@@ -461,7 +575,6 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 	const setLoading = useAuthenticatorStore((s) => s.setLoading);
 	const [bootError, setBootError] = useState<string | null>(null);
 	const [needsSetup, setNeedsSetup] = useState(false);
-	const [needsVaultReset, setNeedsVaultReset] = useState(false);
 	const { t } = useTranslation();
 
 	useEffect(() => {
@@ -471,14 +584,7 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 			try {
 				const pinProtected = hasPinProtection();
 				if (pinProtected) {
-					// 开发期统一 6 位 PIN：旧长度的库不再兼容，走一次性重置
-					if (getPinLength() !== PIN_LENGTH) {
-						if (!cancelled) {
-							setNeedsVaultReset(true);
-							setLoading(false);
-						}
-						return;
-					}
+					// 存量库（4-8 位 PIN）同样能解锁：长度只在键盘层放开，闸门不再拦
 					if (!cancelled) {
 						setHasPin(true);
 						setLoading(false);
@@ -531,10 +637,6 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 				<p className="text-sm text-[var(--color-text-secondary)]">{bootError}</p>
 			</main>
 		);
-	}
-
-	if (needsVaultReset) {
-		return <VaultResetScreen />;
 	}
 
 	if (needsSetup) {

@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Lock, Check, AlertCircle } from 'lucide-react';
 import SettingsPinDialog from './SettingsPinDialog';
+import { getPinLength } from '@/lib/storage';
+import { PIN_LENGTH } from '@/lib/crypto';
 
 /**
  * 应用锁 PIN（设置页）：**一行状态 + 「修改 PIN」按钮**，键盘收进弹层。
@@ -25,6 +27,8 @@ export default function SettingsPinProtection({
 }) {
 	const { t } = useTranslation();
 	const [open, setOpen] = useState(false);
+	// 存量库可能是旧长度（4-8 位）：仍能解锁，但建议重设为 6 位 —— 只提示不拦截
+	const legacyLength = hasPin && getPinLength() !== PIN_LENGTH;
 
 	return (
 		<div className="px-4 py-3">
@@ -40,6 +44,11 @@ export default function SettingsPinProtection({
 			<p className="text-xs text-[var(--color-text-muted)] mb-2">
 				{hasPin ? t('settings.pinDescEnabled') : t('settings.pinDescDisabled')}
 			</p>
+			{legacyLength && (
+				<p className="mb-2 text-xs text-[var(--color-warning-text)]">
+					{t('settings.pinLegacyHint')}
+				</p>
+			)}
 			{!hasPin && (
 				<p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-[var(--color-danger-text)]">
 					{t('settings.pinUnprotectedWarning')}

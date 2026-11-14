@@ -29,6 +29,9 @@ vi.mock('@/lib/storage', () => ({
 	getPinLength: vi.fn(() => null),
 	setPinProtection: vi.fn().mockResolvedValue(undefined),
 	setBiometricProtection: vi.fn().mockResolvedValue(undefined),
+	checkPinCooldown: vi.fn(() => ({ isLocked: false, remainingSeconds: 0 })),
+	recordFailedPinAttempt: vi.fn(() => ({ attempts: 1, lockedUntil: null })),
+	resetFailedPinAttempts: vi.fn(),
 }));
 
 vi.mock('@/lib/webauthn', () => ({

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { AlertCircle } from 'lucide-react';
 import PinKeypad from '@/components/PinKeypad';
 import { PIN_LENGTH } from '@/lib/crypto';
+import { checkPinCooldown } from '@/lib/storage';
 
 type PinStep = 'verify' | 'new' | 'confirm';
 
@@ -68,7 +69,13 @@ export default function SettingsPinDialog({ open, onClose, verifyCurrent, onSubm
 			if (step === 'verify') {
 				const ok = await verifyCurrent(value);
 				if (!ok) {
-					fail(t('settings.pinWrongCurrent'));
+					// 失败原因二选一：冷却中（尝试次数用满）优先于「PIN 不对」，否则用户会一直以为是自己记错
+					const cooldown = checkPinCooldown();
+					fail(
+						cooldown.isLocked
+							? t('settings.pinLocked', { seconds: cooldown.remainingSeconds })
+							: t('settings.pinWrongCurrent'),
+					);
 					return;
 				}
 				setCurrentPin(value);
