@@ -28,7 +28,7 @@ WebAuthn PRF 输出 (32B) ──PBKDF2×1──────┘                  
 
 | 项 | 取值 | 说明 |
 |---|---|---|
-| 长度 | **固定 6 位** | 开发期决策；不再兼容 4/5/7/8 位 |
+| 长度 | **新建/修改固定 6 位**；解锁端兼容旧库 4–8 位 | `d8caba5` 起旧库按 `pinLength` 放开（迁移用），解锁成功后静默补写；新建仍只接受 6 位 |
 | 存储 | `pinKdfIterations`（600_000）、`pinLength`（6） | 随载荷保存，便于日后升级 |
 | 校验 | `PIN_PATTERN = /^\d{6}$/` | 新建/修改走此校验；解锁读取路径不校验长度 |
 | 改 PIN | 三步：当前 PIN → 新 PIN → 确认 | 必须先验旧 PIN（`storage.verifyPin`）；新 PIN 不得与当前相同 |
@@ -109,4 +109,4 @@ WebAuthn PRF 输出 (32B) ──PBKDF2×1──────┘                  
 ## 10. 测试基线
 
 - `pnpm --filter @autional/authenticator-app test` → 63 files / 574 tests（截至 `d8caba5`）
-- 覆盖要点：弱 PIN 拒绝、`pinKdfIterations` 写入、`verifyPin` 三态、自动提交一次、无确认键、弹层三步（错误的当前 PIN / 与当前相同 / 两次不一致 / 成功）、自动锁定（30s / 12h / ceremony 抑制 / bfcache 无钥）、强制设锁闸门、旧库重置闸门、旧长度解锁 4 例、忘记 PIN 二次确认、解锁冷却 3 例、`verifyPin` 冷却
+- 覆盖要点：弱 PIN 拒绝、`pinKdfIterations` 写入、`verifyPin` 三态、自动提交一次、无确认键、弹层三步（错误的当前 PIN / 与当前相同 / 两次不一致 / 成功）、自动锁定（30s / 12h / ceremony 抑制 / bfcache 无钥）、强制设锁闸门、忘记 PIN 弹层（点两次确认）、旧长度库解锁、旧长度解锁 4 例、忘记 PIN 二次确认、解锁冷却 3 例、`verifyPin` 冷却
