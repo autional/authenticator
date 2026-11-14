@@ -324,17 +324,17 @@ describe('cold boot PIN flow (US-A4)', () => {
 		// Initialize with PIN
 		const first = await import('../storage');
 		await first.initializeStorage();
-		await first.setPinProtection('oldpin');
+		await first.setPinProtection('111111');
 
 		// Cold boot — unlock with old PIN, change to new PIN
 		const second = await import('../storage');
-		await second.unlockWithPin('oldpin');
-		await second.setPinProtection('newpin');
+		await second.unlockWithPin('111111');
+		await second.setPinProtection('222222');
 
 		// Verify new PIN works
 		const third = await import('../storage');
 		await expect(third.loadWithoutPin()).rejects.toThrow();
-		const unlocked = await third.unlockWithPin('newpin');
+		const unlocked = await third.unlockWithPin('222222');
 		expect(unlocked).toEqual([]);
 	});
 });
@@ -455,5 +455,87 @@ describe('Biometric (PRF) protection', () => {
 		await expect(unlockWithBiometric(prfKey)).rejects.toThrow(/not bound/i);
 		// PIN 路径仍然可用
 		await expect(unlockWithPin('123456')).resolves.toHaveLength(1);
+	});
+});
+
+describe('KDF 加固（PIN 位数下限 + 迭代次数升级）', () => {
+	const bindStorage = () => {
+		Object.defineProperty(globalThis, 'localStorage', {
+			value: {
+				getItem: mockStorageGetItem,
+				setItem: mockStorageSetItem,
+				removeItem: mockStorageRemoveItem,
+			},
+			writable: true,
+		});
+	};
+
+	it('拒绝 4-5 位 PIN（WEAK_PIN）', async () => {
+		bindStorage();
+		const { initializeStorage, setPinProtection } = await import('../storage');
+		await initializeStorage();
+
+		await expect(setPinProtection('1234')).rejects.toThrow('WEAK_PIN');
+		await expect(setPinProtection('12345')).rejects.toThrow('WEAK_PIN');
+		await expect(setPinProtection('123456')).resolves.toBeUndefined();
+	});
+
+	it('新设 PIN 记录 pinKdfIterations = 600000 且清掉明文 deviceKey', async () => {
+		bindStorage();
+		const { initializeStorage, setPinProtection } = await import('../storage');
+		const { PIN_KDF_ITERATIONS } = await import('../crypto');
+
+		await initializeStorage();
+		await setPinProtection('123456');
+
+		const payload = JSON.parse(mockLocalStorage['autional-authenticator-v2']);
+		expect(payload.pinKdfIterations).toBe(PIN_KDF_ITERATIONS);
+		expect(payload.deviceKey).toBeNull();
+		expect(payload.deviceKeyWrap).toBeTruthy();
+	});
+
+	it('旧库（100k、无 pinKdfIterations）仍可解锁，并在解锁后升级到 600k', async () => {
+		bindStorage();
+		const { initializeStorage, saveAccounts, unlockWithPin } = await import('../storage');
+		const {
+			derivePinKey,
+			encryptWithKey,
+			arrayBufferToBase64,
+			base64ToArrayBuffer,
+			PIN_KDF_ITERATIONS,
+			LEGACY_PBKDF2_ITERATIONS,
+		} = await import('../crypto');
+
+		await initializeStorage();
+		await saveAccounts([makeAccount({ name: 'Legacy' })]);
+
+		// 手工构造旧版载荷：明文 deviceKey 用 100k 派生的钥包裹，且不写 pinKdfIterations
+		const payload = JSON.parse(mockLocalStorage['autional-authenticator-v2']);
+		const salt = base64ToArrayBuffer(payload.salt);
+		const legacyKey = await derivePinKey('123456', salt, LEGACY_PBKDF2_ITERATIONS);
+		const { ciphertext, iv } = await encryptWithKey(payload.deviceKey, legacyKey);
+		payload.deviceKey = null;
+		payload.deviceKeyWrap = {
+			iv: arrayBufferToBase64(iv),
+			ciphertext: arrayBufferToBase64(ciphertext),
+		};
+		delete payload.pinKdfIterations;
+		mockLocalStorage['autional-authenticator-v2'] = JSON.stringify(payload);
+
+		const loaded = await unlockWithPin('123456');
+		expect(loaded[0].name).toBe('Legacy');
+
+		const upgraded = JSON.parse(mockLocalStorage['autional-authenticator-v2']);
+		expect(upgraded.pinKdfIterations).toBe(PIN_KDF_ITERATIONS);
+	});
+
+	it('无 PIN 时拒绝开启生物识别（不能只挂锁不撤钥匙）', async () => {
+		bindStorage();
+		const { initializeStorage, setBiometricProtection } = await import('../storage');
+
+		await initializeStorage();
+		await expect(setBiometricProtection(new Uint8Array(32).fill(5))).rejects.toThrow(
+			'PIN_REQUIRED_FOR_BIOMETRIC',
+		);
 	});
 });

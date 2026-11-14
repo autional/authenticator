@@ -27,6 +27,9 @@ import {
 	decryptWithKey,
 	arrayBufferToBase64,
 	base64ToArrayBuffer,
+	PIN_KDF_ITERATIONS,
+	LEGACY_PBKDF2_ITERATIONS,
+	PIN_PATTERN,
 } from './crypto';
 import type { TotpAccount } from './store';
 
@@ -47,6 +50,8 @@ interface StoragePayload {
 	deviceKeyWrap: DeviceKeyWrap | null;
 	/** 生物识别解锁：deviceKey 用 PRF 派生密钥再包一层（与 PIN 包裹并存，互不影响） */
 	deviceKeyWrapBio?: DeviceKeyWrap | null;
+	/** PIN 包裹用的 PBKDF2 迭代次数；缺省 = 旧版 100k（存量库） */
+	pinKdfIterations?: number;
 	data: {
 		iv: string;
 		ciphertext: string;
@@ -121,6 +126,27 @@ async function encryptAccounts(
 }
 
 /**
+ * 用 PIN 派生钥包裹 deviceKey 原始字节，并记录本次使用的迭代次数。
+ * PIN 包裹一旦存在，明文 deviceKey 必须置 null（锁与钥匙不得同处）。
+ */
+async function wrapDeviceKeyWithPin(
+	payload: StoragePayload,
+	exportedB64: string,
+	pin: string,
+): Promise<void> {
+	const salt = base64ToArrayBuffer(payload.salt);
+	const pinKey = await derivePinKey(pin, salt, PIN_KDF_ITERATIONS);
+	const { ciphertext, iv } = await encryptWithKey(exportedB64, pinKey);
+	payload.deviceKey = null;
+	payload.deviceKeyWrap = {
+		iv: arrayBufferToBase64(iv),
+		ciphertext: arrayBufferToBase64(ciphertext),
+	};
+	payload.pinKdfIterations = PIN_KDF_ITERATIONS;
+	writePayload(payload);
+}
+
+/**
  * Initialize storage on first run.
  */
 export async function initializeStorage(): Promise<void> {
@@ -180,7 +206,8 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 	}
 
 	const salt = base64ToArrayBuffer(payload.salt);
-	const pinKey = await derivePinKey(pin, salt);
+	const iterations = payload.pinKdfIterations ?? LEGACY_PBKDF2_ITERATIONS;
+	const pinKey = await derivePinKey(pin, salt, iterations);
 
 	const wrapIv = base64ToArrayBuffer(payload.deviceKeyWrap.iv);
 	const wrapCipher = base64ToArrayBuffer(payload.deviceKeyWrap.ciphertext);
@@ -189,6 +216,16 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 	const deviceKeyRawB64 = await decryptWithKey(wrapCipher, wrapIv, pinKey);
 	const deviceKey = await importDeviceKey(base64ToArrayBuffer(deviceKeyRawB64));
 	cachedDeviceKey = deviceKey;
+
+	// 静默升级：旧库（100k）解锁成功后立刻按现行标准重包，下次解锁即用新迭代次数。
+	// 升级失败不影响本次解锁（下次解锁会再试）。
+	if (iterations < PIN_KDF_ITERATIONS) {
+		try {
+			await wrapDeviceKeyWithPin(payload, deviceKeyRawB64, pin);
+		} catch {
+			/* 静默降级：本次解锁已成功，重包失败留待下次 */
+		}
+	}
 
 	return decryptAccounts(payload.data, deviceKey);
 }
@@ -240,6 +277,12 @@ export async function setBiometricProtection(prfKey: Uint8Array): Promise<void> 
 	if (!prfKey || prfKey.length === 0) throw new Error('Invalid PRF key');
 	const payload = readPayload();
 	if (!payload) throw new Error('NOT_INITIALIZED');
+
+	// 生物识别是叠加在 PIN 之上的加速入口：无 PIN 时 deviceKey 是明文，
+	// 再包一层 PRF 不会提升任何安全性（钥匙仍在同一 blob 里），因此直接拒绝。
+	if (payload.deviceKey) {
+		throw new Error('PIN_REQUIRED_FOR_BIOMETRIC');
+	}
 
 	let deviceKey = cachedDeviceKey;
 	if (!deviceKey) {
@@ -301,6 +344,10 @@ export async function saveAccounts(accounts: TotpAccount[]): Promise<void> {
  * If pin is provided, wraps deviceKey with PIN-derived key.
  */
 export async function setPinProtection(pin: string | null): Promise<void> {
+	if (pin && !PIN_PATTERN.test(pin)) {
+		throw new Error('WEAK_PIN');
+	}
+
 	const payload = readPayload();
 	if (!payload) throw new Error('Storage not initialized');
 
@@ -327,19 +374,13 @@ export async function setPinProtection(pin: string | null): Promise<void> {
 		// Remove PIN protection
 		payload.deviceKey = exportedB64;
 		payload.deviceKeyWrap = null;
-	} else {
-		// Add PIN protection
-		const salt = base64ToArrayBuffer(payload.salt);
-		const pinKey = await derivePinKey(pin, salt);
-		const { ciphertext, iv } = await encryptWithKey(exportedB64, pinKey);
-		payload.deviceKey = null;
-		payload.deviceKeyWrap = {
-			iv: arrayBufferToBase64(iv),
-			ciphertext: arrayBufferToBase64(ciphertext),
-		};
+		delete payload.pinKdfIterations;
+		writePayload(payload);
+		return;
 	}
 
-	writePayload(payload);
+	// Add PIN protection
+	await wrapDeviceKeyWithPin(payload, exportedB64, pin);
 }
 
 interface PinAttemptState {

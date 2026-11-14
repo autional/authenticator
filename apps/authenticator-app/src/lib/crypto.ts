@@ -4,9 +4,28 @@
  * - AES-GCM encryption/decryption for account data
  */
 
-const PBKDF2_ITERATIONS = 100_000;
-/** 备份信封专用的 KDF 下限（OWASP 对 PBKDF2-HMAC-SHA256 的现行建议）。 */
+/**
+ * 本地保险库 PIN 包裹的 PBKDF2 迭代次数（OWASP 对 PBKDF2-HMAC-SHA256 的现行建议下限）。
+ *
+ * 强度构成：迭代次数是次要项。100k → 600k 只把成本抬高约 2.6 bit；
+ * PIN 从 4 位到 6 位是 100 倍（约 6.6 bit）。真正的防线是 PIN 位数，见 PIN_MIN_LENGTH。
+ */
+export const PIN_KDF_ITERATIONS = 600_000;
+/**
+ * 存量库 / 存量导出文件的旧迭代次数：只用于读取兼容。
+ * 旧库成功解锁后会静默重包到 PIN_KDF_ITERATIONS，下次解锁即生效。
+ */
+export const LEGACY_PBKDF2_ITERATIONS = 100_000;
+/** 备份信封专用的 KDF 下限（OWASP 对 PBKDF2-HMAC-SHA256 的现行建议）。
+ *  与 PIN_KDF_ITERATIONS 同口径，但两者独立演进（备份是用户口令，本地是 PIN）。 */
 export const BACKUP_KDF_ITERATIONS = 600_000;
+
+/** PIN 位数下限：4-5 位在消费级 GPU 上等同无保护，因此拒绝。 */
+export const PIN_MIN_LENGTH = 6;
+/** PIN 位数上限（与 UI 的 maxLength 一致）。 */
+export const PIN_MAX_LENGTH = 8;
+/** 合法 PIN 形态：6-8 位纯数字。 */
+export const PIN_PATTERN = /^\d{6,8}$/;
 
 export function arrayBufferToBase64(buffer: Uint8Array): string {
 	let binary = '';
@@ -48,7 +67,11 @@ export async function importDeviceKey(raw: Uint8Array): Promise<CryptoKey> {
 	);
 }
 
-export async function derivePinKey(pin: string, salt: Uint8Array): Promise<CryptoKey> {
+export async function derivePinKey(
+	pin: string,
+	salt: Uint8Array,
+	iterations: number = PIN_KDF_ITERATIONS,
+): Promise<CryptoKey> {
 	const pinData = new TextEncoder().encode(pin);
 	const baseKey = await crypto.subtle.importKey('raw', pinData as BufferSource, 'PBKDF2', false, [
 		'deriveKey',
@@ -56,7 +79,7 @@ export async function derivePinKey(pin: string, salt: Uint8Array): Promise<Crypt
 	const algo: Pbkdf2Params = {
 		name: 'PBKDF2',
 		salt: salt as BufferSource,
-		iterations: PBKDF2_ITERATIONS,
+		iterations,
 		hash: 'SHA-256',
 	};
 	return crypto.subtle.deriveKey(algo, baseKey, { name: 'AES-GCM', length: 256 }, true, [

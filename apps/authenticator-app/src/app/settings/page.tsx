@@ -39,6 +39,9 @@ import {
 	decryptWithKey,
 	arrayBufferToBase64,
 	base64ToArrayBuffer,
+	PIN_KDF_ITERATIONS,
+	LEGACY_PBKDF2_ITERATIONS,
+	PIN_PATTERN,
 } from '@/lib/crypto';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
@@ -115,7 +118,7 @@ export default function SettingsPage() {
 		if (password) {
 			try {
 				const salt = crypto.getRandomValues(new Uint8Array(16));
-				const key = await derivePinKey(password, salt);
+				const key = await derivePinKey(password, salt, PIN_KDF_ITERATIONS);
 				const innerData = {
 					version: 2,
 					exportedAt: Date.now(),
@@ -131,7 +134,7 @@ export default function SettingsPage() {
 								encrypted: true,
 								exportedAt: Date.now(),
 								algorithm: 'PBKDF2-SHA256',
-								iterations: 100000,
+								iterations: PIN_KDF_ITERATIONS,
 								salt: arrayBufferToBase64(salt),
 								iv: arrayBufferToBase64(iv),
 								ciphertext: arrayBufferToBase64(ciphertext),
@@ -206,7 +209,10 @@ export default function SettingsPage() {
 			const salt = base64ToArrayBuffer(data.salt);
 			const iv = base64ToArrayBuffer(data.iv);
 			const ciphertext = base64ToArrayBuffer(data.ciphertext);
-			const key = await derivePinKey(importPassword, salt);
+			// 迭代次数随文件保存；旧文件没有该字段 → 回落到旧标准
+			const iterations =
+				Number(data.iterations) > 0 ? Number(data.iterations) : LEGACY_PBKDF2_ITERATIONS;
+			const key = await derivePinKey(importPassword, salt, iterations);
 			const json = await decryptWithKey(ciphertext, iv, key);
 			const inner = JSON.parse(json);
 			await processImportData(inner);
@@ -285,12 +291,7 @@ export default function SettingsPage() {
 			return;
 		}
 
-		if (pinInput.length === 0) {
-			setPinMessage({ type: 'error', text: t('settings.pinLengthError') });
-			return;
-		}
-
-		if (pinInput.length < 4 || pinInput.length > 8) {
+		if (!PIN_PATTERN.test(pinInput)) {
 			setPinMessage({ type: 'error', text: t('settings.pinLengthError') });
 			return;
 		}
@@ -309,6 +310,11 @@ export default function SettingsPage() {
 	};
 
 	const handleBiometricToggle = async () => {
+		// 生物识别叠加在 PIN 之上，不是替代：无 PIN 时开启等于没开（钥匙仍是明文）
+		if (!bioRegistered && !hasPin) {
+			showToast(t('settings.biometricNeedsPin'), 'error');
+			return;
+		}
 		if (bioRegistered) {
 			clearBiometric();
 			clearBiometricProtection();

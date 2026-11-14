@@ -13,8 +13,8 @@ import Corpus from './corpus';
  * W6 对比度取景框入口 — w6-design §4.3（对齐 user 门户 src/test/portal-chrome.tsx 先例）
  *
  * - 版式（取景纪律）：语料网格前置（首屏 = 语料主题面）；真组件帧下移；UnlockGate 收进
- *   h-96 overflow-hidden 裁剪框 + 挂载后 scroll 复位/失焦——PinInputScreen 为 h-screen
- *   autoFocus（UnlockScreen.tsx:54/96），不约束会劫持取景位（首跑实测：抓到的全是 PIN 屏）。
+ *   h-96 overflow-hidden 裁剪框 + 挂载后 scroll 复位/失焦——PinInputScreen（UnlockScreen.tsx 的
+ *   PIN 视图）为 h-screen 且进入 PIN 视图即聚焦输入框，不约束会劫持取景位（首跑实测：抓到的全是 PIN 屏）。
  * - 真组件 ×3：BottomNav（O-N3 激活态，MemoryRouter 挂 ':tenantSlug' 路由使 useTenantSlug 可满足）/
  *   NotFoundPage（404 面互证）/ UnlockGate（PIN 屏 AU-10；localStorage 播种 PIN 载荷使
  *   `!isUnlocked && hasPin` 分支渲染 PinInputScreen，优于 replica 降级——记录于 w6-verify）。

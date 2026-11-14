@@ -32,6 +32,11 @@ export default function SettingsPinProtection({
 			<p className="text-[11px] text-[var(--color-text-muted)] mb-2">
 				{hasPin ? t('settings.pinDescEnabled') : t('settings.pinDescDisabled')}
 			</p>
+			{!hasPin && (
+				<p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-[11px] text-[var(--color-danger-text)]">
+					{t('settings.pinUnprotectedWarning')}
+				</p>
+			)}
 			{pinMessage && (
 				<div
 					className={`mb-2 flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs ${pinMessage.type === 'success' ? 'bg-success/10 text-[var(--color-success-text)]' : 'bg-danger/10 text-[var(--color-danger-text)]'}`}

@@ -153,6 +153,13 @@ describe('derivePinKey', () => {
 		const raw2 = await exportDeviceKey(key2);
 		expect(raw1).toEqual(raw2);
 	});
+
+	it('迭代次数参与派生（旧库兼容路径与现行标准不同）', async () => {
+		const salt = new Uint8Array(16).fill(3);
+		const current = await derivePinKey('123456', salt);
+		const legacy = await derivePinKey('123456', salt, 100_000);
+		expect(await exportDeviceKey(current)).not.toEqual(await exportDeviceKey(legacy));
+	});
 });
 
 describe('importDeviceKey roundtrip (BUG-05 regression)', () => {
