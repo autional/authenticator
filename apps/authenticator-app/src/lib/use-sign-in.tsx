@@ -23,11 +23,30 @@ import TenantPickerDialog from '../components/TenantPickerDialog';
  * 只带 pathname 会丢上下文 —— 典型死点：
  * `/login-approve?token=…` 登录后回跳丢 token →「缺少验证参数」；
  * `/add?tab=qr` 登录后回跳丢页签 → 落到手动输入。
+ *
+ * 租户段只在**路径里还没有**时补：老链接 `/acme/settings` 回跳不能变成
+ * `/acme/acme/settings`（双 slug → 落到 404，登录完看起来还是没登录）。
+ * 根路径 `/` 仍补成 `/<slug>/`（保持与改造前一致的登录上下文）。
  */
 export function buildSignInTarget(slug: string): string {
 	const { origin, pathname, search, hash } = window.location;
-	const suffix = pathname === '/' && !search && !hash ? '/' : `${pathname}${search}${hash}`;
-	return `${origin}/${slug}${suffix}`;
+	// slug 来自 URL 段 / localStorage，可能带空白或大小写噪音（`Acme ` ≠ `acme`）。
+	const normalized = slug.trim().toLowerCase();
+	const isRoot = pathname === '/' && !search && !hash;
+	const suffix = isRoot ? '/' : `${pathname}${search}${hash}`;
+
+	// 没有 slug：不再拼出 `//` 这种坏地址，直接用当前地址。
+	if (!normalized) return `${origin}${suffix}`;
+
+	// 已带当前租户段（`/<slug>` 或 `/<slug>/…`）→ 原样回跳，不重复拼。
+	// 大小写不敏感：slug 规范化为小写，路径可能是历史/手输的大写形态。
+	const base = `/${normalized}`;
+	const lowerPath = pathname.toLowerCase();
+	if (lowerPath === base || lowerPath.startsWith(`${base}/`)) {
+		return `${origin}${suffix}`;
+	}
+
+	return `${origin}/${normalized}${suffix}`;
 }
 
 /**

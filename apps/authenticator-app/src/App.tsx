@@ -4,8 +4,8 @@ import { Routes, Route, Outlet, useParams, Navigate, useLocation } from 'react-r
 import { useTranslation } from 'react-i18next';
 import { rememberTenantSlug, useSessionTenantSlug, useTenantSlug } from './lib/slug';
 import { useSignIn } from './lib/use-sign-in';
-import { useMfaSsoAutoSignIn } from './lib/use-mfa-sso';
 import MfaSsoButton from './components/MfaSsoButton';
+import MfaSsoAutoSignIn from './components/MfaSsoAutoSignIn';
 import {
 	OAuthCallbackPage,
 	TenantSlugProvider,
@@ -121,9 +121,8 @@ function ServerOnly({ children }: { children: ReactNode }) {
 	const { signIn, legacySignIn, dialog } = useSignIn();
 	const tenantSlug = useTenantSlug();
 
-	// 「用本机验证器登录」回跳后静默续跑一次（`?mfa_sso=1`，一次性）。
-	// 必须用 legacySignIn：此刻票据已消费、auth 域已有会话，再换一次票就成死循环。
-	useMfaSsoAutoSignIn(legacySignIn, isAuthenticated);
+	// 「用本机验证器登录」回跳后的静默续跑**不在这里**：它挂在路由树之外
+	// （`MfaSsoAutoSignIn`），否则设置页 / 首页空态这类回跳目标根本不会执行。
 
 	if (isAuthenticated) return <>{children}</>;
 
@@ -162,6 +161,10 @@ export default function App() {
 						{/* 令牌能力不足（票据/推送 403）→ 提示重新登录。放在滚动容器之外，
 						    保证任何页面、任何滚动位置都看得见（它不是页面内容的一部分）。 */}
 						<ReloginNotice />
+						{/* 登录回跳后的全局续跑（渲染 null）。必须放在 Routes 之外：回跳目标可能是
+						    设置页 / 首页空态，它们不在 ServerOnly 里，挂在里面就永远不执行。
+						    App 整个在 BrowserRouter 内，这里可以用 useLocation。 */}
+						<MfaSsoAutoSignIn />
 						{/* 底部让位：值 = 底栏高度令牌 + 一段常规间距（112px = 64 + 48）。
 						    原先写的是一个魔法数字 pb-28 —— 而它本来就是两个令牌的和，只是没写出来。
 						    写成算式之后：值逐字相同（零视觉变化），但从此可算、可调、可查；
