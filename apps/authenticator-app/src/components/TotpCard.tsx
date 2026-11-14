@@ -73,17 +73,17 @@ export default function TotpCard({
 	const menuItems = [
 		{
 			label: t('card.copyCode'),
-			icon: <Copy className="h-3.5 w-3.5" />,
+			icon: <Copy className="h-4 w-4" />,
 			onClick: handleCopy,
 		},
 		{
 			label: t('card.editAccount'),
-			icon: <Pencil className="h-3.5 w-3.5" />,
+			icon: <Pencil className="h-4 w-4" />,
 			onClick: () => onEdit?.(account.id),
 		},
 		{
 			label: account.pinned ? t('account.cancelPin') : t('account.pinTop'),
-			icon: <ArrowUp className="h-3.5 w-3.5" />,
+			icon: <ArrowUp className="h-4 w-4" />,
 			onClick: () => {
 				onPin?.(account.id);
 				showToast(account.pinned ? t('account.unpinned') : t('account.pinned'), 'success');
@@ -91,7 +91,7 @@ export default function TotpCard({
 		},
 		{
 			label: t('common.delete'),
-			icon: <Trash2 className="h-3.5 w-3.5" />,
+			icon: <Trash2 className="h-4 w-4" />,
 			danger: true,
 			onClick: () => setShowDelete(true),
 		},
@@ -136,10 +136,10 @@ export default function TotpCard({
 							e.stopPropagation();
 							setShowDelete(!showDelete);
 						}}
-						className="rounded-md p-1.5 text-[var(--color-text-muted)] hover:bg-danger/10 hover:text-[var(--color-danger-text)] transition-colors"
+						className="rounded-md p-2.5 text-[var(--color-text-muted)] hover:bg-danger/10 hover:text-[var(--color-danger-text)] transition-colors"
 						aria-label={t('card.deleteAccount')}
 					>
-						<Trash2 className="h-3.5 w-3.5" />
+						<Trash2 className="h-4 w-4" />
 					</button>
 				</div>
 
@@ -155,8 +155,8 @@ export default function TotpCard({
 						<span className="totp-code text-3xl font-mono font-bold tracking-wider text-[var(--color-text-primary)]">
 							{totp?.code ?? '------'}
 						</span>
-						<span className="rounded-md p-1.5 text-[var(--color-text-muted)] group-hover:bg-primary-500/10 group-hover:text-primary-400 transition-colors">
-							{copied ? <Check className="h-4 w-4 text-[var(--color-success-text)]" /> : <Copy className="h-4 w-4" />}
+						<span className="rounded-md p-2 text-[var(--color-text-muted)] group-hover:bg-primary-500/10 group-hover:text-primary-400 transition-colors">
+							{copied ? <Check className="h-5 w-5 text-[var(--color-success-text)]" /> : <Copy className="h-5 w-5" />}
 						</span>
 					</button>
 					<CountdownRing progress={totp?.progress ?? 1} size={44} strokeWidth={3} />
@@ -173,13 +173,13 @@ export default function TotpCard({
 						<div className="flex gap-2">
 							<button
 								onClick={() => setShowDelete(false)}
-								className="rounded-lg bg-auth-elevated px-4 py-1.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-auth-border transition-colors"
+								className="rounded-lg bg-auth-elevated px-4 py-2.5 text-xs font-medium text-[var(--color-text-secondary)] hover:bg-auth-border transition-colors"
 							>
 								{t('common.cancel')}
 							</button>
 							<button
 								onClick={() => onDelete(account.id)}
-								className="rounded-lg bg-danger-soft px-4 py-1.5 text-xs font-medium text-[var(--color-danger-text)] transition-colors"
+								className="rounded-lg bg-danger-soft px-4 py-2.5 text-xs font-medium text-[var(--color-danger-text)] transition-colors"
 							>
 								{t('common.delete')}
 							</button>

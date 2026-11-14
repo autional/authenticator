@@ -20,12 +20,12 @@ export default function SettingsBiometric({
 				<Fingerprint className="h-4 w-4 text-[var(--color-text-secondary)]" />
 				<span className="text-sm text-[var(--color-text-primary)]">{t('settings.biometric')}</span>
 				{bioRegistered && (
-					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-success-text)]">
+					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-success-text)]">
 						{t('settings.biometricEnabled')}
 					</span>
 				)}
 			</div>
-			<p className="text-[11px] text-[var(--color-text-muted)] mb-2">
+			<p className="text-xs text-[var(--color-text-muted)] mb-2">
 				{bioRegistered ? t('settings.biometricDescEnabled') : t('settings.biometricDescDisabled')}
 			</p>
 			<button

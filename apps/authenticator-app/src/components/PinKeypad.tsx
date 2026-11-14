@@ -255,7 +255,7 @@ export default function PinKeypad({
 				)}
 			</div>
 
-			<p className="mt-4 text-[11px] text-[var(--color-text-muted)]">{t('keypad.clearHint')}</p>
+			<p className="mt-4 text-xs text-[var(--color-text-muted)]">{t('keypad.clearHint')}</p>
 
 			{footer}
 		</div>

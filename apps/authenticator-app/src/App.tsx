@@ -157,7 +157,7 @@ export default function App() {
 						{t('common.skipToContent')}
 					</a>
 					<PwaInstallPrompt />
-					<div className="mx-auto flex h-screen max-w-md flex-col bg-auth-bg pt-[env(safe-area-inset-top)]">
+					<div className="mx-auto flex app-shell max-w-md flex-col bg-auth-bg pt-[env(safe-area-inset-top)]">
 						{/* 令牌能力不足（票据/推送 403）→ 提示重新登录。放在滚动容器之外，
 						    保证任何页面、任何滚动位置都看得见（它不是页面内容的一部分）。 */}
 						<ReloginNotice />

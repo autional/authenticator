@@ -334,13 +334,13 @@ export default function CloudBackupPage() {
 								<Upload className="h-4 w-4 text-primary-400" />
 								<div>
 									<span className="text-sm text-[var(--color-text-primary)]">{t('cloudBackup.upload')}</span>
-									<p className="text-[11px] text-[var(--color-text-muted)]">
+									<p className="text-xs text-[var(--color-text-muted)]">
 										{accounts.length > 0
 											? t('settings.accountsCountLabel', { n: accounts.length })
 											: t('home.noAccounts')}
 									</p>
 									{needsRestore && (
-										<p className="text-[11px] text-[var(--color-warning-text)]">
+										<p className="text-xs text-[var(--color-warning-text)]">
 											{t('cloudBackup.needsRestoreHint')}
 										</p>
 									)}
@@ -360,7 +360,7 @@ export default function CloudBackupPage() {
 								<Download className="h-4 w-4 text-primary-400" />
 								<div>
 									<span className="text-sm text-[var(--color-text-primary)]">{t('cloudBackup.download')}</span>
-									<p className="text-[11px] text-[var(--color-text-muted)]">
+									<p className="text-xs text-[var(--color-text-muted)]">
 										{format === 'v2' ? t('cloudBackup.downloadHintV2') : t('cloudBackup.downloadHintV1')}
 									</p>
 								</div>
@@ -438,7 +438,7 @@ export default function CloudBackupPage() {
 									<span className="text-sm text-[var(--color-text-primary)]">
 										{t('cloudBackup.rotatePassphrase')}
 									</span>
-									<p className="text-[11px] text-[var(--color-text-muted)]">
+									<p className="text-xs text-[var(--color-text-muted)]">
 										{t('cloudBackup.rotatePassphraseDesc')}
 									</p>
 								</div>
@@ -453,7 +453,7 @@ export default function CloudBackupPage() {
 									<span className="text-sm text-[var(--color-text-primary)]">
 										{t('cloudBackup.rotateRecovery')}
 									</span>
-									<p className="text-[11px] text-[var(--color-text-muted)]">
+									<p className="text-xs text-[var(--color-text-muted)]">
 										{t('cloudBackup.rotateRecoveryDesc')}
 									</p>
 								</div>

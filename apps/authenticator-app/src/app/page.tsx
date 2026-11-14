@@ -149,10 +149,10 @@ export default function HomePage() {
 						<img
 							src={branding.logoUrl}
 							alt={branding.companyName || t('home.title')}
-							className="h-6 w-6 shrink-0 rounded-md object-contain"
+							className="h-7 w-7 shrink-0 rounded-md object-contain"
 						/>
 					) : (
-						<ShieldCheck className="h-6 w-6 shrink-0 text-primary-500" />
+						<ShieldCheck className="h-7 w-7 shrink-0 text-primary-500" />
 					)}
 					<h1 className="min-w-0 truncate text-lg font-bold text-[var(--color-text-primary)]">
 						{branding?.companyName || t('home.title')}
@@ -162,9 +162,9 @@ export default function HomePage() {
 						onClick={() => navigate(toSlugged('/add?tab=qr', slug))}
 						aria-label={t('home.scan')}
 						title={t('home.scan')}
-						className="ml-auto shrink-0 rounded-xl border border-auth-border bg-auth-elevated p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+						className="ml-auto shrink-0 rounded-xl border border-auth-border bg-auth-elevated p-2.5 min-h-[40px] min-w-[40px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
 					>
-						<QrCode className="h-5 w-5" />
+						<QrCode className="h-6 w-6" />
 					</button>
 					<LanguageSwitcher className="shrink-0" />
 				</div>
@@ -178,25 +178,25 @@ export default function HomePage() {
 							id="account-search"
 							name="account-search"
 							type="text"
-							size="sm"
+							size="md"
 							value={searchQuery}
 							onChange={(e) => setSearchQuery(e.target.value)}
 							placeholder={t('home.searchPlaceholder')}
 							aria-label={t('home.searchPlaceholder')}
-							prefix={<Search size={16} />}
+							prefix={<Search size={18} />}
 							suffix={searchQuery ? (
 								<button
 									type="button"
 									onClick={() => setSearchQuery('')}
-									className="rounded-md p-0.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
+									className="-mr-1 rounded-md p-1.5 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
 									aria-label={t('home.clearFilter')}
 								>
-									<X size={16} />
+									<X size={18} />
 								</button>
 							) : undefined}
 						/>
 					</div>
-					<span className="shrink-0 whitespace-nowrap rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-medium text-primary-600 dark:text-primary-400">
+					<span className="shrink-0 whitespace-nowrap rounded-full bg-primary-500/10 px-2 py-0.5 text-[11px] font-medium text-primary-600 dark:text-primary-400">
 						{t('home.accountsCount', { n: accounts.length })}
 					</span>
 					<button
@@ -207,7 +207,7 @@ export default function HomePage() {
 								setBatchMode(true);
 							}
 						}}
-						className={`inline-flex min-h-[32px] shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-1 text-xs font-medium transition-colors ${
+						className={`inline-flex min-h-[40px] shrink-0 items-center whitespace-nowrap rounded-lg px-2.5 py-2 text-xs font-medium transition-colors ${
 							batchMode ? 'bg-primary-600 text-white' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
 						}`}
 					>
@@ -215,13 +215,13 @@ export default function HomePage() {
 					</button>
 					<button
 						onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
-						className="shrink-0 rounded-xl border border-auth-border bg-auth-elevated p-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+						className="shrink-0 rounded-xl border border-auth-border bg-auth-elevated p-2.5 min-h-[40px] min-w-[40px] text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
 						aria-label={viewMode === 'list' ? t('home.gridView') : t('home.listView')}
 					>
 						{viewMode === 'list' ? (
-							<LayoutGrid className="h-4 w-4" />
+							<LayoutGrid className="h-5 w-5" />
 						) : (
-							<List className="h-4 w-4" />
+							<List className="h-5 w-5" />
 						)}
 					</button>
 				</div>
@@ -231,7 +231,7 @@ export default function HomePage() {
 					<div className="mt-2 flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide">
 						<button
 							onClick={() => setSelectedGroup(null)}
-							className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+							className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${
 								selectedGroup === null
 									? 'bg-primary-600 text-white'
 									: 'bg-auth-elevated text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'
@@ -246,7 +246,7 @@ export default function HomePage() {
 								<button
 									key={g}
 									onClick={() => setSelectedGroup(isActive ? null : g)}
-									className={`shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+									className={`shrink-0 rounded-full px-3.5 py-2 text-xs font-medium transition-colors ${
 										isActive
 											? 'bg-primary-600 text-white'
 											: isEmpty

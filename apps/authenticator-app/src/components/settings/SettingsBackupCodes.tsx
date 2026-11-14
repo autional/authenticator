@@ -26,12 +26,12 @@ export default function SettingsBackupCodes({
 				<KeyRound className="h-4 w-4 text-[var(--color-text-secondary)]" />
 				<span className="text-sm text-[var(--color-text-primary)]">{t('settings.backupCodes')}</span>
 				{backupCodesCount > 0 && (
-					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-success-text)]">
+					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-success-text)]">
 						{t('settings.backupCodesCount', { count: backupCodesCount })}
 					</span>
 				)}
 			</div>
-			<p className="text-[11px] text-[var(--color-text-muted)] mb-2">{t('settings.backupCodesDescription')}</p>
+			<p className="text-xs text-[var(--color-text-muted)] mb-2">{t('settings.backupCodesDescription')}</p>
 			{error && (
 				<div className="mb-3 flex items-center gap-2 rounded-lg bg-danger/10 px-3 py-2.5 text-xs text-[var(--color-danger-text)]">
 					<AlertCircle className="h-3.5 w-3.5 shrink-0" />

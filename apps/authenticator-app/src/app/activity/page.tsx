@@ -165,7 +165,7 @@ export default function ActivityPage() {
 										<span className="text-sm font-medium text-[var(--color-text-primary)]">
 											{getStatusLabel(item.status)}
 										</span>
-										<span className="text-[11px] text-[var(--color-text-muted)]">
+										<span className="text-xs text-[var(--color-text-muted)]">
 											{formatTime(item.createdAt)}
 										</span>
 									</div>
@@ -178,7 +178,7 @@ export default function ActivityPage() {
 						{items.length > 0 && (
 							<div className="pt-2 text-center">
 								{/* AU-24：页尾常显进度，防静默截断自证 */}
-								<p className="text-[11px] text-[var(--color-text-muted)]">
+								<p className="text-xs text-[var(--color-text-muted)]">
 									{t('common.listProgress', { shown: items.length, total })}
 								</p>
 								{hasMore ? (
@@ -190,7 +190,7 @@ export default function ActivityPage() {
 										{loadingMore ? t('common.loadingMore') : t('common.loadMore')}
 									</button>
 								) : (
-									<p className="mt-2 text-[11px] text-[var(--color-text-muted)]">{t('common.noMore')}</p>
+									<p className="mt-2 text-xs text-[var(--color-text-muted)]">{t('common.noMore')}</p>
 								)}
 							</div>
 						)}

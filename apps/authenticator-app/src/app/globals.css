@@ -20,6 +20,24 @@
   }
 }
 
+/**
+ * 应用外壳高度（见 tailwind.config.ts 的 fontSize 覆盖说明）。
+ *
+ * 100dvh 才等于「当前可视高度」。100vh 在 iOS Safari 里把可收起的地址栏那一截也
+ * 算进去，于是外壳比可视区高，`main` 的内滚动区底部被裁到固定底栏下面 —— 表现是
+ * 「列表最后一张卡看不到全貌」。
+ *
+ * 两行是刻意的渐进增强：`100vh` 给不认识 dvh 的浏览器（iOS < 15.4）兜底，紧随其后的
+ * `100dvh` 在支持的浏览器里覆盖它。写成 Tailwind 的 `h-screen h-dvh` 两连则要靠生成
+ * 顺序决定胜负，是不可依赖的。
+ *
+ * 安全区仍由使用方的 `pt-[env(safe-area-inset-top)]` / 底栏 spacer 负责，本类只管高度。
+ */
+.app-shell {
+  height: 100vh;
+  height: 100dvh;
+}
+
 /* Custom scrollbar for dark theme */
 ::-webkit-scrollbar {
   width: 4px;

@@ -24,12 +24,12 @@ export default function SettingsPushMfa({
 				)}
 				<span className="text-sm text-[var(--color-text-primary)]">{t('settings.pushApproval')}</span>
 				{pushEnabled && (
-					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-success-text)]">
+					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-success-text)]">
 						{t('settings.pushEnabled')}
 					</span>
 				)}
 			</div>
-			<p className="text-[11px] text-[var(--color-text-muted)] mb-2">
+			<p className="text-xs text-[var(--color-text-muted)] mb-2">
 				{pushEnabled ? t('settings.pushDescEnabled') : t('settings.pushDescDisabled')}
 			</p>
 			{pushError && (

@@ -229,7 +229,7 @@ export default function NotificationsPage() {
 				<h1 className="text-lg font-bold text-[var(--color-text-primary)]">{t('notifications.title')}</h1>
 				<div className="ml-auto flex items-center gap-2">
 					{unreadCount > 0 && (
-						<span className="rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-[var(--color-danger-text)]">
+						<span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-medium text-[var(--color-danger-text)]">
 							{unreadCount}
 						</span>
 					)}
@@ -307,7 +307,7 @@ export default function NotificationsPage() {
 											</span>
 											<div className="flex items-center gap-2 shrink-0 ml-2">
 												{!item.isRead && <span className="h-2 w-2 rounded-full bg-primary-500" />}
-												<span className="text-[11px] text-[var(--color-text-muted)]">
+												<span className="text-xs text-[var(--color-text-muted)]">
 													{formatTime(item.createdAt)}
 												</span>
 											</div>
@@ -320,7 +320,7 @@ export default function NotificationsPage() {
 											</p>
 										)}
 										{item.actionUrl && (
-											<div className="mt-1 flex items-center gap-1 text-[11px] text-primary-400">
+											<div className="mt-1 flex items-center gap-1 text-xs text-primary-400">
 												<ExternalLink className="h-3 w-3" />
 												<span>{t('notifications.viewDetails')}</span>
 											</div>
@@ -348,7 +348,7 @@ export default function NotificationsPage() {
 						{items.length > 0 && (
 							<div className="pt-2 text-center">
 								{/* AU-13：页尾常显进度，防静默截断自证 */}
-								<p className="text-[11px] text-[var(--color-text-muted)]">
+								<p className="text-xs text-[var(--color-text-muted)]">
 									{t('common.listProgress', { shown: items.length, total })}
 								</p>
 								{hasMore ? (
@@ -360,7 +360,7 @@ export default function NotificationsPage() {
 										{loadingMore ? t('common.loadingMore') : t('common.loadMore')}
 									</button>
 								) : (
-									<p className="mt-2 text-[11px] text-[var(--color-text-muted)]">{t('common.noMore')}</p>
+									<p className="mt-2 text-xs text-[var(--color-text-muted)]">{t('common.noMore')}</p>
 								)}
 							</div>
 						)}

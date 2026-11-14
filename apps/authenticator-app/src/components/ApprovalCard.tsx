@@ -179,7 +179,7 @@ export default function ApprovalCard({
 							<span
 								key={signal.key}
 								data-testid={`approval-signal-${signal.key}`}
-								className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${SIGNAL_TONE_CLASS[signal.tone]}`}
+								className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${SIGNAL_TONE_CLASS[signal.tone]}`}
 							>
 								{signal.label}
 							</span>

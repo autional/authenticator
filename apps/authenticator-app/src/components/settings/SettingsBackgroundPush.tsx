@@ -135,7 +135,7 @@ export default function SettingsBackgroundPush({ onRelogin }: { onRelogin?: () =
 							<span className="text-sm text-[var(--color-text-primary)]">
 								{t('settings.backgroundPush')}
 							</span>
-							<p className="text-[11px] text-[var(--color-text-muted)]">
+							<p className="text-xs text-[var(--color-text-muted)]">
 								{t('settings.backgroundPushDesc')}
 							</p>
 						</div>
@@ -162,13 +162,13 @@ export default function SettingsBackgroundPush({ onRelogin }: { onRelogin?: () =
 				</div>
 
 				{busy && (
-					<p aria-live="polite" className="px-4 pb-3 text-[11px] text-[var(--color-text-secondary)]">
+					<p aria-live="polite" className="px-4 pb-3 text-xs text-[var(--color-text-secondary)]">
 						{t('settings.pushProcessing')}
 					</p>
 				)}
 
 				{hintKey && !busy && (
-					<p id={hintId} className="px-4 pb-3 text-[11px] text-[var(--color-warning-text)]">
+					<p id={hintId} className="px-4 pb-3 text-xs text-[var(--color-warning-text)]">
 						{t(hintKey)}
 					</p>
 				)}

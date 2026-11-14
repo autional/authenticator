@@ -221,7 +221,7 @@ export default function AddAccountPage() {
 								rows={3}
 								className="w-full resize-none rounded-xl border border-auth-border bg-auth-elevated px-3.5 py-2.5 text-sm font-mono text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] transition-colors focus:border-primary-500"
 							/>
-							<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{t('add.secretHint')}</p>
+							<p className="mt-1 text-xs text-[var(--color-text-muted)]">{t('add.secretHint')}</p>
 						</div>
 						<button
 							type="submit"
@@ -332,7 +332,7 @@ export default function AddAccountPage() {
 										</div>
 										<div className="min-w-0 flex-1">
 											<p className="text-xs font-medium text-[var(--color-text-primary)] truncate">{acc.name}</p>
-											<p className="text-[10px] text-[var(--color-text-muted)]">
+											<p className="text-[11px] text-[var(--color-text-muted)]">
 												{acc.algorithm} · {acc.digits}
 											</p>
 										</div>

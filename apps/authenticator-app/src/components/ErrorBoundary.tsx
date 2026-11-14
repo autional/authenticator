@@ -20,7 +20,7 @@ export default function ErrorBoundary({ children }: Props) {
 
 	const fallback = (
 		<main
-			className="flex h-screen flex-col items-center justify-center px-6 text-center"
+			className="flex app-shell flex-col items-center justify-center px-6 text-center"
 			role="alert"
 		>
 			<div className="mb-4 flex h-16 w-16 items-center justify-center rounded-md bg-danger-soft/20">

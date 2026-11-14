@@ -54,7 +54,7 @@ export default function CountdownRing({
 				/>
 			</svg>
 			<span
-				className={`absolute text-[10px] font-mono font-bold ${
+				className={`absolute text-[11px] font-mono font-bold ${
 					isUrgent ? 'text-[var(--color-danger-text)]' : 'text-[var(--color-text-secondary)]'
 				}`}
 			>

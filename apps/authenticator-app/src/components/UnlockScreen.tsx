@@ -139,7 +139,7 @@ function PinInputScreen() {
 
 	if (mode === 'bio') {
 		return (
-			<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6">
+			<main className="flex app-shell flex-col items-center justify-center bg-auth-bg px-6">
 				<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-primary-500/10">
 					<Fingerprint className="h-10 w-10 text-primary-500" />
 				</div>
@@ -174,7 +174,7 @@ function PinInputScreen() {
 	}
 
 	return (
-		<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6">
+		<main className="flex app-shell flex-col items-center justify-center bg-auth-bg px-6">
 			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-primary-500/10">
 				<ShieldCheck className="h-10 w-10 text-primary-500" />
 			</div>
@@ -357,7 +357,7 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 	};
 
 	return (
-		<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6">
+		<main className="flex app-shell flex-col items-center justify-center bg-auth-bg px-6">
 			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-primary-500/10">
 				<ShieldCheck className="h-10 w-10 text-primary-500" />
 			</div>
@@ -435,7 +435,7 @@ function VaultResetScreen() {
 	};
 
 	return (
-		<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6 text-center">
+		<main className="flex app-shell flex-col items-center justify-center bg-auth-bg px-6 text-center">
 			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-danger-soft">
 				<ShieldAlert className="h-10 w-10 text-[var(--color-danger-text)]" aria-hidden="true" />
 			</div>
@@ -511,7 +511,7 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 	if (isLoading) {
 		return (
 			<main
-				className="flex h-screen items-center justify-center bg-auth-bg"
+				className="flex app-shell items-center justify-center bg-auth-bg"
 				role="status"
 				aria-label={t('unlock.loadingAria')}
 			>
@@ -523,7 +523,7 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 	if (bootError) {
 		return (
 			<main
-				className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6 text-center"
+				className="flex app-shell flex-col items-center justify-center bg-auth-bg px-6 text-center"
 				role="alert"
 			>
 				<AlertCircle className="mb-4 h-10 w-10 text-[var(--color-danger-text)]" />

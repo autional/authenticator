@@ -68,7 +68,7 @@ function Harness() {
 						<h1 className="text-sm font-bold text-[var(--color-text-primary)]">
 							authenticator contrast harness
 						</h1>
-						<p className="text-[10px] text-[var(--color-text-secondary)]">
+						<p className="text-[11px] text-[var(--color-text-secondary)]">
 							真组件 ×3 + 修复后语料（O-N1/N2/N4/N5 + AU-32/C31 + N8）· ?theme=dark|light
 						</p>
 					</header>
@@ -84,7 +84,7 @@ function Harness() {
 								<Route path=":tenantSlug" element={<BottomNav />} />
 							</Routes>
 						</div>
-						<p className="text-[11px] text-[var(--color-text-secondary)]">
+						<p className="text-xs text-[var(--color-text-secondary)]">
 							nav 为 fixed 定位（挂视口底）；backdrop-filter 已由 harness.css 中和（取景纪律①）
 						</p>
 					</section>

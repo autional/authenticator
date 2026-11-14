@@ -77,7 +77,7 @@ function ScoreItem({ label, value, max }: { label: string; value: number; max: n
 	return (
 		<div className="rounded-lg bg-auth-elevated p-2 text-center">
 			<p className="text-lg font-bold text-[var(--color-text-primary)]">{value}</p>
-			<p className="text-[10px] text-[var(--color-text-muted)]">{label}</p>
+			<p className="text-[11px] text-[var(--color-text-muted)]">{label}</p>
 			<div className="mt-1 h-1 w-full rounded-full bg-auth-border overflow-hidden">
 				<div
 					className={`h-full rounded-full ${pct >= 100 ? 'bg-success' : pct >= 50 ? 'bg-warning' : 'bg-danger'}`}

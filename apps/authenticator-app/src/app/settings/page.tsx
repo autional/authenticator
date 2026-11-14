@@ -503,7 +503,7 @@ export default function SettingsPage() {
 							<Info className="h-4 w-4 text-[var(--color-text-secondary)]" />
 							<div>
 								<span className="text-sm text-[var(--color-text-primary)]">{t('settings.aboutVersion')}</span>
-								<p className="text-[11px] text-[var(--color-text-muted)]">{t('settings.aboutDesc')}</p>
+								<p className="text-xs text-[var(--color-text-muted)]">{t('settings.aboutDesc')}</p>
 							</div>
 						</div>
 					</div>

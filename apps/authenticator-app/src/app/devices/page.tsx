@@ -90,7 +90,7 @@ export default function DevicesPage() {
 									<p className="text-sm font-medium text-[var(--color-text-primary)] truncate">
 										{device.deviceName || t('devices.unnamed')}
 									</p>
-									<p className="text-[11px] text-[var(--color-text-muted)]">
+									<p className="text-xs text-[var(--color-text-muted)]">
 										{formatDate(device.createdAt)}
 									</p>
 								</div>

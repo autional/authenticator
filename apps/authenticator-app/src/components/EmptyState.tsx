@@ -22,13 +22,13 @@ export default function EmptyState() {
 			<div className="flex w-full max-w-[240px] flex-col gap-2">
 				<button
 					onClick={() => navigate(toSlugged('/add', slug))}
-					className="rounded-xl bg-primary-600 px-6 py-2.5 text-sm font-semibold text-white hover:bg-primary-500 active:scale-95 transition-all"
+					className="rounded-xl bg-primary-600 px-6 py-3 text-sm font-semibold text-white hover:bg-primary-500 active:scale-95 transition-all"
 				>
 					{t('home.addAccount')}
 				</button>
 				<button
 					onClick={() => navigate(toSlugged('/add?tab=qr', slug))}
-					className="flex items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-elevated px-6 py-2.5 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-auth-border transition-all"
+					className="flex items-center justify-center gap-2 rounded-xl border border-auth-border bg-auth-elevated px-6 py-3 text-sm font-semibold text-[var(--color-text-primary)] hover:bg-auth-border transition-all"
 				>
 					<QrCode className="h-4 w-4" />
 					{t('home.scan')}
@@ -38,7 +38,7 @@ export default function EmptyState() {
 				<button
 					type="button"
 					onClick={signIn}
-					className="mt-3 inline-flex min-h-[32px] items-center rounded-lg px-2 text-xs text-primary-400 hover:text-primary-300"
+					className="mt-3 inline-flex min-h-[44px] items-center rounded-lg px-2 text-xs text-primary-400 hover:text-primary-300"
 				>
 					{t('home.signIn')}
 				</button>

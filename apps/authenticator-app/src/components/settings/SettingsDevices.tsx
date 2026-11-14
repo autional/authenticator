@@ -18,7 +18,7 @@ export default function SettingsDevices() {
 					<Smartphone className="h-4 w-4 text-[var(--color-text-secondary)]" />
 					<div className="flex-1">
 						<span className="text-sm text-[var(--color-text-primary)]">{t('settings.registeredDevices')}</span>
-						<p className="text-[11px] text-[var(--color-text-secondary)]">{t('settings.devicesSubtitle')}</p>
+						<p className="text-xs text-[var(--color-text-secondary)]">{t('settings.devicesSubtitle')}</p>
 					</div>
 					<button
 						onClick={() => navigate(toSlugged('/devices', slug))}

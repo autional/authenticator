@@ -106,7 +106,7 @@ export default function DeviceSyncPage() {
 					<h2 className="mb-2 text-xs font-semibold uppercase tracking-wider text-[var(--color-text-muted)]">
 						{t('deviceSync.list')}
 					</h2>
-					<p className="mb-2 text-[11px] text-[var(--color-text-muted)]">{t('deviceSync.capNote')}</p>
+					<p className="mb-2 text-xs text-[var(--color-text-muted)]">{t('deviceSync.capNote')}</p>
 					<div className="rounded-xl border border-auth-border bg-auth-surface">
 						{loading ? (
 							<div className="flex items-center justify-center py-12">
@@ -131,7 +131,7 @@ export default function DeviceSyncPage() {
 											</p>
 											<div className="flex items-center gap-2 mt-0.5">
 												<span
-													className="text-[10px] font-mono text-[var(--color-text-muted)]"
+													className="text-[11px] font-mono text-[var(--color-text-muted)]"
 													title={device.deviceFingerprint}
 												>
 													{truncateFingerprint(device.deviceFingerprint)}
@@ -139,11 +139,11 @@ export default function DeviceSyncPage() {
 											</div>
 											<div className="flex items-center gap-1 mt-0.5">
 												<Clock className="h-3 w-3 text-[var(--color-text-muted)]" />
-												<span className="text-[10px] text-[var(--color-text-muted)]">
+												<span className="text-[11px] text-[var(--color-text-muted)]">
 													{formatDate(device.lastSyncAt)}
 												</span>
 												{device.needsResync && (
-													<span className="text-[10px] text-[var(--color-text-muted)]">
+													<span className="text-[11px] text-[var(--color-text-muted)]">
 														· {t('deviceSync.needsResync')}
 													</span>
 												)}
@@ -184,7 +184,7 @@ export default function DeviceSyncPage() {
 								<Wifi className="h-4 w-4 text-primary-400" />
 								<div>
 									<span className="text-sm text-[var(--color-text-primary)]">{t('deviceSync.syncThis')}</span>
-									<p className="text-[11px] text-[var(--color-text-muted)]">
+									<p className="text-xs text-[var(--color-text-muted)]">
 										{t('deviceSync.syncThisDesc')}
 									</p>
 								</div>

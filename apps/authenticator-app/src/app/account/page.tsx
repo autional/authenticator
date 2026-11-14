@@ -242,7 +242,7 @@ export default function AccountDetailPage() {
 								{showSecret ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
 							</button>
 						</div>
-						<p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{t('account.secretHint')}</p>
+						<p className="mt-1 text-xs text-[var(--color-text-muted)]">{t('account.secretHint')}</p>
 					</div>
 				</div>
 

@@ -86,16 +86,16 @@ export default function SettingsPinProtection({
 				<Lock className="h-4 w-4 text-[var(--color-text-secondary)]" />
 				<span className="text-sm text-[var(--color-text-primary)]">{t('settings.pin')}</span>
 				{hasPin && (
-					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[10px] font-medium text-[var(--color-success-text)]">
+					<span className="ml-auto rounded-full bg-success/10 px-2 py-0.5 text-[11px] font-medium text-[var(--color-success-text)]">
 						{t('settings.pinEnabled')}
 					</span>
 				)}
 			</div>
-			<p className="text-[11px] text-[var(--color-text-muted)] mb-2">
+			<p className="text-xs text-[var(--color-text-muted)] mb-2">
 				{hasPin ? t('settings.pinDescEnabled') : t('settings.pinDescDisabled')}
 			</p>
 			{!hasPin && (
-				<p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-[11px] text-[var(--color-danger-text)]">
+				<p className="mb-2 rounded-lg bg-danger/10 px-3 py-2 text-xs text-[var(--color-danger-text)]">
 					{t('settings.pinUnprotectedWarning')}
 				</p>
 			)}
@@ -114,13 +114,13 @@ export default function SettingsPinProtection({
 			{error && (
 				<p
 					role="alert"
-					className="mb-2 flex items-center gap-1.5 rounded-lg bg-danger/10 px-3 py-2 text-[11px] text-[var(--color-danger-text)]"
+					className="mb-2 flex items-center gap-1.5 rounded-lg bg-danger/10 px-3 py-2 text-xs text-[var(--color-danger-text)]"
 				>
 					<AlertCircle className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
 					{error}
 				</p>
 			)}
-			<p className="mb-3 text-center text-[11px] text-[var(--color-text-muted)]">
+			<p className="mb-3 text-center text-xs text-[var(--color-text-muted)]">
 				{phase === 'new' ? t('settings.pinHintNew') : t('settings.pinHintConfirm')}
 			</p>
 			<div className="flex justify-center">
@@ -137,7 +137,7 @@ export default function SettingsPinProtection({
 					shakeKey={shakeKey}
 					footer={
 						pinSaving ? (
-							<p className="mt-2 text-[11px] text-[var(--color-text-secondary)]">
+							<p className="mt-2 text-xs text-[var(--color-text-secondary)]">
 								{t('settings.pinSaving')}
 							</p>
 						) : undefined

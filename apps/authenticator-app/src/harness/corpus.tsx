@@ -12,7 +12,7 @@ import { Home, WifiOff, AlertCircle } from 'lucide-react';
 function Sample({ anchor, children }: { anchor: string; children: ReactNode }) {
 	return (
 		<div className="rounded-lg border border-auth-border bg-auth-surface p-2">
-			<p className="mb-1 font-mono text-[11px] text-[var(--color-text-secondary)]">{anchor}</p>
+			<p className="mb-1 font-mono text-xs text-[var(--color-text-secondary)]">{anchor}</p>
 			{children}
 		</div>
 	);
@@ -25,9 +25,9 @@ export default function Corpus() {
 				语料网格（grep 锚定 · 修复后类串逐字）
 			</h2>
 
-			{/* O-N1 · page.tsx:173 · 修复后类串：bg-primary-500/10 px-2 py-0.5 text-[10px] font-medium text-primary-600 dark:text-primary-400（修复前 text-primary-400：recon light 3.37 fail） */}
+			{/* O-N1 · page.tsx:173 · 修复后类串：bg-primary-500/10 px-2 py-0.5 text-[11px] font-medium text-primary-600 dark:text-primary-400（修复前 text-primary-400：recon light 3.37 fail） */}
 			<Sample anchor="O-N1 · src/app/page.tsx:173">
-				<span className="shrink-0 whitespace-nowrap rounded-full bg-primary-500/10 px-2 py-0.5 text-[10px] font-medium text-primary-600 dark:text-primary-400">
+				<span className="shrink-0 whitespace-nowrap rounded-full bg-primary-500/10 px-2 py-0.5 text-[11px] font-medium text-primary-600 dark:text-primary-400">
 					5
 				</span>
 			</Sample>
@@ -58,19 +58,19 @@ export default function Corpus() {
 				<span className="text-xs text-[var(--color-info-text)]">系统通知</span>
 			</Sample>
 
-			{/* O-N4 徽标 · BottomNav.tsx:69 · 类串：absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger-soft px-1 text-[9px] font-bold text-[var(--color-danger-text)]（修复前 bg-danger text-white，3.27 fail） */}
+			{/* O-N4 徽标 · BottomNav.tsx:69 · 类串：absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-soft px-1 text-[10px] font-bold text-[var(--color-danger-text)]（修复前 bg-danger text-white，3.27 fail） */}
 			<Sample anchor="O-N4 徽标 · src/components/BottomNav.tsx:69">
 				<span className="relative inline-flex h-10 w-8 items-center justify-center">
-					<Home className="h-5 w-5 text-[var(--color-text-muted)]" />
-					<span className="absolute -top-1 -right-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-danger-soft px-1 text-[9px] font-bold text-[var(--color-danger-text)]">
+					<Home className="h-6 w-6 text-[var(--color-text-muted)]" />
+					<span className="absolute -top-1 -right-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger-soft px-1 text-[10px] font-bold text-[var(--color-danger-text)]">
 						99+
 					</span>
 				</span>
 			</Sample>
 
-			{/* O-N4 通知 chip · notifications/page.tsx:222 · 类串：rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-[var(--color-danger-text)]（修复前 bg-danger-soft 底 read-键坏？原文 bg-danger text-white 3.27） */}
+			{/* O-N4 通知 chip · notifications/page.tsx:222 · 类串：rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-medium text-[var(--color-danger-text)]（修复前 bg-danger-soft 底 read-键坏？原文 bg-danger text-white 3.27） */}
 			<Sample anchor="O-N4 通知 chip · src/app/notifications/page.tsx:222">
-				<span className="rounded-full bg-danger-soft px-2 py-0.5 text-[10px] font-medium text-[var(--color-danger-text)]">
+				<span className="rounded-full bg-danger-soft px-2 py-0.5 text-[11px] font-medium text-[var(--color-danger-text)]">
 					3
 				</span>
 			</Sample>
