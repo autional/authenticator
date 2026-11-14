@@ -6,7 +6,7 @@ import { Check, Delete } from 'lucide-react';
 /**
  * 自绘数字键盘 —— PIN 的唯一输入面。
  *
- * 为什么不用 <input>：4-8 位纯数字的输入框会被系统当成密码框（系统键盘 + 密码管理器
+ * 为什么不用 <input>：纯数字的输入框（如 6 位 PIN）会被系统当成密码框（系统键盘 + 密码管理器
  * 「保存密码」提示）。按钮网格既没有输入框也没有表单提交语义，误判从根上消失。
  *
  * 无障碍：每个键都是真实 <button>（可 Tab 遍历、读屏可朗读），进度用 role="status"
@@ -16,7 +16,7 @@ export interface PinKeypadProps {
 	value: string;
 	onChange: (next: string) => void;
 	onSubmit: () => void;
-	/** 解锁传 4（兼容存量 4 位 PIN），设锁传 6 */
+	/** 目标位数下限（当前所有调用方都传 6） */
 	minLength: number;
 	maxLength?: number;
 	/** 达到该位数自动提交（与 minLength 同时满足才触发）。不传 = 不自动提交。 */

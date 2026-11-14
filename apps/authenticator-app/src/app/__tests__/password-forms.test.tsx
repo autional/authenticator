@@ -3,8 +3,8 @@ import { render, screen, fireEvent, act } from '@testing-library/react';
 
 /**
  * AU-17 密码表单语义回归锁（jsdom 结构断言）——
- * 四处密码面每个 form 内须存在 username 语义字段（Chromium 可访问性启发式）；
- * 导出/导入对话框的密码输入须在 form 内且 submit 走表单语义。
+ * 密码面（导出/导入对话框）每个 form 内须存在 username 语义字段（Chromium 可访问性启发式）；
+ * PIN 面（解锁屏 / 设置页）走自绘数字键盘，须完全没有密码输入框与 form 提交语义。
  * （真验证在 console 复采：VERBOSE [DOM] 密码告警归零。）
  */
 
@@ -27,7 +27,7 @@ vi.mock('@/lib/storage', () => ({
 	hasPinProtection: vi.fn(() => true),
 	loadWithoutPin: vi.fn().mockResolvedValue([]),
 	unlockWithBiometric: vi.fn().mockResolvedValue([]),
-	getPinLength: vi.fn(() => null),
+	getPinLength: vi.fn(() => 6),
 }));
 
 vi.mock('@/lib/webauthn', () => ({
@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 describe('AU-17 密码表单语义', () => {
-	it('PIN 保护表单：密码输入在 form 内，form 含 text 语义 hidden username', () => {
+	it('PIN 保护：走自绘数字键盘（无密码输入框、无表单提交语义）', () => {
 		const { container } = render(
 			<SettingsPinProtection
 				hasPin={false}
@@ -59,13 +59,14 @@ describe('AU-17 密码表单语义', () => {
 				onSave={vi.fn()}
 			/>,
 		);
-		const password = container.querySelector('input[type="password"]')!;
-		const form = password.closest('form');
-		expect(form).not.toBeNull();
-		const username = form!.querySelector('input[name="username"]');
-		expect(username).not.toBeNull();
-		expect(username!.getAttribute('autocomplete')).toBe('username');
-		expect(username!.getAttribute('type')).toBe('text');
+		// 系统键盘 / 密码管理器的诱因（input + form）必须彻底消失
+		expect(container.querySelector('input[type="password"]')).toBeNull();
+		expect(container.querySelector('#settings-pin-input')).toBeNull();
+		expect(container.querySelector('form')).toBeNull();
+
+		expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
+		// 6 位自动提交：不渲染确认键
+		expect(screen.queryByRole('button', { name: '确认' })).toBeNull();
 	});
 
 	it('导出对话框：密码输入在 form 内 + hidden username + new-password；submit 触发导出回调；取消为 type=button', () => {
@@ -141,6 +142,7 @@ describe('AU-17 密码表单语义', () => {
 
 		expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
 		expect(screen.getByRole('button', { name: '1' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: '确认' })).toBeInTheDocument();
+		// 6 位固定、输满自动提交：解锁屏同样不渲染确认键
+		expect(screen.queryByRole('button', { name: '确认' })).toBeNull();
 	});
 });

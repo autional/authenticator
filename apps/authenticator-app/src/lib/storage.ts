@@ -52,7 +52,7 @@ interface StoragePayload {
 	deviceKeyWrapBio?: DeviceKeyWrap | null;
 	/** PIN 包裹用的 PBKDF2 迭代次数；缺省 = 旧版 100k（存量库） */
 	pinKdfIterations?: number;
-	/** PIN 位数。仅用于让解锁键盘「输满即自动提交」；缺省 = 上个版本之前的旧库（长度未知）。 */
+	/** PIN 位数。开发期统一 6 位：非 6 的旧库冷启动时走一次性重置闸门；缺省 = 无记录（同样视为旧库）。 */
 	pinLength?: number;
 	data: {
 		iv: string;
@@ -235,12 +235,22 @@ export async function unlockWithPin(pin: string): Promise<TotpAccount[]> {
 }
 
 /**
- * 当前库的 PIN 位数（仅供解锁键盘决定「输满即提交」的目标长度）。
- * 返回 null = 旧库未记录长度，键盘必须保留确认按钮并允许 4-8 位。
+ * 当前库的 PIN 位数（仅供解锁闸门判断「是不是需要重置的旧库」）。
+ * 返回 null = 旧库未记录长度；开发期 PIN 统一 6 位，null / 非 6 一律走重置。
  */
 export function getPinLength(): number | null {
 	const payload = readPayload();
 	return payload?.pinLength ?? null;
+}
+
+/**
+ * 清空本机保险库（开发期重置用）：删除密文、PIN 尝试计数与内存密钥。
+ * 不触碰云备份（在服务端）与其它 localStorage 键。
+ */
+export function resetLocalVault(): void {
+	cachedDeviceKey = null;
+	localStorage.removeItem(STORAGE_KEY);
+	localStorage.removeItem(PIN_ATTEMPTS_KEY);
 }
 
 /**

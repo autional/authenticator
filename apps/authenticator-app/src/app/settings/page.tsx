@@ -274,23 +274,10 @@ export default function SettingsPage() {
 		setTimeout(() => setImportSuccess(false), 3000);
 	}
 
-	const handlePinSave = async (e?: React.FormEvent) => {
-		e?.preventDefault();
+	// PIN 只能「设置 / 修改」，没有「留空禁用」分支：冷启动是硬强制设锁，
+	// 禁用后下次打开又会被强制设回，属自相矛盾的入口（2026-11-14 移除）。
+	const handlePinSave = async () => {
 		setPinMessage(null);
-
-		if (pinInput.length === 0 && hasPin) {
-			setPinSaving(true);
-			try {
-				await setPinProtection(null);
-				setHasPin(false);
-				setPinMessage({ type: 'success', text: t('settings.pinDisabled') });
-			} catch {
-				setPinMessage({ type: 'error', text: t('settings.pinFailed') });
-			} finally {
-				setPinSaving(false);
-			}
-			return;
-		}
 
 		if (!PIN_PATTERN.test(pinInput)) {
 			setPinMessage({ type: 'error', text: t('settings.pinLengthError') });

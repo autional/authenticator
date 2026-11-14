@@ -494,41 +494,6 @@ describe('KDF 加固（PIN 位数下限 + 迭代次数升级）', () => {
 		expect(getPinLength()).toBe(6);
 	});
 
-	it('旧库（无 pinLength、7/8 位 PIN）仍可解锁，并在解锁后补写 pinLength', async () => {
-		bindStorage();
-		const { initializeStorage, saveAccounts, unlockWithPin } = await import('../storage');
-		const {
-			derivePinKey,
-			encryptWithKey,
-			arrayBufferToBase64,
-			base64ToArrayBuffer,
-			PIN_KDF_ITERATIONS,
-		} = await import('../crypto');
-
-		await initializeStorage();
-		await saveAccounts([makeAccount({ name: 'Legacy8' })]);
-
-		// 手工构造上一版载荷：8 位 PIN、迭代次数已升级，但还没有 pinLength 字段
-		const payload = JSON.parse(mockLocalStorage['autional-authenticator-v2']);
-		const salt = base64ToArrayBuffer(payload.salt);
-		const legacyKey = await derivePinKey('12345678', salt, PIN_KDF_ITERATIONS);
-		const { ciphertext, iv } = await encryptWithKey(payload.deviceKey, legacyKey);
-		payload.deviceKey = null;
-		payload.deviceKeyWrap = {
-			iv: arrayBufferToBase64(iv),
-			ciphertext: arrayBufferToBase64(ciphertext),
-		};
-		payload.pinKdfIterations = PIN_KDF_ITERATIONS;
-		delete payload.pinLength;
-		mockLocalStorage['autional-authenticator-v2'] = JSON.stringify(payload);
-
-		const loaded = await unlockWithPin('12345678');
-		expect(loaded[0].name).toBe('Legacy8');
-
-		const upgraded = JSON.parse(mockLocalStorage['autional-authenticator-v2']);
-		expect(upgraded.pinLength).toBe(8);
-	});
-
 	it('新设 PIN 记录 pinKdfIterations = 600000 且清掉明文 deviceKey', async () => {
 		bindStorage();
 		const { initializeStorage, setPinProtection } = await import('../storage');

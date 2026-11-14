@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, act } from '@testing-library/react';
+import { render, screen, fireEvent, act, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router';
 
 const mockNavigate = vi.fn();
@@ -91,7 +91,6 @@ vi.mock('@/lib/api', () => ({
 vi.mock('@/lib/storage', () => ({
 	setPinProtection: vi.fn(() => Promise.resolve()),
 	clearDeviceKeyCache: vi.fn(),
-	getPinLength: vi.fn(() => null),
 }));
 
 vi.mock('@/lib/crypto', () => ({
@@ -107,6 +106,7 @@ vi.mock('@/lib/crypto', () => ({
 }));
 
 import * as pushLib from '@/lib/push';
+import * as storage from '@/lib/storage';
 import SettingsPage from '../settings/page';
 
 function renderSettings() {
@@ -320,16 +320,50 @@ describe('SettingsPage', () => {
 		});
 	});
 
-	describe('PIN placeholder (AU-15)', () => {
-		it('未启用 PIN → 占位为新建引导「输入 6 位数字」', async () => {
+	describe('PIN protection (keypad, 2026-11-14)', () => {
+		it('未启用 PIN → 显示未保护警告', async () => {
 			renderSettings();
-			expect(screen.getByPlaceholderText('输入 6 位数字')).toBeInTheDocument();
+			expect(screen.getByText(/^未设 PIN/)).toBeInTheDocument();
 		});
 
-		it('已启用 PIN → 占位为修改引导「输入新 PIN 或留空禁用」', async () => {
+		it('已启用 PIN → 自绘键盘；两遍 6 位输满自动提交 → 写入 PIN 一次', async () => {
 			storeState = { ...storeState, hasPin: true };
 			renderSettings();
-			expect(screen.getByPlaceholderText('输入新 PIN 或留空禁用')).toBeInTheDocument();
+
+			// 设置页不再有 PIN 输入框（系统键盘 / 密码管理器诱因归零）
+			expect(screen.getByRole('group', { name: '数字键盘' })).toBeInTheDocument();
+
+			const press = (digits: string) =>
+				digits.split('').forEach((d) => fireEvent.click(screen.getByRole('button', { name: d })));
+
+			// 首遍：输满 6 位自动进入确认阶段（无需保存按钮 / 确认键）
+			press('123456');
+			await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
+			expect(storage.setPinProtection).not.toHaveBeenCalled();
+
+			// 二遍一致 → 调用 setPinProtection 一次
+			press('123456');
+			await waitFor(() => expect(storage.setPinProtection).toHaveBeenCalledTimes(1));
+			expect(storage.setPinProtection).toHaveBeenCalledWith('123456');
+			expect(storeState.setHasPin).toHaveBeenCalledWith(true);
+		});
+
+		it('两遍不一致 → 报错 + 回到首遍并清空，不写入', async () => {
+			storeState = { ...storeState, hasPin: true };
+			renderSettings();
+
+			const press = (digits: string) =>
+				digits.split('').forEach((d) => fireEvent.click(screen.getByRole('button', { name: d })));
+
+			press('123456');
+			await waitFor(() => expect(screen.getByText('再输入一次确认')).toBeInTheDocument());
+			press('654321');
+			await waitFor(() => expect(screen.getByText('两次输入不一致')).toBeInTheDocument());
+
+			// 回到首遍且两值清空（键盘 autoSubmit 已复位，可重输）
+			expect(screen.getByText('输入新 PIN（6 位数字）')).toBeInTheDocument();
+			expect(screen.getByText('已输入 0 位')).toBeInTheDocument();
+			expect(storage.setPinProtection).not.toHaveBeenCalled();
 		});
 	});
 });

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ShieldCheck, AlertCircle, Fingerprint } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, AlertCircle, Fingerprint } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { showToast } from '@autional/ui';
 import { useAuthenticatorStore } from '@/lib/store';
@@ -13,6 +13,7 @@ import {
 	setPinProtection,
 	setBiometricProtection,
 	getPinLength,
+	resetLocalVault,
 } from '@/lib/storage';
 import {
 	hasBiometricRegistered,
@@ -23,12 +24,7 @@ import {
 	registerBiometric,
 	clearBiometric,
 } from '@/lib/webauthn';
-import {
-	PIN_PATTERN,
-	PIN_LENGTH,
-	LEGACY_PIN_MIN_LENGTH,
-	LEGACY_PIN_MAX_LENGTH,
-} from '@/lib/crypto';
+import { PIN_PATTERN, PIN_LENGTH } from '@/lib/crypto';
 import { setCeremonyActive } from '@/lib/app-lock';
 
 type UnlockMode = 'bio' | 'pin';
@@ -44,11 +40,6 @@ function PinInputScreen() {
 	const loadAccounts = useAuthenticatorStore((s) => s.loadAccounts);
 	const setHasPin = useAuthenticatorStore((s) => s.setHasPin);
 	const autoTriedRef = useRef(false);
-
-	// 目标长度：本库记录的 PIN 位数（决定「输满即提交」）；null = 旧库未记录 → 保留确认键。
-	// 必须用惰性初始化同步取：放进 useEffect 会让首帧先按 null 渲染出确认键再消失（可见闪烁）。
-	// getPinLength() 只读 localStorage，本应用纯客户端渲染，首帧即可安全调用。
-	const [pinLength] = useState<number | null>(() => getPinLength());
 
 	// 失败后延迟清空输入（等抖动播完）：timer 存 ref 以免卸载后 setState
 	const clearPinTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -125,8 +116,8 @@ function PinInputScreen() {
 		if (isSubmitting) return;
 		setError(null);
 
-		// 存量库可能是 4 位 PIN，这里不能提高下限（读取兼容）
-		if (pin.length < 4) {
+		// 键盘固定 6 位；下限校验保留作防御（物理键盘回车等边缘入口）
+		if (pin.length < PIN_LENGTH) {
 			setError(t('unlock.pinTooShort'));
 			setShakeKey((k) => k + 1);
 			return;
@@ -206,11 +197,11 @@ function PinInputScreen() {
 				value={pin}
 				onChange={setPin}
 				onSubmit={() => void handleUnlock()}
-				// 存量 4-8 位 PIN 必须仍能解锁；长度已知（pinLength）时按该长度自动提交
-				minLength={pinLength ?? LEGACY_PIN_MIN_LENGTH}
-				maxLength={pinLength ?? LEGACY_PIN_MAX_LENGTH}
-				autoSubmitAt={pinLength ?? undefined}
-				showConfirm={pinLength === null}
+				// 开发期统一 6 位：输满即自动提交，永远没有确认键
+				minLength={PIN_LENGTH}
+				maxLength={PIN_LENGTH}
+				autoSubmitAt={PIN_LENGTH}
+				showConfirm={false}
 				disabled={isSubmitting}
 				error={!!error}
 				shakeKey={shakeKey}
@@ -431,6 +422,36 @@ function SetupLockScreen({ onDone }: { onDone: () => void }) {
 	);
 }
 
+/**
+ * 旧库重置（开发期一次性闸门）：PIN 已统一为 6 位，长度不是 6 的存量库不再兼容。
+ * 唯一出路是清空本机保险库（云备份在服务端，不受影响）后重走强制设锁 —— 没有跳过入口。
+ */
+function VaultResetScreen() {
+	const { t } = useTranslation();
+
+	const handleReset = () => {
+		resetLocalVault();
+		window.location.reload();
+	};
+
+	return (
+		<main className="flex h-screen flex-col items-center justify-center bg-auth-bg px-6 text-center">
+			<div className="mb-8 flex h-20 w-20 items-center justify-center rounded-lg bg-danger-soft">
+				<ShieldAlert className="h-10 w-10 text-[var(--color-danger-text)]" aria-hidden="true" />
+			</div>
+			<h1 className="mb-2 text-xl font-bold text-[var(--color-text-primary)]">{t('reset.title')}</h1>
+			<p className="mb-8 max-w-xs text-sm text-[var(--color-text-secondary)]">{t('reset.desc')}</p>
+			<button
+				type="button"
+				onClick={handleReset}
+				className="w-full max-w-xs rounded-xl bg-danger-soft py-3 text-sm font-semibold text-[var(--color-danger-text)] transition-all hover:bg-danger/10 active:scale-[0.98]"
+			>
+				{t('reset.action')}
+			</button>
+		</main>
+	);
+}
+
 export default function UnlockGate({ children }: { children: React.ReactNode }) {
 	const isLoading = useAuthenticatorStore((s) => s.isLoading);
 	const isUnlocked = useAuthenticatorStore((s) => s.isUnlocked);
@@ -440,6 +461,7 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 	const setLoading = useAuthenticatorStore((s) => s.setLoading);
 	const [bootError, setBootError] = useState<string | null>(null);
 	const [needsSetup, setNeedsSetup] = useState(false);
+	const [needsVaultReset, setNeedsVaultReset] = useState(false);
 	const { t } = useTranslation();
 
 	useEffect(() => {
@@ -449,6 +471,14 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 			try {
 				const pinProtected = hasPinProtection();
 				if (pinProtected) {
+					// 开发期统一 6 位 PIN：旧长度的库不再兼容，走一次性重置
+					if (getPinLength() !== PIN_LENGTH) {
+						if (!cancelled) {
+							setNeedsVaultReset(true);
+							setLoading(false);
+						}
+						return;
+					}
 					if (!cancelled) {
 						setHasPin(true);
 						setLoading(false);
@@ -501,6 +531,10 @@ export default function UnlockGate({ children }: { children: React.ReactNode }) 
 				<p className="text-sm text-[var(--color-text-secondary)]">{bootError}</p>
 			</main>
 		);
+	}
+
+	if (needsVaultReset) {
+		return <VaultResetScreen />;
 	}
 
 	if (needsSetup) {
