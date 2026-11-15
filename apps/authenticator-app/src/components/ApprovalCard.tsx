@@ -1,12 +1,17 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Button } from '@autional/ui';
+import { Button, Input } from '@autional/ui';
 import { extractApiError } from '@autional/shared';
 import {
-	approveByCode,
+	CONFIRM_CODE_PATTERN,
+	approvalIdentity,
+	approvePending,
 	classifyApprovalFailure,
-	denyByCode,
+	classifyStepUpFailure,
+	denyPending,
 	formatRemaining,
+	isStepUpApproval,
+	isValidConfirmCode,
 	maskIp,
 	truncateUa,
 	type PendingApproval,
@@ -18,6 +23,13 @@ import {
  * 复用点：`/approvals` 列表与 `/a/:code` 短链落地页渲染的是同一个组件，
  * 行为与文案不会在两处漂移。
  *
+ * step_up（`requires_step_up=true`，ADR-025 P1-t1-2）：
+ *   - 该行**不下发审批码**（码只在桌面屏幕上），所以卡片**不渲染码**，改为渲染
+ *     「输入电脑上显示的 6 位码」输入框 + 「请核对电脑屏幕」提示；
+ *   - 未满 6 位时「是我」（以及需要同一个码定位的「不是我」）不可点；
+ *   - 提交走 by-request-id + `confirm_code`；403 两种子情形各自出文案，**卡片保留**可重试
+ *     （服务端此时 pending 未消耗）。
+ *
  * 约束：
  * - 审批码是唯一的判定依据，展示用大字等宽（避免 6/8、0/O 误读）；
  * - 位置（`geoCity`）单独一行小字：不跟 IP 挤同一行，避免窄屏换行错乱；
@@ -28,15 +40,18 @@ import {
 
 export interface ApprovalCardProps {
 	item: PendingApproval;
-	/** 成功批准/拒绝后回调（父级把该项从列表移除 / 落终态） */
-	onResolved: (code: string, result: 'approved' | 'denied') => void;
+	/**
+	 * 成功批准/拒绝后回调（父级把该项从列表移除 / 落终态）。
+	 * 传的是**稳定身份**（普通行 = 审批码，step_up 行 = request_id，见 `approvalIdentity`）。
+	 */
+	onResolved: (id: string, result: 'approved' | 'denied') => void;
 	/** 本地倒计时归零（父级移除该项） */
-	onExpired: (code: string) => void;
+	onExpired: (id: string) => void;
 	/**
 	 * 动作失败但该条已**不再是本账号的有效待审批**（409 已被处理/替代、404 已失效）→ 父级移除该条并刷新列表。
 	 * 不传时退回卡片内联提示（行为与旧版一致）。
 	 */
-	onStale?: (code: string, failure: 'conflict' | 'not_found') => void;
+	onStale?: (id: string, failure: 'conflict' | 'not_found') => void;
 }
 
 /** 上下文信号徽标的两档语义色（沿用 token，色不单独表意 —— 徽标始终带文字）。 */
@@ -82,11 +97,17 @@ export default function ApprovalCard({
 	onStale,
 }: ApprovalCardProps) {
 	const { t } = useTranslation();
+	const confirmInputId = useId();
 	const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor(item.expiresIn)));
 	const [busy, setBusy] = useState<'' | 'approve' | 'deny'>('');
 	const [error, setError] = useState('');
+	/** step_up：用户在手机上**手输**的桌面码（不落盘、不缓存、提交后仍留在输入框以便改错重试） */
+	const [confirmCode, setConfirmCode] = useState('');
 	const expiredRef = useRef(false);
 	const onExpiredRef = useRef(onExpired);
+	const identity = approvalIdentity(item);
+	const stepUp = isStepUpApproval(item);
+	const confirmReady = !stepUp || isValidConfirmCode(confirmCode);
 	useEffect(() => {
 		onExpiredRef.current = onExpired;
 	}, [onExpired]);
@@ -94,39 +115,54 @@ export default function ApprovalCard({
 	useEffect(() => {
 		setRemaining(Math.max(0, Math.floor(item.expiresIn)));
 		expiredRef.current = false;
-	}, [item.code, item.expiresIn]);
+	}, [item.requestId, item.expiresIn]);
 
 	useEffect(() => {
 		if (remaining <= 0) {
 			if (!expiredRef.current) {
 				expiredRef.current = true;
-				onExpiredRef.current(item.code);
+				onExpiredRef.current(identity);
 			}
 			return;
 		}
 		const id = setTimeout(() => setRemaining((s) => Math.max(0, s - 1)), 1000);
 		return () => clearTimeout(id);
-	}, [remaining, item.code]);
+	}, [remaining, identity]);
 
 	const act = useCallback(
 		async (result: 'approved' | 'denied') => {
 			if (busy) return;
+			// step_up：未满 6 位不发请求（按双保险；按钮本身已 disabled）
+			const typedCode = confirmCode.trim();
+			if (stepUp && !CONFIRM_CODE_PATTERN.test(typedCode)) return;
 			setBusy(result === 'approved' ? 'approve' : 'deny');
 			setError('');
 			try {
-				if (result === 'approved') await approveByCode(item.code);
-				else await denyByCode(item.code);
-				onResolved(item.code, result);
+				if (result === 'approved') await approvePending(item, typedCode);
+				else await denyPending(item, typedCode);
+				onResolved(identity, result);
 			} catch (err) {
+				// step_up 403（缺码 / 错码）：pending 未被消耗 —— 出对应文案，**卡片保留**让用户改码重试。
+				const stepUpFailure = classifyStepUpFailure(err);
+				if (stepUpFailure) {
+					setError(
+						t(
+							stepUpFailure === 'step_up_required'
+								? 'approvals.stepUpRequired'
+								: 'approvals.stepUpMismatch',
+						),
+					);
+					return;
+				}
 				// 409（已被处理/替代）与 404（已失效/不属于当前账号）不是「系统错误」：
 				// 给事实性文案，并让父级把这条从待审批里清掉（否则用户对着死卡片反复点）。
 				const failure = classifyApprovalFailure(err);
 				if (failure === 'conflict') {
 					setError(t('approvals.conflictResolved'));
-					onStale?.(item.code, 'conflict');
+					onStale?.(identity, 'conflict');
 				} else if (failure === 'not_found') {
 					setError(t('approvals.notFoundDesc'));
-					onStale?.(item.code, 'not_found');
+					onStale?.(identity, 'not_found');
 				} else {
 					const fallback =
 						result === 'approved'
@@ -138,7 +174,7 @@ export default function ApprovalCard({
 				setBusy('');
 			}
 		},
-		[busy, item.code, onResolved, onStale, t],
+		[busy, confirmCode, identity, item, onResolved, onStale, stepUp, t],
 	);
 
 	const originParts = [truncateUa(item.originUa), maskIp(item.originIp)].filter(Boolean);
@@ -149,18 +185,52 @@ export default function ApprovalCard({
 	return (
 		<div
 			className="space-y-3 rounded-xl border border-auth-border bg-auth-elevated p-4"
-			data-testid={`approval-card-${item.code}`}
+			data-testid={`approval-card-${identity}`}
 		>
-			<div className="text-center">
-				<p className="mb-1 text-xs text-[var(--color-text-secondary)]">{t('approvals.codeLabel')}</p>
-				<p
-					aria-live="polite"
-					className="font-mono text-3xl font-bold tracking-[0.3em] tabular-nums text-[var(--color-text-primary)]"
-					data-testid="approval-code"
-				>
-					{item.code}
-				</p>
-			</div>
+			{stepUp ? (
+				<div className="space-y-2" data-testid="approval-stepup">
+					<label
+						htmlFor={confirmInputId}
+						className="block text-center text-xs text-[var(--color-text-secondary)]"
+					>
+						{t('approvals.stepUpLabel')}
+					</label>
+					<Input
+						id={confirmInputId}
+						name="approval-confirm-code"
+						type="text"
+						inputMode="numeric"
+						autoComplete="one-time-code"
+						maxLength={6}
+						value={confirmCode}
+						onChange={(e) => setConfirmCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+						placeholder={t('approvals.stepUpPlaceholder')}
+						aria-describedby={`${confirmInputId}-hint`}
+						data-testid="approval-confirm-input"
+						className="text-center font-mono text-lg tracking-[0.3em]"
+					/>
+					<p
+						id={`${confirmInputId}-hint`}
+						data-testid="approval-stepup-hint"
+						className="text-center text-xs text-[var(--color-text-secondary)]"
+					>
+						{t('approvals.stepUpHint')}
+					</p>
+				</div>
+			) : (
+				<div className="text-center">
+					<p className="mb-1 text-xs text-[var(--color-text-secondary)]">
+						{t('approvals.codeLabel')}
+					</p>
+					<p
+						aria-live="polite"
+						className="font-mono text-3xl font-bold tracking-[0.3em] tabular-nums text-[var(--color-text-primary)]"
+						data-testid="approval-code"
+					>
+						{item.code}
+					</p>
+				</div>
+			)}
 
 			<div className="space-y-1 text-xs text-[var(--color-text-secondary)]">
 				{originParts.length > 0 && (
@@ -203,7 +273,7 @@ export default function ApprovalCard({
 				<Button
 					variant="danger"
 					fullWidth
-					disabled={busy !== ''}
+					disabled={busy !== '' || !confirmReady}
 					onClick={() => void act('denied')}
 				>
 					{t('approvals.deny')}
@@ -211,7 +281,7 @@ export default function ApprovalCard({
 				<Button
 					variant="primary"
 					fullWidth
-					disabled={busy !== ''}
+					disabled={busy !== '' || !confirmReady}
 					onClick={() => void act('approved')}
 				>
 					{t('approvals.approve')}

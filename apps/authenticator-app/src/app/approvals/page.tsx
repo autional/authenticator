@@ -6,7 +6,12 @@ import { showToast } from '@autional/ui';
 import { extractApiError } from '@autional/shared';
 import ApprovalCard from '../../components/ApprovalCard';
 import BottomNav from '../../components/BottomNav';
-import { denyByCode, listPendingApprovals, type PendingApproval } from '../../lib/login-approval';
+import {
+	approvalIdentity,
+	denyByCode,
+	listPendingApprovals,
+	type PendingApproval,
+} from '../../lib/login-approval';
 import { useApprovalNotificationRefresh } from '../../lib/approval-notification';
 import { useAdaptivePolling } from '../../lib/adaptive-polling';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
@@ -94,12 +99,16 @@ export default function ApprovalsPage() {
 	// 本页在 ServerOnly 门禁内，登录态恒真；非审批类通知被过滤，不触发任何请求。
 	useApprovalNotificationRefresh(true, () => void silentRefresh());
 
-	const removeItem = (code: string) => {
-		setItems((prev) => prev.filter((item) => item.code !== code));
+	/**
+	 * 按**稳定身份**移除（普通行 = 审批码，step_up 行 = request_id）。
+	 * step_up 行没有 code —— 沿用 `item.code !== code` 会让它们永远移除不掉。
+	 */
+	const removeItem = (id: string) => {
+		setItems((prev) => prev.filter((item) => approvalIdentity(item) !== id));
 	};
 
-	const handleResolved = (code: string, result: 'approved' | 'denied') => {
-		removeItem(code);
+	const handleResolved = (id: string, result: 'approved' | 'denied') => {
+		removeItem(id);
 		showToast(
 			result === 'approved' ? t('approvals.approved') : t('approvals.denied'),
 			'success',
@@ -110,8 +119,8 @@ export default function ApprovalsPage() {
 	 * 陈旧项（409 已被处理/替代、404 已失效）：不是系统故障，也不该留一张点了必失败的卡片。
 	 * 移除该条 + 事实性提示 + 静默重拉（以服务端列表为准，避免竞态下显示错状态）。
 	 */
-	const handleStale = (code: string, failure: 'conflict' | 'not_found') => {
-		removeItem(code);
+	const handleStale = (id: string, failure: 'conflict' | 'not_found') => {
+		removeItem(id);
 		showToast(
 			t(failure === 'conflict' ? 'approvals.conflictResolved' : 'approvals.notFoundDesc'),
 			'warning',
@@ -122,25 +131,33 @@ export default function ApprovalsPage() {
 	/**
 	 * 全部拒绝：逐条 deny（**串行**，避免瞬间打出一串写请求），单条失败不中断。
 	 * 结束后只移除已成功的那几条，并汇总提示 —— 失败项留在列表上，用户看得见也还能再点。
+	 *
+	 * step_up 行（无审批码）：服务端只有 `by-code/:code/deny`，没有 deny-by-request-id，
+	 * 因此批量拒绝只能覆盖**有码的普通行**；这类行需用户在卡片里手输桌面码后单独拒绝
+	 * （见 lib/login-approval.ts#denyPending 的说明）。
 	 */
+	const deniable = items.filter((item) => Boolean(item.code));
 	const handleDenyAll = async (): Promise<void> => {
-		if (denyingAll || items.length === 0) return;
+		if (denyingAll || deniable.length === 0) return;
 		if (!confirm(t('approvals.denyAllConfirm'))) return;
 
-		const targets = items.map((item) => item.code);
+		const targets = deniable.map((item) => ({
+			id: approvalIdentity(item),
+			code: item.code as string,
+		}));
 		setDenyingAll(true);
 		const denied: string[] = [];
-		for (const code of targets) {
+		for (const target of targets) {
 			try {
-				await denyByCode(code);
-				denied.push(code);
+				await denyByCode(target.code);
+				denied.push(target.id);
 			} catch {
 				// 单条失败不中断：可能已过期或已被别处处理
 			}
 		}
 
 		const deniedSet = new Set(denied);
-		setItems((prev) => prev.filter((item) => !deniedSet.has(item.code)));
+		setItems((prev) => prev.filter((item) => !deniedSet.has(approvalIdentity(item))));
 		const failed = targets.length - denied.length;
 
 		if (failed === 0) {
@@ -192,7 +209,7 @@ export default function ApprovalsPage() {
 					</div>
 				)}
 
-				{!loading && !error && items.length > 0 && (
+				{!loading && !error && deniable.length > 0 && (
 					<div className="flex justify-end">
 						<button
 							type="button"
@@ -241,7 +258,7 @@ export default function ApprovalsPage() {
 					!error &&
 					items.map((item) => (
 						<ApprovalCard
-							key={item.code}
+							key={approvalIdentity(item)}
 							item={item}
 							onResolved={handleResolved}
 							onExpired={removeItem}
