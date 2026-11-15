@@ -35,6 +35,7 @@ vi.mock('@/components/BottomNav', () => ({
 import ApprovalsPage from '../approvals/page';
 import ApprovalLinkPage from '../a/page';
 import ApprovalCard from '../../components/ApprovalCard';
+import { buildPushNotification, parsePushMessage } from '../../../pwa/push-notification';
 import type { PendingApproval } from '../../lib/login-approval';
 import { showToast } from '@autional/ui';
 
@@ -581,5 +582,84 @@ describe('ApprovalCard 409/404 分支（无 onStale 时内联提示兜底）', (
 		await waitFor(() => {
 			expect(screen.getByRole('alert')).toHaveTextContent('该请求已被处理或替代。');
 		});
+	});
+});
+
+/**
+ * step_up 行的推送深链（断头修复）：
+ *   `requires_step_up=true` 的行在 pending 里**不下发 code**（码只在桌面屏幕上），
+ *   所以只带 code 的深链必然落空 → 落地成「请求已失效」= 功能断头（安全但不可用）。
+ *   修法：深链改为 `/a/:code?rid=<request_id>`，落地页按 request_id 精确挑条目，
+ *   之后仍复用 ApprovalCard 的「手输桌面码 + by-request-id」，页面内不重复实现。
+ */
+describe('推送深链 /a/:code?rid=', () => {
+	const RID = '3f2504e0-4f89-11d3-9a0c-0305e82c3301';
+
+	/** 用真实构造器产出深链：避免测试手写 URL，与 SW 实现漂移。 */
+	function pushUrl(data: Record<string, unknown>): string {
+		const payload = JSON.stringify({
+			title: 'Login approval request',
+			body: 'Approval code 482913',
+			data: { type: 'login_approval', code: '482913', ...data },
+		});
+		return buildPushNotification(parsePushMessage(payload), 'zh-CN').url;
+	}
+
+	it('载荷带 request_id → 深链带 rid；老载荷（缺失/非法）仍是纯 /a/<code>', () => {
+		expect(pushUrl({ request_id: RID })).toBe(`/a/482913?rid=${RID}`);
+		// 老推送零变化：没有 request_id / 不是 UUID → 一个字符都不多拼
+		expect(pushUrl({})).toBe('/a/482913');
+		expect(pushUrl({ request_id: 'not-a-uuid' })).toBe('/a/482913');
+		expect(pushUrl({ request_id: `${RID}&x=1` })).toBe('/a/482913');
+	});
+
+	it('rid 优先于 code：pending 里只有 request_id 对得上也能命中', async () => {
+		mockGet.mockResolvedValue({
+			data: { items: [{ ...pendingItem, code: '999999', requestId: RID }] },
+		});
+		renderLink(pushUrl({ request_id: RID }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-card-999999')).toBeInTheDocument();
+		});
+	});
+
+	it('step_up 行（无 code）经 rid 命中 → 复用卡片手输码分支，批准走 by-request-id', async () => {
+		mockGet.mockResolvedValue({
+			data: {
+				items: [{ requestId: RID, originIp: '203.0.113.45', expiresIn: 120, requiresStepUp: true }],
+			},
+		});
+
+		renderLink(pushUrl({ request_id: RID }));
+
+		await waitFor(() => {
+			expect(screen.getByTestId('approval-stepup')).toBeInTheDocument();
+		});
+		// 页面内不渲染码，也不自造输入逻辑：桌面码输入框来自 ApprovalCard
+		expect(screen.queryByTestId('approval-code')).toBeNull();
+
+		fireEvent.change(screen.getByTestId('approval-confirm-input'), {
+			target: { value: '123456' },
+		});
+		fireEvent.click(screen.getByRole('button', { name: '是我' }));
+
+		await waitFor(() => {
+			expect(mockPost).toHaveBeenCalledWith(
+				`/identity/api/v1/auth/login-approval/${RID}/approve`,
+				{ confirm_code: '123456' },
+			);
+		});
+	});
+
+	it('rid 在 pending 里找不到 → 仍终态「请求已失效」（安全，不退化成可批准卡片）', async () => {
+		mockGet.mockResolvedValue({ data: { items: [{ ...pendingItem, requestId: 'other-req' }] } });
+
+		renderLink(pushUrl({ request_id: RID }));
+
+		await waitFor(() => {
+			expect(screen.getByText('请求已失效')).toBeInTheDocument();
+		});
+		expect(screen.queryByRole('button', { name: '是我' })).toBeNull();
 	});
 });

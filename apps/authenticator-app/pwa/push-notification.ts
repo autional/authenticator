@@ -126,14 +126,26 @@ export function buildPushNotification(
 			url: buildMfaUrl(data),
 		};
 	}
-	// 同账号登录审批（网页端「用 App 确认」）：码只用于落 /a/:code 与去重，不额外携带登录上下文。
+	// 同账号登录审批（网页端「用 App 确认」）：码用于落 /a/:code 与去重，不额外携带登录上下文。
+	//
+	// 深链带 `rid`（= 载荷既有 `data.request_id`）：step_up 行的 pending 条目**不下发 code**
+	// （码只在桌面屏幕上，见 lib/login-approval.ts 文件头），落地页按 code 永远找不到它 ——
+	// 只带 code 的深链会落地成「请求已失效」= 断头。带上 rid 后，落地页改按 request_id
+	// 精确挑出该条，再由 ApprovalCard 走「手输桌面码 + by-request-id」。
+	//
+	// 降级口径（安全且不改变老行为）：`request_id` 缺失或不是 UUID（老载荷）→ 不拼 rid，
+	// URL 与改造前逐字相同，落地页退回 by-code。
 	if (data.type === LOGIN_APPROVAL_TYPE) {
 		const code = readApprovalCode(data.code);
+		const requestId = readString(data.request_id);
+		const params = new URLSearchParams();
+		if (UUID_PATTERN.test(requestId)) params.set('rid', requestId);
+		const query = params.toString();
 		return {
 			title: copy.approvalTitle,
 			body: code ? copy.approvalBody(code) : copy.approvalBodyNoCode,
 			tag: code ? `login-approval:${code}` : undefined,
-			url: code ? `/a/${code}` : '/',
+			url: code ? `/a/${code}${query ? `?${query}` : ''}` : '/',
 		};
 	}
 	return {

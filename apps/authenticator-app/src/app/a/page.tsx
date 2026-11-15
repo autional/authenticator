@@ -1,20 +1,28 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router';
+import { Link, useParams, useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
 import ApprovalCard from '../../components/ApprovalCard';
 import { listPendingApprovals, type PendingApproval } from '../../lib/login-approval';
 import { toSlugged, useTenantSlug } from '../../lib/slug';
 
 /**
- * 短链落地页 `/a/:code` —— 从审批码直达那一条待审批请求。
+ * 短链落地页 `/a/:code[?rid=<request_id>]` —— 从推送直达那一条待审批请求。
  *
  * 语义边界（重要）：
- *   这个页面**不信任 URL 里的码**做任何判定。它只是「帮我从我的待审批列表里挑出这一条」，
+ *   这个页面**不信任 URL 里的码/rid**做任何判定。它只是「帮我从我的待审批列表里挑出这一条」，
  *   真正的判定与放行由服务端按当前登录身份完成 —— 所以码不属于当前账号时，
  *   结果只能是「已失效或不属于当前账号」，绝不能退化成一条可点批准的卡片。
  *
+ * 两种查找方式（顺序即优先级）：
+ *   1. 带 `rid`（推送 `data.request_id`）→ 按 `requestId` **精确匹配**。这是 step_up 行唯一的
+ *      入口：该类行 pending 里**没有 code**（码只在桌面屏幕，见 lib/login-approval.ts 文件头），
+ *      按 code 找必然落空 → 老深链会把它们显示成「已失效」= 断头。
+ *   2. 无 `rid`（老推送）→ 维持原样：按 `code` 精确匹配，且要求 6 位数字形状。
+ *   命中后统一渲染 `ApprovalCard`：step_up 的「手输桌面码 + by-request-id」逻辑在该组件内复用，
+ *   本页不重复实现。
+ *
  * 状态机：checking → ready | invalid | notfound | approved | denied
- *   - 码不是 6 位数字 → 终态 invalid（零请求）
+ *   - 无 rid 且码不是 6 位数字 → 终态 invalid（零请求）
  *   - 拉取失败 → 终态 error（可重试，真重试）
  */
 
@@ -35,23 +43,35 @@ export default function ApprovalLinkPage() {
 	const { t } = useTranslation();
 	const slug = useTenantSlug();
 	const { code = '' } = useParams<{ code: string }>();
+	const [searchParams] = useSearchParams();
+	/**
+	 * 推送深链的 `rid` = 载荷里的 `data.request_id`（服务端主键）。
+	 * 只作为「挑哪一条」的定位键，不构成判定依据 —— 与服务端的归属校验配合。
+	 */
+	const rid = (searchParams.get('rid') || '').trim();
 	const [phase, setPhase] = useState<Phase>({ status: 'checking' });
 
 	const check = useCallback(async () => {
-		if (!CODE_PATTERN.test(code)) {
+		// 有 rid → 不看 code 形状（step_up 行的 code 只是深链的可读装饰）；
+		// 无 rid → 老行为：码必须是 6 位数字，否则零请求直接终态。
+		if (!rid && !CODE_PATTERN.test(code)) {
 			setPhase({ status: 'invalid' });
 			return;
 		}
 		setPhase({ status: 'checking' });
 		try {
 			const list = await listPendingApprovals();
-			const hit = list.find((item) => item.code === code && Math.floor(item.expiresIn) > 0);
+			const hit = rid
+				? list.find(
+						(item) => (item.requestId || '').trim() === rid && Math.floor(item.expiresIn) > 0,
+					)
+				: list.find((item) => item.code === code && Math.floor(item.expiresIn) > 0);
 			setPhase(hit ? { status: 'ready', item: hit } : { status: 'notfound' });
 		} catch (err) {
 			const message = (err as { message?: string })?.message || t('approvals.loadFailed');
 			setPhase({ status: 'error', message });
 		}
-	}, [code, t]);
+	}, [code, rid, t]);
 
 	useEffect(() => {
 		void check();
