@@ -35,7 +35,11 @@ import {
  * - 位置（`geoCity`）单独一行小字：不跟 IP 挤同一行，避免窄屏换行错乱；
  *   空串/缺失即不渲染（不显示「未知」，也不留占位）；
  * - 剩余时间本地倒计时，归零即回调 onExpired（父级移除，不再对过期项发请求）；
- * - 批准/拒绝失败按 extractApiError 展示可读文案（不静默、不假重试）。
+ * - 批准/拒绝失败按 extractApiError 展示可读文案（不静默、不假重试）；
+ * - 「不是我」与「是我」**同级**：同 size（md）、同 variant 家族（filled）、同 fullWidth，
+ *   差异只在颜色（danger vs brand）—— 不用降级表达「次要」；反证的代价是「随便点同意」，
+ *   所以拒绝必须和批准一样好点。后果提示放按钮下方 11px 小字，并用 aria-describedby
+ *   挂在「不是我」上（只在聚焦该按钮时读屏播报，不重复打扰）。
  */
 
 export interface ApprovalCardProps {
@@ -98,6 +102,7 @@ export default function ApprovalCard({
 }: ApprovalCardProps) {
 	const { t } = useTranslation();
 	const confirmInputId = useId();
+	const denyHintId = useId();
 	const [remaining, setRemaining] = useState(() => Math.max(0, Math.floor(item.expiresIn)));
 	const [busy, setBusy] = useState<'' | 'approve' | 'deny'>('');
 	const [error, setError] = useState('');
@@ -273,6 +278,7 @@ export default function ApprovalCard({
 				<Button
 					variant="danger"
 					fullWidth
+					aria-describedby={denyHintId}
 					disabled={busy !== '' || !confirmReady}
 					onClick={() => void act('denied')}
 				>
@@ -287,6 +293,19 @@ export default function ApprovalCard({
 					{t('approvals.approve')}
 				</Button>
 			</div>
+
+			{/*
+			 * 「不是我」的判定提示：放在按钮下方、字号最小 —— 不抢审批码与按钮的视觉层级，
+			 * 但点名「批准 = 对方电脑登录你的账号」这个后果，抑制盲点批准。
+			 * 只用 aria-describedby 挂到「不是我」上（读屏用户点到该按钮时听到），不重复播报。
+			 */}
+			<p
+				id={denyHintId}
+				data-testid="approval-deny-hint"
+				className="text-center text-[11px] text-[var(--color-text-secondary)]"
+			>
+				{t('approvals.denyHint')}
+			</p>
 		</div>
 	);
 }

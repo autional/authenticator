@@ -472,6 +472,7 @@
   "approvals.expired": "Expired",
   "approvals.approve": "It's me",
   "approvals.deny": "Not me",
+  "approvals.denyHint": "Not you? Choose “Not me” — approving signs that computer into your account.",
   "approvals.approved": "Approved — the computer will finish signing in",
   "approvals.denied": "Sign-in request denied",
   "approvals.approvedTitle": "Sign-in approved",

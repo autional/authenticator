@@ -472,6 +472,7 @@
   "approvals.expired": "已过期",
   "approvals.approve": "是我",
   "approvals.deny": "不是我",
+  "approvals.denyHint": "不是你本人发起的？点「不是我」—— 批准会让对方的电脑直接登录你的账号。",
   "approvals.approved": "已批准，电脑端将自动完成登录",
   "approvals.denied": "已拒绝该登录请求",
   "approvals.approvedTitle": "已批准登录",
