@@ -71,7 +71,9 @@ describe('openNotificationStream', () => {
 
 		const es = FakeEventSource.instances[0];
 		expect(es.url).not.toContain('user_id=');
-		expect(es.withCredentials).toBe(true);
+		// 网关 CORS allow_credentials=false：跨源 SSE 一旦带凭证，浏览器要求服务端回写
+		// Access-Control-Allow-Credentials（永不回写）⇒ ERR_FAILED。身份只靠 ticket。
+		expect(es.withCredentials).toBeUndefined();
 		handle.close();
 	});
 });

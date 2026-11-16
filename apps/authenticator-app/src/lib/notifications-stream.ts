@@ -117,9 +117,10 @@ export function openNotificationStream(opts: {
 		try {
 			const ticket = await createStreamTicket();
 			if (closed) return;
-			es = new EventSource(`${API_BASE_URL}${STREAM_PATH}?ticket=${encodeURIComponent(ticket)}`, {
-				withCredentials: true,
-			});
+			// 不传 withCredentials：网关 CORS 为 allow_credentials=false（动态租户 origin 不写
+			// Access-Control-Allow-Credentials），带凭证的跨源 SSE 会被浏览器直接 ERR_FAILED。
+			// 订阅身份只来自 ?ticket=（票据由 Bearer 换发），无需 cookie。
+			es = new EventSource(`${API_BASE_URL}${STREAM_PATH}?ticket=${encodeURIComponent(ticket)}`);
 			es.onopen = () => {
 				retry = 0;
 				emitStatus('open');
