@@ -51,8 +51,8 @@ importers:
   apps/authenticator-app:
     dependencies:
       '@autional/shared':
-        specifier: 0.1.0-rc.68
-        version: 0.1.0-rc.68(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
+        specifier: 0.1.0-rc.69
+        version: 0.1.0-rc.69(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
       '@autional/tailwind-preset':
         specifier: 0.1.0-rc.10
         version: 0.1.0-rc.10(tailwindcss@3.4.19)
@@ -60,8 +60,8 @@ importers:
         specifier: 0.1.0-rc.18
         version: 0.1.0-rc.18
       '@autional/ui':
-        specifier: 0.1.0-rc.58
-        version: 0.1.0-rc.58(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
+        specifier: 0.1.0-rc.59
+        version: 0.1.0-rc.59(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)
       '@tanstack/react-query':
         specifier: 5.100.9
         version: 5.100.9(react@19.2.5)
@@ -97,8 +97,8 @@ importers:
         version: 5.0.13(@types/react@19.2.14)(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))
     devDependencies:
       '@autional/eslint-config':
-        specifier: 0.1.0-rc.1
-        version: 0.1.0-rc.1(eslint@10.12.0(jiti@1.21.7))(typescript-eslint@8.71.0(eslint@10.12.0(jiti@1.21.7))(typescript@5.8.3))
+        specifier: 0.2.0-rc.1
+        version: 0.2.0-rc.1(eslint@10.12.0(jiti@1.21.7))(typescript-eslint@8.71.0(eslint@10.12.0(jiti@1.21.7))(typescript@5.8.3))
       '@autional/tsconfig':
         specifier: 0.1.0-rc
         version: 0.1.0-rc
@@ -187,14 +187,14 @@ packages:
   '@asamuzakjp/nwsapi@2.3.9':
     resolution: {integrity: sha512-n8GuYSrI9bF7FFZ/SjhwevlHc8xaVlb/7HmHelnc/PZXBD2ZR49NnN9sMMuDdEGPeeRQ5d0hqlSlEpgCX3Wl0Q==}
 
-  '@autional/eslint-config@0.1.0-rc.1':
-    resolution: {integrity: sha512-Bg+OG5l4uSKwEJz8wxcAzDhnqxR4tDpBryZXTj11C9wZVuX1/GqtwtGsMXbDIMBtK48SAh/x6Vz7JZuYPoD+bQ==}
+  '@autional/eslint-config@0.2.0-rc.1':
+    resolution: {integrity: sha512-pxY6MDvCgfonn12JJU8GBnxpkTL2vxvXvb7J0dcCO7qMfIP1ZzFI21faLSmRWCkS93gsRYOLJZ3zeN2NUpY44w==}
     peerDependencies:
       eslint: '>=9.0.0'
       typescript-eslint: '>=8.0.0'
 
-  '@autional/shared@0.1.0-rc.68':
-    resolution: {integrity: sha512-ep9pOY/2tJfSYWkdvgXf1qzNDsOtrD0pJn13OT6IPbUkrsmkR1axPB63gsNNGDGtmH8mqdCCGdw/9FrlV7J2mA==}
+  '@autional/shared@0.1.0-rc.69':
+    resolution: {integrity: sha512-n9UHYGF66vtx3YTi/1WIus/hrfWpAbO0lI3iBgPTL0b6Ge8SsWbFbeN0sb/0UvIqOhq8bF63mppZUrVGzWBGPQ==}
     hasBin: true
     peerDependencies:
       react: 19.2.5
@@ -214,8 +214,8 @@ packages:
   '@autional/tsconfig@0.1.0-rc':
     resolution: {integrity: sha512-I/sxYpmIRekrDgRKAjdJhSq4LGcQbKgUwIGwepGj/rn8EDcTFHQu4ZDHbaS6aHyVLj1kEG8TYQnXtF8MMQ0+EA==}
 
-  '@autional/ui@0.1.0-rc.58':
-    resolution: {integrity: sha512-TEkvKkaLzHp0SjETrkjEQ2cgLLyAJWGgUhnaL75kav0wiB5+8JVlW/WZ/zZWCCsGl0BRJc09u6lIxKiLI4zhvg==}
+  '@autional/ui@0.1.0-rc.59':
+    resolution: {integrity: sha512-DcribQEQMrDJVL9ipTVRN4dJorzq9RgrVjZvoTgpdexXGVP1YAQK5OxLvHN5bxZgKsgFph/bUFPHC2kbcvIB1Q==}
     peerDependencies:
       '@autional/tokens': '>=0.1.0-rc'
       antd: '>=6.0.0'
@@ -3398,16 +3398,17 @@ snapshots:
 
   '@asamuzakjp/nwsapi@2.3.9': {}
 
-  '@autional/eslint-config@0.1.0-rc.1(eslint@10.12.0(jiti@1.21.7))(typescript-eslint@8.71.0(eslint@10.12.0(jiti@1.21.7))(typescript@5.8.3))':
+  '@autional/eslint-config@0.2.0-rc.1(eslint@10.12.0(jiti@1.21.7))(typescript-eslint@8.71.0(eslint@10.12.0(jiti@1.21.7))(typescript@5.8.3))':
     dependencies:
       '@eslint/js': 10.0.1(eslint@10.12.0(jiti@1.21.7))
       eslint: 10.12.0(jiti@1.21.7)
+      eslint-plugin-jsx-a11y: 6.10.2(eslint@10.12.0(jiti@1.21.7))
       eslint-plugin-react-hooks: 7.0.1(eslint@10.12.0(jiti@1.21.7))
       typescript-eslint: 8.71.0(eslint@10.12.0(jiti@1.21.7))(typescript@5.8.3)
     transitivePeerDependencies:
       - supports-color
 
-  '@autional/shared@0.1.0-rc.68(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))':
+  '@autional/shared@0.1.0-rc.69(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(use-sync-external-store@1.7.0(react@19.2.5))':
     dependencies:
       '@opentelemetry/api': 1.9.1
       '@tanstack/react-query': 5.100.9(react@19.2.5)
@@ -3436,7 +3437,7 @@ snapshots:
 
   '@autional/tsconfig@0.1.0-rc': {}
 
-  '@autional/ui@0.1.0-rc.58(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)':
+  '@autional/ui@0.1.0-rc.59(@autional/tokens@0.1.0-rc.18)(i18next@26.0.10(typescript@5.8.3))(lucide-react@0.509.0(react@19.2.5))(react-dom@19.2.5(react@19.2.5))(react-i18next@17.0.7(i18next@26.0.10(typescript@5.8.3))(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.8.3))(react-router@7.15.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(react@19.2.5)':
     dependencies:
       '@autional/tokens': 0.1.0-rc.18
       i18next: 26.0.10(typescript@5.8.3)

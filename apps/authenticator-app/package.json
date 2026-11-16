@@ -18,10 +18,10 @@
     "clean": "rimraf dist"
   },
   "dependencies": {
-    "@autional/shared": "0.1.0-rc.68",
+    "@autional/shared": "0.1.0-rc.69",
     "@autional/tailwind-preset": "0.1.0-rc.10",
     "@autional/tokens": "0.1.0-rc.18",
-    "@autional/ui": "0.1.0-rc.58",
+    "@autional/ui": "0.1.0-rc.59",
     "@tanstack/react-query": "5.100.9",
     "html5-qrcode": "2.3.8",
     "i18next": "26.0.10",
@@ -35,7 +35,7 @@
     "zustand": "5.0.13"
   },
   "devDependencies": {
-    "@autional/eslint-config": "0.1.0-rc.1",
+    "@autional/eslint-config": "0.2.0-rc.1",
     "@autional/tsconfig": "0.1.0-rc",
     "@testing-library/jest-dom": "6.9.1",
     "@types/react": "19.2.14",
