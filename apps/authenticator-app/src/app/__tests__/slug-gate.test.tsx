@@ -92,11 +92,26 @@ describe('TenantSlugGate (AU-30)', () => {
 		expect(screen.queryByTestId('children')).toBeNull();
 	});
 
-	it('T3 名单为空（API 故障）→ fail-open 放行 children', () => {
+	/**
+	 * T3 口径反转（BLK-29，2026-11-16）：原断言是「名单为空 → fail-open 放行」。
+	 * 实测后果是 QA 报的「未知 slug 落到真实页/空壳」（`/nope-shoes/settings` 能渲染设置页），
+	 * 因为「名单为空」与「slug 未知」在客户端无法区分。现改为**名单为权威**：
+	 * 拿不到名单就不再假装它存在 ⇒ 404。
+	 * 取舍：名单 API 故障期，旧链接形态 `/:slug/...` 会 404（页内有「返回首页」裸根漏斗）；
+	 *       根路径（`/settings` …）没有 slug 段，不进此门，故障期照常渲染。
+	 */
+	it('T3 名单为空（API 故障）→ 不再 fail-open，按未知 slug 出 404', () => {
 		mockPublicTenants.value = { data: [], isLoading: false };
 		renderGate('/xxx-not-exist');
-		expect(screen.getByTestId('children')).toBeInTheDocument();
-		expect(screen.queryByTestId('not-found')).toBeNull();
+		expect(screen.getByTestId('not-found')).toBeInTheDocument();
+		expect(screen.queryByTestId('children')).toBeNull();
+	});
+
+	it('T3b 名单拿不到（undefined 且非加载中）→ 同样 404，不渲染真实页', () => {
+		mockPublicTenants.value = { data: undefined, isLoading: false };
+		renderGate('/xxx-not-exist');
+		expect(screen.getByTestId('not-found')).toBeInTheDocument();
+		expect(screen.queryByTestId('children')).toBeNull();
 	});
 
 	it('T4 加载期 → 骨架占位，真实页不泄出', () => {
