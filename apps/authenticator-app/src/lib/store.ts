@@ -139,7 +139,7 @@ useAuthenticatorStore.subscribe((state, prevState) => {
 			import('./storage').then(({ saveAccounts, getDeviceKey }) => {
 				// 已锁定（内存设备钥已清）时静默跳过：本次改动会在下次解锁后的状态里重新落盘
 				if (!getDeviceKey()) return;
-				saveAccounts(state.accounts).catch((err) => {
+				Promise.resolve(saveAccounts(state.accounts)).catch((err) => {
 					console.error('Failed to save accounts:', err);
 				});
 			});
